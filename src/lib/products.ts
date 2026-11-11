@@ -2,6 +2,7 @@ import { isValidObjectId, type Types } from "mongoose";
 
 import { connectMongoose } from "@/lib/db";
 import { ProductModel } from "@/lib/models/Product";
+import type { ProductImage } from "@/lib/product-images";
 import type { ProductInput } from "@/lib/validation/product";
 
 type ProductDoc = ProductInput & { _id: Types.ObjectId };
@@ -14,13 +15,18 @@ export const EMPTY_PRODUCT: ProductInput = {
   shortDescription: "",
   sortOrder: 0,
   active: false,
+  images: [],
   hook: { headline: "", subheadline: "" },
   problem: { title: "", points: [] },
   story: { title: "", body: "" },
-  solution: { title: "", benefits: [] },
-  proof: { title: "", reviews: [] },
+  solution: { title: "", benefits: [], images: [] },
+  proof: { title: "", images: [], reviews: [] },
   cta: { title: "", text: "" },
 };
+
+function toImages(images: ProductImage[] | undefined): ProductImage[] {
+  return (images ?? []).map(({ publicId, width, height }) => ({ publicId, width, height }));
+}
 
 function toProductInput(doc: ProductDoc): ProductInput {
   return {
@@ -31,12 +37,18 @@ function toProductInput(doc: ProductDoc): ProductInput {
     shortDescription: doc.shortDescription ?? "",
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
+    images: toImages(doc.images),
     hook: { headline: doc.hook?.headline ?? "", subheadline: doc.hook?.subheadline ?? "" },
     problem: { title: doc.problem?.title ?? "", points: doc.problem?.points ?? [] },
     story: { title: doc.story?.title ?? "", body: doc.story?.body ?? "" },
-    solution: { title: doc.solution?.title ?? "", benefits: doc.solution?.benefits ?? [] },
+    solution: {
+      title: doc.solution?.title ?? "",
+      benefits: doc.solution?.benefits ?? [],
+      images: toImages(doc.solution?.images),
+    },
     proof: {
       title: doc.proof?.title ?? "",
+      images: toImages(doc.proof?.images),
       reviews: (doc.proof?.reviews ?? []).map(({ name, text }) => ({ name: name ?? "", text: text ?? "" })),
     },
     cta: { title: doc.cta?.title ?? "", text: doc.cta?.text ?? "" },
@@ -51,11 +63,20 @@ export interface ProductListItem {
   oldPrice: number | null;
   sortOrder: number;
   active: boolean;
+  mainImage: ProductImage | null;
 }
 
 export async function listProductsForAdmin(): Promise<ProductListItem[]> {
   await connectMongoose();
-  const docs = await ProductModel.find({}, { name: 1, slug: 1, price: 1, oldPrice: 1, sortOrder: 1, active: 1 })
+  const docs = await ProductModel.find({}, {
+    name: 1,
+    slug: 1,
+    price: 1,
+    oldPrice: 1,
+    sortOrder: 1,
+    active: 1,
+    images: { $slice: 1 },
+  })
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean<ProductDoc[]>();
 
@@ -67,6 +88,7 @@ export async function listProductsForAdmin(): Promise<ProductListItem[]> {
     oldPrice: doc.oldPrice ?? null,
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
+    mainImage: toImages(doc.images)[0] ?? null,
   }));
 }
 

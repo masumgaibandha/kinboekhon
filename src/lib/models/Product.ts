@@ -1,9 +1,14 @@
-import { Schema, type Model } from "mongoose";
+import { Schema } from "mongoose";
 
 import { appDb } from "@/lib/db";
 import type { ProductInput } from "@/lib/validation/product";
 
 const reviewSchema = new Schema({ name: String, text: String }, { _id: false });
+
+const imageSchema = new Schema(
+  { publicId: { type: String, required: true }, width: Number, height: Number },
+  { _id: false },
+);
 
 const productSchema = new Schema<ProductInput>(
   {
@@ -12,11 +17,12 @@ const productSchema = new Schema<ProductInput>(
     price: { type: Number, required: true, min: 0 },
     oldPrice: { type: Number, default: null },
     shortDescription: String,
+    images: [imageSchema],
     hook: { headline: String, subheadline: String },
     problem: { title: String, points: [String] },
     story: { title: String, body: String },
-    solution: { title: String, benefits: [String] },
-    proof: { title: String, reviews: [reviewSchema] },
+    solution: { title: String, benefits: [String], images: [imageSchema] },
+    proof: { title: String, images: [imageSchema], reviews: [reviewSchema] },
     cta: { title: String, text: String },
     active: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
@@ -26,6 +32,7 @@ const productSchema = new Schema<ProductInput>(
 
 productSchema.index({ active: 1, sortOrder: 1 });
 
-export const ProductModel =
-  (appDb.models.Product as Model<ProductInput> | undefined) ??
-  appDb.model<ProductInput>("Product", productSchema);
+// Replace a model left from an earlier hot reload, so schema changes apply in development.
+if (appDb.models.Product) appDb.deleteModel("Product");
+
+export const ProductModel = appDb.model<ProductInput>("Product", productSchema);

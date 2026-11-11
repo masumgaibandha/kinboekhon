@@ -27,7 +27,7 @@ Approved for version 1. Anything else needs approval first.
 Better Auth's MongoDB adapter talks to the native MongoDB driver. We reuse the driver that already ships inside `mongoose` (`mongoose.connection.getClient()`), so no extra package. If Better Auth requires `mongodb` as a direct dependency, ask before adding it.
 
 Done without extra packages:
-- Cloudinary upload: signed direct upload from the browser, signature made with Node `crypto`.
+- Cloudinary upload: signed direct upload from the browser, signature made with Node `crypto`. Display through `next/image` with a Cloudinary loader, so Vercel image optimization is not used.
 - Turnstile: Cloudflare script tag plus one server `fetch` to verify.
 - Meta Pixel: official inline snippet. CAPI: plain `fetch` to the Graph API.
 - CSV export: small string builder.
@@ -92,9 +92,10 @@ kinboekhon/
    │  │                          landing/HookSection ... CtaSection, order/OrderForm,
    │  │                          order/PaymentPicker, order/OrderSummary, StickyOrderBar
    │  ├─ admin/                  AdminNav, StatCard, OrdersTable, OrderFilters,
-   │  │                          StatusSelect, ProductForm, ImageUploader, PaymentReviewCard
+   │  │                          StatusSelect, ProductForm, PaymentReviewCard,
+   │  │                          products/ImageUploader, ImageThumb, upload-image.ts
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
-   │  └─ ui/                     Button, Input, Textarea, Select, Badge
+   │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage
    └─ lib/
       ├─ db.ts                   cached Mongoose connection
       ├─ env.ts                  reads and checks env vars with Zod
@@ -109,7 +110,8 @@ kinboekhon/
       ├─ turnstile.ts            server verify
       ├─ rate-limit.ts
       ├─ request.ts              client IP, user agent, cookie read
-      ├─ cloudinary.ts           signature + image URL builder
+      ├─ product-images.ts       image type, formats, size and count limits (browser and server)
+      ├─ cloudinary/             sign.ts (upload signature, server only), folder.ts, image-url.ts (URL + next/image loader)
       ├─ auth.ts                 Better Auth server config (MongoDB adapter, email + password, sign-up off)
       ├─ admin-session.ts        requireAdmin() for pages, actions and admin API routes
       └─ meta/
@@ -128,19 +130,28 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | slug | string, unique | used in `/p/[slug]`, typed by the admin: lowercase English letters, numbers and single hyphens |
 | price | number | selling price |
 | oldPrice | number or null | optional; if set, must be higher than price; shown struck through; discount % computed |
-| images | `{ url, publicId, width, height }[]` | first image is the main one |
+| images | `{ publicId, width, height }[]` | gallery, first image is the main one, up to 8 |
 | shortDescription | string | one or two lines under the headline |
 | hook | `{ headline, subheadline }` | first screen |
 | problem | `{ title, points: string[] }` | pain points |
 | story | `{ title, body }` | short story |
-| solution | `{ title, benefits: string[], images: Image[] }` | how the product solves it |
-| proof | `{ title, images: Image[], reviews: { name, text }[] }` | customer screenshots, reviews |
+| solution | `{ title, benefits: string[], images: Image[] }` | how the product solves it, up to 6 images |
+| proof | `{ title, images: Image[], reviews: { name, text }[] }` | customer screenshots (up to 10), reviews |
 | cta | `{ title, text }` | final push above the form |
 | active | boolean | only active products are shown or orderable; new products start inactive |
 | sortOrder | number | home page order |
 
 Index: `slug` unique, `{ active, sortOrder }`.
 Any landing section left empty is simply not rendered.
+
+#### Product images
+- Only `{ publicId, width, height }` is stored. URLs are never taken from the browser: `cloudinaryImageUrl()` builds them from the `publicId` as `res.cloudinary.com/<cloud>/image/upload/f_auto,q_auto,c_limit,w_<n>/<publicId>`.
+- `f_auto` serves AVIF or WebP to browsers that support them, so HEIC uploads display everywhere.
+- Upload: the admin uploader gets a signature from `POST /api/admin/upload-signature`, then posts the file straight to Cloudinary. Signed params: `allowed_formats=jpg,jpeg,png,webp,heic`, `folder=<CLOUDINARY_UPLOAD_FOLDER>/products`, `transformation=c_limit,h_2000,w_2000` (stored originals at most 2000 px), `timestamp` (Cloudinary rejects it after 1 hour).
+- Limits: 10 MB per file (checked in the browser, Cloudinary free plan also caps images at 10 MB); 8 gallery, 6 solution, 10 proof images (checked in the browser and by Zod).
+- On save, Zod checks every `publicId` is inside the product folder.
+- Reorder with earlier and later buttons, remove with a button. A removed image stays on Cloudinary (old orders keep its picture).
+- Mongoose models replace any model left from an earlier hot reload, so schema changes apply in development without a restart.
 
 ### Order
 | Field | Type | Notes |
@@ -259,7 +270,7 @@ Order form fields:
 | `/admin/orders/[id]` | Full order, status change with optional note, status history, admin note, call button (`tel:`) |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders newest first, with call button and delete |
-| `/admin/products` | List with active toggle, edit link, view link |
+| `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
 | `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, old price, images (upload, reorder, remove), landing sections, active |
 | `/admin/settings` | Delivery charges, advance payment discounts, payment accounts, support phone, duplicate window |
 
@@ -370,7 +381,7 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 ### Protecting the admin
 Three layers, every one required:
 1. `proxy.ts`: for `/admin/*` (except `/admin/login`) with no session cookie, redirect to `/admin/login`. For `/api/admin/*` with no session cookie, return 401. This is only a fast first check of the cookie, not proof.
-2. `requireAdmin()` in `src/lib/admin-session.ts`: validates the session with Better Auth on the server. Called by the `(panel)` layout, by every admin page that reads data, by every admin Route Handler and as the first line of every admin Server Action. Pages redirect to login; Route Handlers and actions return 401 or "Not authorized" and do nothing else.
+2. `requireAdmin()` in `src/lib/admin-session.ts`: validates the session with Better Auth on the server. Called by the `(panel)` layout, by every admin page that reads data and as the first line of every admin Server Action. Admin Route Handlers call `requireAdminApi()` from the same file, which runs the same check and returns a 401 response instead of redirecting. Pages redirect to login; Route Handlers and actions return 401 or "Not authorized" and do nothing else.
 3. Sign-up disabled, so a valid session can only belong to the seeded admin.
 
 With Cache Components on, session checks read request headers, so admin pages render dynamically inside `<Suspense>`. Follow `node_modules/next/dist/docs/01-app/02-guides/authentication-with-cache-components.md`.
@@ -448,3 +459,9 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 15. Old price is optional; if given, it must be higher than the price. Prices are whole taka.
 16. Product form lists: problem points and benefits are one per line; reviews are add/remove rows (name and text).
 17. The "View" link from the admin product list to `/p/[slug]` is added in M6.
+18. Hosting region: MongoDB Atlas stays in AWS us-east-1 (Virginia) and the Vercel function region stays `iad1`, so server-to-database trips are about 1 ms. Shop speed for Bangladeshi visitors comes from cached pages, not from moving regions.
+19. No Better Auth session cookie cache for now. Admin pages accept the extra database trips.
+20. Product images: three lists (gallery, solution, proof), at most 8, 6 and 10 images.
+21. Image files: jpg, jpeg, png, webp and heic, up to 10 MB each. Delivered as WebP or AVIF through `f_auto`.
+22. A removed image is kept on Cloudinary, never deleted.
+23. Each image stores only `{ publicId, width, height }`. URLs are built in code from the `publicId`.

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 
 import { createProduct, updateProduct } from "@/app/admin/(panel)/products/actions";
 import { Section, TextArea, TextField, Toggle } from "@/components/admin/form/fields";
+import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
 import type { ProductInput } from "@/lib/validation/product";
 
@@ -26,6 +27,10 @@ export function ProductForm({ productId, product }: ProductFormProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    if (formData.has(UPLOADING_FIELD)) {
+      toast.error("Wait for the image upload to finish.", { id: "product-error" });
+      return;
+    }
     startTransition(async () => {
       const result = productId ? await updateProduct(productId, formData) : await createProduct(formData);
       if (!result.ok) {
@@ -104,6 +109,17 @@ export function ProductForm({ productId, product }: ProductFormProps) {
         <div className="flex items-end pb-2">
           <Toggle name="active" label="Active (shown in the shop)" defaultChecked={product.active} />
         </div>
+      </Section>
+
+      <Section title="Images">
+        <ImageUploader
+          name="images"
+          label="Gallery"
+          hint="The first image is the main one. JPG, PNG, WebP or HEIC, up to 10 MB each."
+          images={product.images}
+          errors={errors}
+          markMain
+        />
       </Section>
 
       <LandingFields product={product} errors={errors} />

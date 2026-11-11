@@ -1,4 +1,4 @@
-import { Schema, type Model } from "mongoose";
+import { Schema } from "mongoose";
 
 import { ACCOUNT_TYPES } from "@/lib/account-types";
 import { appDb } from "@/lib/db";
@@ -45,6 +45,7 @@ const settingsSchema = new Schema<SettingsDocument>(
   { timestamps: true },
 );
 
-export const SettingsModel =
-  (appDb.models.Settings as Model<SettingsDocument> | undefined) ??
-  appDb.model<SettingsDocument>("Settings", settingsSchema);
+// Replace a model left from an earlier hot reload, so schema changes apply in development.
+if (appDb.models.Settings) appDb.deleteModel("Settings");
+
+export const SettingsModel = appDb.model<SettingsDocument>("Settings", settingsSchema);

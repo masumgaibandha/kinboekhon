@@ -13,3 +13,9 @@ export async function requireAdmin() {
   if (!session) redirect("/admin/login");
   return session;
 }
+
+// For admin Route Handlers: returns a 401 response to send back, or null when the admin is signed in.
+export async function requireAdminApi(): Promise<Response | null> {
+  const session = await getAdminSession();
+  return session ? null : Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
+}

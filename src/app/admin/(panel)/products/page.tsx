@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ActiveToggle } from "@/components/admin/products/ActiveToggle";
+import { ProductListThumb } from "@/components/admin/products/ProductListThumb";
 import { requireAdmin } from "@/lib/admin-session";
 import { listProductsForAdmin } from "@/lib/products";
 
@@ -29,6 +30,9 @@ export default async function ProductsPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line text-muted">
               <tr>
+                <th className="w-16 px-4 py-3">
+                  <span className="sr-only">Image</span>
+                </th>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
                 <th className="px-4 py-3 font-medium">Price</th>
@@ -41,7 +45,14 @@ export default async function ProductsPage() {
             <tbody>
               {products.map((product) => (
                 <tr key={product.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 font-medium text-heading">{product.name}</td>
+                  <td className="px-4 py-2">
+                    <ProductListThumb image={product.mainImage} />
+                  </td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/admin/products/${product.id}`} className="text-heading hover:text-brand hover:underline">
+                      {product.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-desc">{product.slug}</td>
                   <td className="px-4 py-3">Tk {product.price}</td>
                   <td className="px-4 py-3 text-muted">{product.oldPrice ? `Tk ${product.oldPrice}` : "-"}</td>

@@ -1,4 +1,5 @@
 import { Section, TextArea, TextField } from "@/components/admin/form/fields";
+import { ImageUploader } from "@/components/admin/products/ImageUploader";
 import { ReviewRows } from "@/components/admin/products/ReviewRows";
 import type { ProductInput } from "@/lib/validation/product";
 
@@ -8,6 +9,7 @@ interface LandingFieldsProps {
 }
 
 const ONE_PER_LINE = "One per line, up to 10.";
+const IMAGE_HINT = "JPG, PNG, WebP or HEIC, up to 10 MB each.";
 
 export function LandingFields({ product, errors }: LandingFieldsProps) {
   const { hook, problem, story, solution, proof, cta } = product;
@@ -32,10 +34,12 @@ export function LandingFields({ product, errors }: LandingFieldsProps) {
       <Section title="Solution">
         <TextField name="solution.title" label="Title" defaultValue={solution.title} error={errors["solution.title"]} />
         <TextArea name="solution.benefits" label="Benefits" defaultValue={solution.benefits.join("\n")} error={errors["solution.benefits"]} hint={ONE_PER_LINE} rows={4} />
+        <ImageUploader name="solution.images" label="Solution images" hint={IMAGE_HINT} images={solution.images} errors={errors} />
       </Section>
 
       <Section title="Proof">
         <TextField name="proof.title" label="Title" defaultValue={proof.title} error={errors["proof.title"]} />
+        <ImageUploader name="proof.images" label="Proof images" hint={`Customer screenshots. ${IMAGE_HINT}`} images={proof.images} errors={errors} />
         <ReviewRows reviews={proof.reviews} errors={errors} />
       </Section>
 
