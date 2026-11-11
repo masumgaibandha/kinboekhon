@@ -1,4 +1,4 @@
-import { SelectField, TextField, Toggle } from "@/components/admin/settings/fields";
+import { SelectField, TextField, Toggle } from "@/components/admin/form/fields";
 import { ACCOUNT_TYPES } from "@/lib/account-types";
 import type { WalletSettings } from "@/lib/validation/settings";
 

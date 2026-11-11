@@ -27,9 +27,19 @@ interface TextFieldProps {
   hint?: string;
   numeric?: boolean;
   placeholder?: string;
+  onChange?: (value: string) => void;
 }
 
-export function TextField({ name, label, defaultValue, error, hint, numeric, placeholder }: TextFieldProps) {
+export function TextField({
+  name,
+  label,
+  defaultValue,
+  error,
+  hint,
+  numeric,
+  placeholder,
+  onChange,
+}: TextFieldProps) {
   const id = name.replace(".", "-");
   const note = error ?? hint;
 
@@ -44,6 +54,43 @@ export function TextField({ name, label, defaultValue, error, hint, numeric, pla
         defaultValue={defaultValue}
         inputMode={numeric ? "numeric" : undefined}
         placeholder={placeholder}
+        onChange={onChange ? (event) => onChange(event.target.value) : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={note ? `${id}-note` : undefined}
+        className={`${inputClass} ${error ? "border-brand-dark" : "border-line-strong"}`}
+      />
+      {note && (
+        <p id={`${id}-note`} className={`mt-1 text-sm ${error ? "text-brand-dark" : "text-muted"}`}>
+          {note}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface TextAreaProps {
+  name: string;
+  label: string;
+  defaultValue: string;
+  error?: string;
+  hint?: string;
+  rows?: number;
+}
+
+export function TextArea({ name, label, defaultValue, error, hint, rows = 3 }: TextAreaProps) {
+  const id = name.replace(".", "-");
+  const note = error ?? hint;
+
+  return (
+    <div className="sm:col-span-2">
+      <label htmlFor={id} className="block text-sm font-medium text-body">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        name={name}
+        rows={rows}
+        defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
         aria-describedby={note ? `${id}-note` : undefined}
         className={`${inputClass} ${error ? "border-brand-dark" : "border-line-strong"}`}

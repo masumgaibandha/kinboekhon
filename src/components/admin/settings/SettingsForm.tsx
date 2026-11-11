@@ -4,7 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import toast from "react-hot-toast";
 
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
-import { Section, TextField, Toggle } from "@/components/admin/settings/fields";
+import { Section, TextField, Toggle } from "@/components/admin/form/fields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import type { Settings } from "@/lib/validation/settings";
 
@@ -26,6 +26,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       const result = await saveSettings(formData);
       if (result.ok) {
         setErrors({});
+        toast.dismiss("settings-error");
         toast.success("Settings saved.");
       } else {
         setErrors(result.fieldErrors);

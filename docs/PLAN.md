@@ -125,9 +125,9 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | Field | Type | Notes |
 |---|---|---|
 | name | string | Bangla name |
-| slug | string, unique | used in `/p/[slug]`, English letters and hyphens |
+| slug | string, unique | used in `/p/[slug]`, typed by the admin: lowercase English letters, numbers and single hyphens |
 | price | number | selling price |
-| oldPrice | number, optional | shown struck through; discount % computed |
+| oldPrice | number or null | optional; if set, must be higher than price; shown struck through; discount % computed |
 | images | `{ url, publicId, width, height }[]` | first image is the main one |
 | shortDescription | string | one or two lines under the headline |
 | hook | `{ headline, subheadline }` | first screen |
@@ -136,7 +136,7 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | solution | `{ title, benefits: string[], images: Image[] }` | how the product solves it |
 | proof | `{ title, images: Image[], reviews: { name, text }[] }` | customer screenshots, reviews |
 | cta | `{ title, text }` | final push above the form |
-| active | boolean | only active products are shown or orderable |
+| active | boolean | only active products are shown or orderable; new products start inactive |
 | sortOrder | number | home page order |
 
 Index: `slug` unique, `{ active, sortOrder }`.
@@ -287,7 +287,7 @@ Login: the `/admin/login` form posts to `/api/auth/sign-in/email`. It must go th
 Server Actions (each calls `requireAdmin()` first):
 - orders: `updateOrderStatus`, `saveAdminNote`
 - payments: `approvePayment`, `rejectPayment`
-- products: `createProduct`, `updateProduct`, `setProductActive`, `deleteProduct`
+- products: `createProduct`, `updateProduct`, `setProductActive` (no delete in v1, deactivate instead)
 - incomplete: `deleteIncompleteOrder`
 - settings: `saveSettings`
 
@@ -443,3 +443,8 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 10. Admin login email: set in `ADMIN_EMAIL` in `.env.local` (kept out of the repo).
 11. Default delivery charges: inside Dhaka ৳80, outside Dhaka ৳150. Both editable in Settings.
 12. Admin login uses Better Auth (not Auth.js): email and password, MongoDB adapter, public sign-up disabled, one admin created by a seed script from `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+13. Products are never deleted, only deactivated.
+14. Product slug is typed by hand (lowercase English letters, numbers, hyphens, unique). The edit page warns when the slug is changed, because it breaks old links and ads.
+15. Old price is optional; if given, it must be higher than the price. Prices are whole taka.
+16. Product form lists: problem points and benefits are one per line; reviews are add/remove rows (name and text).
+17. The "View" link from the admin product list to `/p/[slug]` is added in M6.
