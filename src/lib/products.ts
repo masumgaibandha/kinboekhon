@@ -2,7 +2,7 @@ import { isValidObjectId, type Types } from "mongoose";
 
 import { connectMongoose } from "@/lib/db";
 import { ProductModel } from "@/lib/models/Product";
-import type { ProductImage } from "@/lib/product-images";
+import { pickImages, type ProductImage } from "@/lib/product-images";
 import type { ProductInput } from "@/lib/validation/product";
 
 type ProductDoc = ProductInput & { _id: Types.ObjectId };
@@ -24,10 +24,6 @@ export const EMPTY_PRODUCT: ProductInput = {
   cta: { title: "", text: "" },
 };
 
-function toImages(images: ProductImage[] | undefined): ProductImage[] {
-  return (images ?? []).map(({ publicId, width, height }) => ({ publicId, width, height }));
-}
-
 function toProductInput(doc: ProductDoc): ProductInput {
   return {
     name: doc.name,
@@ -37,18 +33,18 @@ function toProductInput(doc: ProductDoc): ProductInput {
     shortDescription: doc.shortDescription ?? "",
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
-    images: toImages(doc.images),
+    images: pickImages(doc.images),
     hook: { headline: doc.hook?.headline ?? "", subheadline: doc.hook?.subheadline ?? "" },
     problem: { title: doc.problem?.title ?? "", points: doc.problem?.points ?? [] },
     story: { title: doc.story?.title ?? "", body: doc.story?.body ?? "" },
     solution: {
       title: doc.solution?.title ?? "",
       benefits: doc.solution?.benefits ?? [],
-      images: toImages(doc.solution?.images),
+      images: pickImages(doc.solution?.images),
     },
     proof: {
       title: doc.proof?.title ?? "",
-      images: toImages(doc.proof?.images),
+      images: pickImages(doc.proof?.images),
       reviews: (doc.proof?.reviews ?? []).map(({ name, text }) => ({ name: name ?? "", text: text ?? "" })),
     },
     cta: { title: doc.cta?.title ?? "", text: doc.cta?.text ?? "" },
@@ -88,7 +84,7 @@ export async function listProductsForAdmin(): Promise<ProductListItem[]> {
     oldPrice: doc.oldPrice ?? null,
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
-    mainImage: toImages(doc.images)[0] ?? null,
+    mainImage: pickImages(doc.images)[0] ?? null,
   }));
 }
 

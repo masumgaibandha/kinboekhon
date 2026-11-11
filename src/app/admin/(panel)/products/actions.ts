@@ -1,8 +1,10 @@
 "use server";
 
 import { isValidObjectId } from "mongoose";
+import { updateTag } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin-session";
+import { PRODUCTS_TAG } from "@/lib/catalog";
 import { connectMongoose } from "@/lib/db";
 import { ProductModel } from "@/lib/models/Product";
 import { productSchema, type ProductInput } from "@/lib/validation/product";
@@ -71,6 +73,7 @@ async function saveProduct(
     }
     return { ok: false, message: "Could not save the product. Try again.", fieldErrors: {} };
   }
+  updateTag(PRODUCTS_TAG);
   return { ok: true };
 }
 
@@ -102,5 +105,6 @@ export async function setProductActive(id: string, active: boolean): Promise<Pro
   } catch {
     return { ok: false, message: "Could not update the product. Try again.", fieldErrors: {} };
   }
+  updateTag(PRODUCTS_TAG);
   return { ok: true };
 }

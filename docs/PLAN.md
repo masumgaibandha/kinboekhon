@@ -43,7 +43,7 @@ kinboekhon/
 ├─ .gitignore
 ├─ next.config.ts
 ├─ public/
-│  └─ brand/                     logo-horizontal.svg (header), icon-circle.svg (footer), copied from logos/
+│  └─ brand/                     logo-horizontal-white.svg (shop header), logo-horizontal.svg (admin), icon-circle.svg (footer), copied from logos/
 ├─ scripts/
 │  └─ seed-admin.ts              creates or updates the one admin from ADMIN_EMAIL and ADMIN_PASSWORD
 └─ src/
@@ -105,7 +105,8 @@ kinboekhon/
       ├─ orders/                 pricing.ts, create-order.ts, order-number.ts, duplicate-check.ts,
       │                          stats.ts, csv.ts
       ├─ phone.ts                normalize + validate BD mobile numbers
-      ├─ money.ts                Taka formatting, Bangla digits
+      ├─ money.ts                Taka formatting (lakh grouping), Bangla digits, discount percent
+      ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
       ├─ dates.ts                Asia/Dhaka day/week/month ranges
       ├─ turnstile.ts            server verify
       ├─ rate-limit.ts
@@ -245,6 +246,20 @@ Landing page `/p/[slug]`, top to bottom:
 8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen.
 
 Pages are statically generated. Their data comes from `"use cache"` functions with cache tags, and admin saves call `updateTag`, so pages stay fast and still show changes right away.
+
+#### Shop caching
+- `getActiveProducts()` in `src/lib/catalog.ts`: `"use cache"`, `cacheTag("products")`, `cacheLife("max")`. Loads card fields only (name, slug, price, old price, first image) of active products, sorted by `sortOrder` then newest.
+- `/` reads only cached data and no request data, so `next build` prerenders it as a static page (CDN on Vercel). Visits do not touch the database.
+- `createProduct`, `updateProduct` and `setProductActive` call `updateTag("products")` after a successful write. The next visit renders fresh (one database read), later visits are cached again.
+- The build reads Atlas, so the Vercel build needs `MONGODB_URI` and Atlas network access.
+- M6 adds `product-<slug>` tags for landing pages.
+
+#### Home page
+- Slim one-line heading (আমাদের পণ্য), no banner. Bangla message when no product is active.
+- Grid: 2 columns on mobile, 3 from 640px, 4 from 1024px.
+- Each card is one link to `/p/[slug]`. "অর্ডার করুন" is a button-styled `span` inside the link, never a real `button`.
+- The first 2 card images load with `loading="eager"` and `fetchPriority="high"`; the rest are lazy.
+- Discount badge: `৩৪% ছাড়`, percent rounded down.
 
 Order form fields:
 - নাম (required)
@@ -448,7 +463,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 4. Landing URL: `/p/product-slug`.
 5. Maximum quantity per order: 5.
 6. Order number format: `KE10001` (first order is KE10001).
-7. Logo: SVG files in `logos/`. Header uses the horizontal logo, favicon uses `kinboekhon-icon.svg`.
+7. Logo: SVG files in `logos/`. Favicon uses `kinboekhon-icon.svg`. Shop header logo: see decision 24.
 8. Policy pages: drafted in Bangla for owner review. Return window: 3 days, only for damaged, wrong or defective products.
 9. No cookie consent banner.
 10. Admin login email: set in `ADMIN_EMAIL` in `.env.local` (kept out of the repo).
@@ -465,3 +480,8 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 21. Image files: jpg, jpeg, png, webp and heic, up to 10 MB each. Delivered as WebP or AVIF through `f_auto`.
 22. A removed image is kept on Cloudinary, never deleted.
 23. Each image stores only `{ publicId, width, height }`. URLs are built in code from the `publicId`.
+24. Shop header is orange (`brand`, #F85606) with the white horizontal logo. `public/brand/logo-horizontal-white.svg` is made from `logos/kinboekhon-logo-horizontal-white.svg` with the orange background removed and the viewBox cropped tightly to the artwork; the original in `logos/` is unchanged. It is shown 28px tall, so it matches the old header logo. Header text and icons are white. The notice strip and footer stay as they are and must read well under the orange header.
+25. Home page: slim one-line heading, no banner.
+26. Discount percent is rounded down.
+27. The whole product card is one link to `/p/[slug]`; the order "button" inside it is a styled `span`.
+28. Product grid: 2, 3 and 4 columns; the first 2 images load with high priority.

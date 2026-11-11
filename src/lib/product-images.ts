@@ -17,3 +17,8 @@ export const IMAGE_LIMITS = {
 } as const;
 
 export type ImageListName = keyof typeof IMAGE_LIMITS;
+
+// Copies only the stored image fields from a database document.
+export function pickImages(images: ProductImage[] | undefined): ProductImage[] {
+  return (images ?? []).map(({ publicId, width, height }) => ({ publicId, width, height }));
+}
