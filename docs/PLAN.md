@@ -22,6 +22,7 @@ Approved for version 1. Anything else needs approval first.
 | `better-auth` | Admin login: email and password, MongoDB adapter, password hashing, sessions, login rate limit |
 | `eslint`, `eslint-config-next` | Lint (comes with create-next-app) |
 | `tsx` (dev only) | Runs `scripts/seed-admin.ts` with the project's TypeScript paths |
+| `react-hot-toast` | Toast messages in the admin panel (one `AdminToaster` in `src/app/admin/layout.tsx`) |
 
 Better Auth's MongoDB adapter talks to the native MongoDB driver. We reuse the driver that already ships inside `mongoose` (`mongoose.connection.getClient()`), so no extra package. If Better Auth requires `mongodb` as a direct dependency, ask before adding it.
 
@@ -278,7 +279,7 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 | `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | `proxy.ts` + `requireAdmin()` |
 | `/api/admin/orders-export` | GET | CSV of filtered orders (UTF-8 with BOM so Excel shows Bangla) | `proxy.ts` + `requireAdmin()` |
 
-Login and logout are Server Actions on `/admin/login` and in the panel nav. They call Better Auth's server API, and its `nextCookies` plugin sets the session cookie.
+Login: the `/admin/login` form posts to `/api/auth/sign-in/email`. It must go through this route, because Better Auth only applies its rate limit to requests through its handler, not to direct server API calls. Logout is a Server Action in the panel nav; Better Auth's `nextCookies` plugin clears the cookie.
 
 Server Actions (each calls `requireAdmin()` first):
 - orders: `updateOrderStatus`, `saveAdminNote`
@@ -358,8 +359,10 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 - Public sign-up is disabled (`emailAndPassword.disableSignUp`). No sign-up page, no sign-up link.
 - Exactly one admin account. `scripts/seed-admin.ts` reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local` and creates the admin through Better Auth's own internal API (so the password hash matches). Run again: it updates the password of the same account. It never creates a second user.
 - Run with `npm run seed:admin`. `ADMIN_PASSWORD` is only needed on the machine that runs the seed, never on Vercel.
-- Session cookie: httpOnly, secure in production, `SameSite=Lax`, 7 day expiry.
-- Login rate limit: Better Auth's built-in limiter with database storage (works on Vercel serverless), on in all environments.
+- Admin password: at least 12 characters, checked by the seed script and by Better Auth.
+- Session cookie: httpOnly, secure in production, `SameSite=Lax`, 7 day expiry (Better Auth defaults).
+- Login rate limit: Better Auth's built-in limiter with database storage (works on Vercel serverless), on in all environments, 5 sign-in attempts per minute per IP.
+- Database name is set in code (`kinboekhon` in `src/lib/db.ts`), so the connection string does not need one.
 
 ### Protecting the admin
 Three layers, every one required:

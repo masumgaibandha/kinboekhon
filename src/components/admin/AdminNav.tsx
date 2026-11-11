@@ -1,0 +1,27 @@
+import Image from "next/image";
+import Link from "next/link";
+
+import { logout } from "@/app/admin/(panel)/actions";
+
+export function AdminNav() {
+  return (
+    <header className="border-b border-line bg-card">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+        <Link href="/admin" className="flex items-center gap-2 font-bold text-heading">
+          <Image src="/brand/icon-circle.svg" alt="" width={28} height={28} className="h-7 w-7" />
+          Admin
+        </Link>
+        <nav className="flex flex-1 items-center gap-4 text-sm font-medium text-desc">
+          <Link href="/admin" className="hover:text-brand">
+            Dashboard
+          </Link>
+        </nav>
+        <form action={logout}>
+          <button type="submit" className="text-sm font-medium text-desc hover:text-brand">
+            Log out
+          </button>
+        </form>
+      </div>
+    </header>
+  );
+}
