@@ -9,9 +9,13 @@ node_modules/
 out/
 next-env.d.ts
 
-# build
+# build and test output
 build/
+coverage/
 *.tsbuildinfo
+
+# private keys
+*.pem
 
 # env files (only .env.example is committed)
 .env

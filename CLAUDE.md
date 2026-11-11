@@ -7,7 +7,10 @@ The full version 1 plan is in `docs/PLAN.md`. Read it before starting any module
 
 ## Tech stack
 
-Next.js (App Router) + TypeScript, Tailwind CSS, MongoDB Atlas + Mongoose, Zod, Auth.js, Cloudflare Turnstile, Cloudinary, Meta Pixel + Conversions API. Hosted on Vercel.
+Next.js (App Router) + TypeScript, Tailwind CSS, MongoDB Atlas + Mongoose, Zod, Better Auth (admin login), Cloudflare Turnstile, Cloudinary, Meta Pixel + Conversions API. Hosted on Vercel.
+
+- This is Next.js 16 with Cache Components on. Its APIs differ from older versions. Before writing Next.js code, read the matching guide in `node_modules/next/dist/docs/`.
+- `agentRules: false` is set in `next.config.ts` so Next.js does not write an `AGENTS.md`. This file is the only agent rules file.
 
 ## Rules
 
@@ -69,4 +72,9 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 - Phone numbers are stored as 11 digits: `01XXXXXXXXX`.
 - Money is stored as whole Taka integers. No decimals.
 - Dates are stored in UTC and shown in Asia/Dhaka time.
-- Every admin page, Server Action and admin API route checks the session on the server, not only in `proxy.ts`.
+## Admin auth (Better Auth)
+
+- Email and password login only, MongoDB adapter. No Auth.js / next-auth.
+- Public sign-up stays disabled. Never add a sign-up page, link or endpoint.
+- There is exactly one admin. It is created or updated only by `npm run seed:admin`, which reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local`.
+- `proxy.ts` is only a fast first check. Every admin page, admin API route and admin Server Action must also call `requireAdmin()` on the server before doing anything else.

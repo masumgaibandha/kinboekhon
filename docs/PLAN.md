@@ -16,14 +16,16 @@ Approved for version 1. Anything else needs approval first.
 |---|---|
 | `next`, `react`, `react-dom` | App framework |
 | `typescript`, `@types/*` | Types |
-| `tailwindcss`, `@tailwindcss/postcss` | Styling (Tailwind v4, theme in CSS) |
+| `tailwindcss`, `@tailwindcss/turbopack` | Styling (Tailwind v4, theme in CSS, loaded by Turbopack as set up by create-next-app) |
 | `mongoose` | MongoDB models |
 | `zod` | Input validation |
-| `next-auth` (Auth.js v5) | Admin login |
+| `better-auth` | Admin login: email and password, MongoDB adapter, password hashing, sessions, login rate limit |
 | `eslint`, `eslint-config-next` | Lint (comes with create-next-app) |
+| `tsx` (dev only) | Runs `scripts/seed-admin.ts` with the project's TypeScript paths |
+
+Better Auth's MongoDB adapter talks to the native MongoDB driver. We reuse the driver that already ships inside `mongoose` (`mongoose.connection.getClient()`), so no extra package. If Better Auth requires `mongodb` as a direct dependency, ask before adding it.
 
 Done without extra packages:
-- Password hashing: Node `crypto.scrypt`.
 - Cloudinary upload: signed direct upload from the browser, signature made with Node `crypto`.
 - Turnstile: Cloudflare script tag plus one server `fetch` to verify.
 - Meta Pixel: official inline snippet. CAPI: plain `fetch` to the Graph API.
@@ -40,14 +42,14 @@ kinboekhon/
 ├─ .gitignore
 ├─ next.config.ts
 ├─ public/
-│  └─ brand/                     logo.png, logo-white.png, icon.png, og.png
+│  └─ brand/                     logo-horizontal.svg (header), icon-circle.svg (footer), copied from logos/
 ├─ scripts/
-│  └─ hash-password.ts           prints a scrypt hash for ADMIN_PASSWORD_HASH
+│  └─ seed-admin.ts              creates or updates the one admin from ADMIN_EMAIL and ADMIN_PASSWORD
 └─ src/
-   ├─ proxy.ts                   protects /admin/* (Next.js 16 name for middleware)
-   ├─ auth.ts                    Auth.js config, single admin, Credentials provider
+   ├─ proxy.ts                   first gate for /admin/* and /api/admin/* (Next.js 16 name for middleware)
    ├─ app/
    │  ├─ layout.tsx              html, font, base metadata
+   │  ├─ icon.svg                favicon (logos/kinboekhon-icon.svg)
    │  ├─ globals.css             Tailwind import + brand theme tokens
    │  ├─ not-found.tsx
    │  ├─ (shop)/                 customer site, Bangla
@@ -77,7 +79,7 @@ kinboekhon/
    │  │     ├─ settings/page.tsx
    │  │     └─ settings/actions.ts
    │  └─ api/
-   │     ├─ auth/[...nextauth]/route.ts
+   │     ├─ auth/[...all]/route.ts         Better Auth handler
    │     ├─ orders/route.ts               POST create order
    │     ├─ drafts/route.ts               POST save incomplete order
    │     ├─ track/route.ts                POST CAPI for ViewContent, InitiateCheckout
@@ -107,7 +109,8 @@ kinboekhon/
       ├─ rate-limit.ts
       ├─ request.ts              client IP, user agent, cookie read
       ├─ cloudinary.ts           signature + image URL builder
-      ├─ admin-session.ts        requireAdmin() for pages and actions
+      ├─ auth.ts                 Better Auth server config (MongoDB adapter, email + password, sign-up off)
+      ├─ admin-session.ts        requireAdmin() for pages, actions and admin API routes
       └─ meta/
          ├─ capi.ts              send one event to Conversions API
          └─ user-data.ts         hash + build user_data
@@ -201,7 +204,10 @@ TTL index: removed 30 days after `updatedAt`. Deleted as soon as the matching or
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
 
 ### RateLimit
-`{ key, count, expiresAt }`. TTL index on `expiresAt`. Key = scope + hashed IP.
+`{ key, count, expiresAt }`. TTL index on `expiresAt`. Key = scope + hashed IP. Used for orders, drafts and tracking.
+
+### Better Auth collections
+`user`, `session`, `account`, `verification` and `rateLimit` are created and managed by Better Auth through its MongoDB adapter, in the same database. No Mongoose models for them. Never edit them by hand; the seed script is the only way to create or change the admin.
 
 ## 5. Pages
 
@@ -268,9 +274,11 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 | `/api/orders` | POST | Create order | Same-origin check, Turnstile, rate limit, Zod, duplicate check |
 | `/api/drafts` | POST | Upsert incomplete order by `draftKey` | Same-origin check, rate limit, Zod, size limit |
 | `/api/track` | POST | Send ViewContent or InitiateCheckout to CAPI with the browser's event_id | Same-origin check, rate limit, allow-list of event names |
-| `/api/auth/[...nextauth]` | GET/POST | Auth.js | Login attempts rate limited |
-| `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | Admin session |
-| `/api/admin/orders-export` | GET | CSV of filtered orders (UTF-8 with BOM so Excel shows Bangla) | Admin session |
+| `/api/auth/[...all]` | GET/POST | Better Auth handler (sign in, sign out, session) | Sign-up disabled, login rate limited |
+| `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | `proxy.ts` + `requireAdmin()` |
+| `/api/admin/orders-export` | GET | CSV of filtered orders (UTF-8 with BOM so Excel shows Bangla) | `proxy.ts` + `requireAdmin()` |
+
+Login and logout are Server Actions on `/admin/login` and in the panel nav. They call Better Auth's server API, and its `nextCookies` plugin sets the session cookie.
 
 Server Actions (each calls `requireAdmin()` first):
 - orders: `updateOrderStatus`, `saveAdminNote`
@@ -345,8 +353,24 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 
 ## 9. Security
 
-- Admin login: one admin from env (`ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`), scrypt hash, JWT session cookie (httpOnly, secure), login rate limited.
-- `proxy.ts` redirects `/admin/*` to `/admin/login` without a session, and every admin page, action and API route checks again on the server.
+### Admin login (Better Auth)
+- Email and password only, stored by Better Auth in MongoDB through its MongoDB adapter. Better Auth hashes the password.
+- Public sign-up is disabled (`emailAndPassword.disableSignUp`). No sign-up page, no sign-up link.
+- Exactly one admin account. `scripts/seed-admin.ts` reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local` and creates the admin through Better Auth's own internal API (so the password hash matches). Run again: it updates the password of the same account. It never creates a second user.
+- Run with `npm run seed:admin`. `ADMIN_PASSWORD` is only needed on the machine that runs the seed, never on Vercel.
+- Session cookie: httpOnly, secure in production, `SameSite=Lax`, 7 day expiry.
+- Login rate limit: Better Auth's built-in limiter with database storage (works on Vercel serverless), on in all environments.
+
+### Protecting the admin
+Three layers, every one required:
+1. `proxy.ts`: for `/admin/*` (except `/admin/login`) with no session cookie, redirect to `/admin/login`. For `/api/admin/*` with no session cookie, return 401. This is only a fast first check of the cookie, not proof.
+2. `requireAdmin()` in `src/lib/admin-session.ts`: validates the session with Better Auth on the server. Called by the `(panel)` layout, by every admin page that reads data, by every admin Route Handler and as the first line of every admin Server Action. Pages redirect to login; Route Handlers and actions return 401 or "Not authorized" and do nothing else.
+3. Sign-up disabled, so a valid session can only belong to the seeded admin.
+
+With Cache Components on, session checks read request headers, so admin pages render dynamically inside `<Suspense>`. Follow `node_modules/next/dist/docs/01-app/02-guides/authentication-with-cache-components.md`.
+
+### Other
+- Admin pages: `noindex`, no Pixel.
 - Admin pages: `noindex`, no Pixel.
 - Thank-you page uses a random `publicId` and shows no address or phone.
 - All customer JSON responses use `Cache-Control: no-store`.
@@ -355,9 +379,10 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 
 ```
 MONGODB_URI=
-AUTH_SECRET=
-ADMIN_EMAIL=
-ADMIN_PASSWORD_HASH=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=https://kinboekhon.com
+ADMIN_EMAIL=          # seed script only
+ADMIN_PASSWORD=       # seed script only, never set on Vercel
 NEXT_PUBLIC_SITE_URL=https://kinboekhon.com
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
@@ -377,8 +402,8 @@ Each module ends with a browser test. Do not start the next module until the tes
 | # | Module | Browser test |
 |---|---|---|
 | M0 | **Project setup**: create-next-app (TypeScript, Tailwind, App Router, `src/`), brand tokens, Hind Siliguri, logos in `public/brand`, shop layout (header, notice strip, footer), placeholder home, `.env.example` | Open `/` on a 375px wide view: branded header, Bangla text in Hind Siliguri, footer in #2B2B2B |
-| M1 | **Admin login**: Auth.js credentials, hash script, `proxy.ts`, `/admin/login`, empty panel layout with nav and logout | `/admin` redirects to login; wrong password fails; right password opens panel; logout works |
-| M2 | **Database + Settings**: Mongo connection, Settings model, settings page | Save delivery charges and bKash number, reload, values stay |
+| M1 | **Admin login**: Mongo connection (`src/lib/db.ts`), Better Auth config (MongoDB adapter, email + password, sign-up off, database rate limit), `/api/auth/[...all]`, seed script, `proxy.ts`, `requireAdmin()`, `/admin/login`, empty panel layout with nav and logout | Run `npm run seed:admin`; `/admin` redirects to login; wrong password fails; right password opens panel; logout works; a direct sign-up request to `/api/auth/sign-up/email` is refused; `/api/admin/orders-export` without login returns 401 |
+| M2 | **Settings**: Settings model, settings page | Save delivery charges and bKash number, reload, values stay |
 | M3 | **Products (text)**: Product model, list, create, edit, active toggle, landing section fields | Create a product, edit it, toggle inactive, see changes in the list |
 | M4 | **Product images**: Cloudinary signed upload, reorder, remove, image URL helper | Upload 3 images, change order, reload, images show from Cloudinary |
 | M5 | **Home page**: active product grid | Active product shows, inactive one does not |
@@ -392,7 +417,7 @@ Each module ends with a browser test. Do not start the next module until the tes
 | M13 | **CSV export** | Download CSV with current filters, open in Excel, Bangla shows correctly |
 | M14 | **Meta Pixel + CAPI**: base pixel, ViewContent, InitiateCheckout, Purchase, `/api/track` | Meta Pixel Helper shows events with event IDs; Events Manager Test events shows browser and server events deduplicated |
 | M15 | **Policy pages + polish**: Bangla drafts of privacy, terms and return policy for owner review (return within 3 days, only for damaged, wrong or defective products), 404, metadata, favicon, Open Graph image | Owner approves the policy text; footer links work; sharing a product link on Facebook shows image and title |
-| M16 | **Launch**: Vercel project, env vars, Atlas network access, domain, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
+| M16 | **Launch**: Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
 
 ## 12. Not in version 1
 
@@ -406,8 +431,9 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 4. Landing URL: `/p/product-slug`.
 5. Maximum quantity per order: 5.
 6. Order number format: `KE10001` (first order is KE10001).
-7. Logo: use the PNG files for now. An SVG will be added to `logos/` later; switch to it then.
+7. Logo: SVG files in `logos/`. Header uses the horizontal logo, favicon uses `kinboekhon-icon.svg`.
 8. Policy pages: drafted in Bangla for owner review. Return window: 3 days, only for damaged, wrong or defective products.
 9. No cookie consent banner.
 10. Admin login email: set in `ADMIN_EMAIL` in `.env.local` (kept out of the repo).
 11. Default delivery charges: inside Dhaka ৳80, outside Dhaka ৳150. Both editable in Settings.
+12. Admin login uses Better Auth (not Auth.js): email and password, MongoDB adapter, public sign-up disabled, one admin created by a seed script from `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
