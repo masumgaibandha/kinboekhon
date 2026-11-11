@@ -15,6 +15,9 @@ export function AdminNav() {
           <Link href="/admin" className="hover:text-brand">
             Dashboard
           </Link>
+          <Link href="/admin/settings" className="hover:text-brand">
+            Settings
+          </Link>
         </nav>
         <form action={logout}>
           <button type="submit" className="text-sm font-medium text-desc hover:text-brand">

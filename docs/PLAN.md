@@ -199,7 +199,10 @@ TTL index: removed 30 days after `updatedAt`. Deleted as soon as the matching or
 | bkash, nagad, rocket | `{ enabled, number, accountType: personal\|agent\|merchant }` |
 | bank | `{ enabled, bankName, accountName, accountNumber, branch, routingNumber }` |
 | supportPhone | shown in header and thank-you page |
+| whatsappNumber | shown to customers |
 | duplicateWindowHours | default 24 |
+
+Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
 
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
@@ -230,7 +233,7 @@ Landing page `/p/[slug]`, top to bottom:
 7. **Order form** (see below).
 8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen.
 
-Pages are statically generated and refreshed with `revalidatePath` when the admin saves a product or settings, so they load fast from the edge.
+Pages are statically generated. Their data comes from `"use cache"` functions with cache tags, and admin saves call `updateTag`, so pages stay fast and still show changes right away.
 
 Order form fields:
 - নাম (required)

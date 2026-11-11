@@ -77,4 +77,5 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 - Email and password login only, MongoDB adapter. No Auth.js / next-auth.
 - Public sign-up stays disabled. Never add a sign-up page, link or endpoint.
 - There is exactly one admin. It is created or updated only by `npm run seed:admin`, which reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local`.
+- The admin `(panel)` layout and every admin page export `instant = false`: they read the session on each request, so their navigations are allowed to block.
 - `proxy.ts` is only a fast first check. Every admin page, admin API route and admin Server Action must also call `requireAdmin()` on the server before doing anything else.

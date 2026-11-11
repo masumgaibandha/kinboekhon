@@ -3,6 +3,9 @@ import { Suspense, type ReactNode } from "react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { requireAdmin } from "@/lib/admin-session";
 
+// Every admin page checks the session per request, so navigations here are allowed to block.
+export const instant = false;
+
 export default function PanelLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="flex flex-1 flex-col">
