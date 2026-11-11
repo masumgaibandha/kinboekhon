@@ -1,11 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import toast from "react-hot-toast";
 
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
+import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
 import type { Settings } from "@/lib/validation/settings";
 
 type NumberKey =
@@ -16,6 +18,7 @@ type NumberKey =
   | "duplicateWindowHours";
 
 export function SettingsForm({ settings }: { settings: Settings }) {
+  const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
@@ -28,6 +31,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         setErrors({});
         toast.dismiss("settings-error");
         toast.success("Settings saved.");
+        router.refresh();
       } else {
         setErrors(result.fieldErrors);
         toast.error(result.message, { id: "settings-error" });
@@ -50,6 +54,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <input type="hidden" name={INITIAL_VALUES_FIELD} value={JSON.stringify(settings)} />
       <Section title="Delivery charges" description="Whole taka.">
         {amount("deliveryChargeInsideDhaka", "Inside Dhaka")}
         {amount("deliveryChargeOutsideDhaka", "Outside Dhaka")}

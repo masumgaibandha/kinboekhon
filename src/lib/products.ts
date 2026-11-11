@@ -5,7 +5,12 @@ import { ProductModel } from "@/lib/models/Product";
 import { pickImages, type ProductImage } from "@/lib/product-images";
 import type { ProductInput } from "@/lib/validation/product";
 
-type ProductDoc = ProductInput & { _id: Types.ObjectId };
+type ProductDoc = ProductInput & { _id: Types.ObjectId; updatedAt?: Date };
+
+export interface AdminProduct {
+  product: ProductInput;
+  version: string;
+}
 
 export const EMPTY_PRODUCT: ProductInput = {
   name: "",
@@ -88,9 +93,11 @@ export async function listProductsForAdmin(): Promise<ProductListItem[]> {
   }));
 }
 
-export async function getProductForAdmin(id: string): Promise<ProductInput | null> {
+// `version` changes on every save, including the list's active toggle.
+export async function getProductForAdmin(id: string): Promise<AdminProduct | null> {
   if (!isValidObjectId(id)) return null;
   await connectMongoose();
   const doc = await ProductModel.findById(id).lean<ProductDoc>();
-  return doc ? toProductInput(doc) : null;
+  if (!doc) return null;
+  return { product: toProductInput(doc), version: doc.updatedAt?.toISOString() ?? "" };
 }

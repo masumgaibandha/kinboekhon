@@ -139,7 +139,7 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | solution | `{ title, benefits: string[], images: Image[] }` | how the product solves it, up to 6 images |
 | proof | `{ title, images: Image[], reviews: { name, text }[] }` | customer screenshots (up to 10), reviews |
 | cta | `{ title, text }` | final push above the form |
-| active | boolean | only active products are shown or orderable; new products start inactive |
+| active | boolean | only active products are shown or orderable; new products start inactive (the create form's Active box starts unchecked). Saving the edit form writes `active` only when the admin changed the box: the form sends the value it was loaded with (`activeInitial`), and the edit form is keyed on the product's `updatedAt`, so a page restored from navigation history always shows fresh values |
 | sortOrder | number | home page order |
 
 Index: `slug` unique, `{ active, sortOrder }`.

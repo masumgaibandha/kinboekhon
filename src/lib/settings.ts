@@ -43,3 +43,18 @@ export async function getSettings(): Promise<Settings> {
 
   return { ...DEFAULT_SETTINGS, ...saved };
 }
+
+export interface AdminSettings {
+  settings: Settings;
+  version: string;
+}
+
+// Uncached read for the admin form. `version` changes on every save.
+export async function getSettingsForAdmin(): Promise<AdminSettings> {
+  await connectMongoose();
+  const saved = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0 }).lean<
+    Partial<Settings> & { updatedAt?: Date }
+  >();
+  const { updatedAt, ...values } = saved ?? {};
+  return { settings: { ...DEFAULT_SETTINGS, ...values }, version: updatedAt?.toISOString() ?? "" };
+}

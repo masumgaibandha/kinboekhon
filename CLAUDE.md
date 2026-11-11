@@ -23,6 +23,7 @@ Next.js (App Router) + TypeScript, Tailwind CSS, MongoDB Atlas + Mongoose, Zod, 
 - Comments only where truly needed, one line each.
 - Never write history comments such as "ported from", "copied from reference", "changed in step 3" or "old version".
 - Clickable elements get the pointer cursor (disabled: not-allowed) from the `@layer base` block in `globals.css`. Use real `button`, `a`, `select`, `summary` or a label wrapping a checkbox or radio, or add `role="button"`. Never add `cursor-pointer` per element.
+- Every admin edit form is keyed on the record's `updatedAt` (its version), so a page restored from navigation history always shows fresh values. Where a stale value could cause harm (money, payment accounts, active state), the form also sends the values it was loaded with and the Server Action writes only the fields that changed (see `src/lib/changed-fields.ts` and `src/lib/product-form.ts`).
 
 ### Scope
 - Build only what is asked. No extra features, options or abstractions "for later".

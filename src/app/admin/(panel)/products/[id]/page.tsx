@@ -12,13 +12,14 @@ export const instant = false;
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
   const { id } = await params;
-  const product = await getProductForAdmin(id);
-  if (!product) notFound();
+  const found = await getProductForAdmin(id);
+  if (!found) notFound();
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-heading">Edit product</h1>
-      <ProductForm key={id} productId={id} product={product} />
+      {/* Keyed on the saved version, so a page restored from navigation history shows fresh values. */}
+      <ProductForm key={`${id}-${found.version}`} productId={id} product={found.product} />
     </div>
   );
 }

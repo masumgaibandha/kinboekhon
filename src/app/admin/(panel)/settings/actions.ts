@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin-session";
+import { changedFields, INITIAL_VALUES_FIELD, readJsonField } from "@/lib/changed-fields";
 import { connectMongoose } from "@/lib/db";
 import { SettingsModel } from "@/lib/models/Settings";
 import { SETTINGS_KEY, SETTINGS_TAG } from "@/lib/settings";
@@ -55,9 +56,15 @@ export async function saveSettings(formData: FormData): Promise<SaveSettingsResu
     return { ok: false, message: "Please fix the highlighted fields.", fieldErrors };
   }
 
+  // Write only what the admin changed, so a stale form never overwrites newer values.
+  const initial = readJsonField(formData, INITIAL_VALUES_FIELD);
+  if (!initial) return { ok: false, message: "This page is out of date. Reload it and try again.", fieldErrors: {} };
+  const changes = changedFields(parsed.data, initial);
+  if (Object.keys(changes).length === 0) return { ok: true };
+
   try {
     await connectMongoose();
-    await SettingsModel.updateOne({ key: SETTINGS_KEY }, { $set: parsed.data }, { upsert: true });
+    await SettingsModel.updateOne({ key: SETTINGS_KEY }, { $set: changes }, { upsert: true });
   } catch {
     return { ok: false, message: "Could not save settings. Try again.", fieldErrors: {} };
   }

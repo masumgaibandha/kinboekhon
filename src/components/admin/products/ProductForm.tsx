@@ -8,6 +8,7 @@ import { createProduct, updateProduct } from "@/app/admin/(panel)/products/actio
 import { Section, TextArea, TextField, Toggle } from "@/components/admin/form/fields";
 import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
+import { ACTIVE_INITIAL_FIELD } from "@/lib/product-form";
 import type { ProductInput } from "@/lib/validation/product";
 
 interface ProductFormProps {
@@ -21,6 +22,7 @@ export function ProductForm({ productId, product }: ProductFormProps) {
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
   const [savedSlug, setSavedSlug] = useState(product.slug);
+  const [savedActive, setSavedActive] = useState(product.active);
   const [slug, setSlug] = useState(product.slug);
   const isEdit = Boolean(productId);
 
@@ -42,6 +44,7 @@ export function ProductForm({ productId, product }: ProductFormProps) {
       toast.dismiss("product-error");
       if (productId) {
         setSavedSlug(slug);
+        setSavedActive(formData.get("active") === "on");
         toast.success("Product saved.");
         return;
       }
@@ -58,6 +61,7 @@ export function ProductForm({ productId, product }: ProductFormProps) {
 
   return (
     <form key={formKey} onSubmit={handleSubmit} noValidate className="space-y-4">
+      {isEdit && <input type="hidden" name={ACTIVE_INITIAL_FIELD} value={String(savedActive)} />}
       <Section title="Basics">
         <TextField name="name" label="Name" defaultValue={product.name} error={errors.name} />
         <div>

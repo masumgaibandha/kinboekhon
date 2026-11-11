@@ -6,6 +6,7 @@ import { updateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-session";
 import { PRODUCTS_TAG } from "@/lib/catalog";
 import { connectMongoose } from "@/lib/db";
+import { activeWasChanged } from "@/lib/product-form";
 import { ProductModel } from "@/lib/models/Product";
 import { productSchema, type ProductInput } from "@/lib/validation/product";
 
@@ -88,8 +89,11 @@ export async function createProduct(formData: FormData): Promise<ProductActionRe
 export async function updateProduct(id: string, formData: FormData): Promise<ProductActionResult> {
   await requireAdmin();
   if (!isValidObjectId(id)) return NOT_FOUND;
-  return saveProduct(formData, async (product) => {
-    const result = await ProductModel.updateOne({ _id: id }, { $set: product });
+  // A stale form or a second tab must never flip Active, so it is written only when changed on purpose.
+  const writeActive = activeWasChanged(formData);
+  return saveProduct(formData, async ({ active, ...rest }) => {
+    const changes = writeActive ? { ...rest, active } : rest;
+    const result = await ProductModel.updateOne({ _id: id }, { $set: changes });
     return result.matchedCount === 1;
   });
 }
