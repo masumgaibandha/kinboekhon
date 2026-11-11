@@ -137,7 +137,7 @@ export function SelectField({ name, label, defaultValue, options }: SelectFieldP
 
 export function Toggle({ name, label, defaultChecked }: { name: string; label: string; defaultChecked: boolean }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-body">
+    <label className="inline-flex items-center gap-2 text-sm font-medium text-body">
       <input name={name} type="checkbox" defaultChecked={defaultChecked} className="h-4 w-4 accent-brand" />
       {label}
     </label>

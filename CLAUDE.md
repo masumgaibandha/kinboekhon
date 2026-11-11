@@ -22,6 +22,7 @@ Next.js (App Router) + TypeScript, Tailwind CSS, MongoDB Atlas + Mongoose, Zod, 
 - Use TypeScript strictly. No `any`.
 - Comments only where truly needed, one line each.
 - Never write history comments such as "ported from", "copied from reference", "changed in step 3" or "old version".
+- Clickable elements get the pointer cursor (disabled: not-allowed) from the `@layer base` block in `globals.css`. Use real `button`, `a`, `select`, `summary` or a label wrapping a checkbox or radio, or add `role="button"`. Never add `cursor-pointer` per element.
 
 ### Scope
 - Build only what is asked. No extra features, options or abstractions "for later".
