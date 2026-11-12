@@ -93,12 +93,13 @@ kinboekhon/
    │  ├─ shop/                   Header, Footer, ProductCard, PriceTag, TrustBadges,
    │  │                          landing/HookSection ... CtaSection, order/OrderForm,
    │  │                          order/PaymentSection, PaymentOptionPicker, PaymentAccountBox, CopyButton,
-   │  │                          order/OrderSummary, OrderSubmit, use-payment-choice.ts, StickyOrderBar
+   │  │                          order/OrderSummary, OrderSubmit, ContactFields, use-payment-choice.ts, use-turnstile.ts,
+   │  │                          StickyOrderBar
    │  ├─ admin/                  AdminNav, StatCard, ProductForm, payments/PaymentReviewCard, ReviewForm,
    │  │                          products/ImageUploader, ImageThumb, upload-image.ts,
    │  │                          orders/OrdersTable, OrderFilters, Pagination, StatusBadge, OrderCard,
    │  │                          OrderCustomer, CustomerEditor, CustomerEditForm, AdminLocationFields,
-   │  │                          OrderAmounts, OrderPayment, SwitchToCodForm, StatusForm, StatusHistory, AdminNoteForm,
+   │  │                          OrderAmounts, OrderPayment, OrderTracking, SwitchToCodForm, StatusForm, StatusHistory, AdminNoteForm,
    │  │                          use-admin-action.ts
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
    │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage, Money (Taka icon + amount), TakaIcon
@@ -106,7 +107,7 @@ kinboekhon/
       ├─ db.ts                   cached Mongoose connection
       ├─ env.ts                  reads and checks env vars with Zod
       ├─ models/                 Product.ts, Order.ts, IncompleteOrder.ts,
-      │                          Settings.ts, Counter.ts, RateLimit.ts
+      │                          Settings.ts, Counter.ts, RateLimit.ts, order-document.ts (Order types)
       ├─ validation/             order.ts, location-fields.ts (shared location check), admin-order.ts,
       │                          order-payment.ts, order-filters.ts, draft.ts, product.ts, settings.ts (Zod schemas)
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY, delivery areas), pricing.ts, create-order.ts,
@@ -121,9 +122,10 @@ kinboekhon/
       │                          format.ts (location as admin text)
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
       ├─ dates.ts                Asia/Dhaka date format and day ranges (week/month ranges added in M12)
-      ├─ turnstile.ts            server verify
+      ├─ turnstile.ts            server verify (passed, failed, unverified)
+      ├─ rate-limit.ts           fixed-window counters in MongoDB
       ├─ rate-limit.ts
-      ├─ request.ts              client IP, user agent, cookie read
+      ├─ request.ts              same-origin check, client IP, user agent, keyed IP hash
       ├─ product-images.ts       image type, formats, size and count limits (browser and server)
       ├─ cloudinary/             sign.ts (upload signature, server only), folder.ts, image-url.ts (URL + next/image loader)
       ├─ auth.ts                 Better Auth server config (MongoDB adapter, email + password, sign-up off)
@@ -192,7 +194,7 @@ Any landing section left empty is simply not rendered.
 | payment.reviewNote | string | admin note on approve or reject |
 | payment.reviewedAt | Date | |
 | adminNote | string | free note |
-| tracking | `{ ip, userAgent, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | for CAPI and reports |
+| tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (M14); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
 
 Indexes:
@@ -200,6 +202,7 @@ Indexes:
 - `{ "customer.phone": 1, "product.productId": 1, createdAt: -1 }` for the duplicate check
 - `{ status: 1, createdAt: -1 }` for lists and dashboard
 - `{ createdAt: -1 }` for the unfiltered admin list, newest first
+- `{ "tracking.ipHash": 1, createdAt: -1 }` for the admin tracking box
 - `{ "payment.status": 1, createdAt: 1 }` for the payment queue
 - `payment.transactionIdNormalized` unique, partial (only when it is a string), so one TxID cannot be used twice
 
@@ -233,7 +236,7 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
 
 ### RateLimit
-`{ key, count, expiresAt }`. TTL index on `expiresAt`. Key = scope + hashed IP. Used for orders, drafts and tracking.
+`{ key, count, expiresAt }` in the `ratelimits` collection (separate from Better Auth's `rateLimit`). TTL index on `expiresAt`. Key = scope + window name + hashed IP + window start (fixed windows), counted with one atomic upsert. Used for orders, later drafts and tracking.
 
 ### Better Auth collections
 `user`, `session`, `account`, `verification` and `rateLimit` are created and managed by Better Auth through its MongoDB adapter, in the same database. No Mongoose models for them. Never edit them by hand; the seed script is the only way to create or change the admin.
@@ -372,6 +375,15 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, delivery charge with the area, discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
 11. After the response (`after()` from `next/server`), send Purchase to CAPI and save the result in `capiPurchase`.
 
+### Fake order protection (M10)
+- `/api/orders` order of checks: origin, content type, size (now 8 KB, room for the token), then the IP rate limit (429 "অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।"), then Turnstile (403 "নিরাপত্তা যাচাই সফল হয়নি। পেজটি আবার লোড করে চেষ্টা করুন।"), then Zod, product, the duplicate and phone checks, payment checks, create.
+- Turnstile widget: Cloudflare's script loads only when the order form comes within 800px of the screen, rendered with `appearance: "interaction-only"` (invisible unless Cloudflare needs a click), `size: "flexible"`, `language: "bn"`, `action: "order"`, `refresh-expired: "auto"`. The token is ready while the customer types; on submit the form waits up to 15 seconds for it. A token works once, so the widget resets after every refused submit. If the script can't load, the form shows "নিরাপত্তা যাচাই লোড হয়নি। পেজটি আবার লোড করে চেষ্টা করুন।" and sends nothing.
+- Server verify: `siteverify` with the secret and the customer's IP, 5 second timeout. No token or a refused token: the order is refused. Cloudflare unreachable (network error, timeout, non-2xx, `internal-error`): the order is accepted and saved with `tracking.turnstile: "unverified"`.
+- Duplicate: same phone + same product inside `duplicateWindowHours`, not cancelled: "আপনি গত 24 ঘণ্টায় এই পণ্যটি অর্ডার করেছেন। আপনার অর্ডার নম্বর KE10001।" plus "কিছু বদলাতে চাইলে কল করুন <support phone>।" when a support phone is set.
+- Phone limit: a 4th order from one phone in 24 hours: "এই নম্বর থেকে গত 24 ঘণ্টায় 3টি অর্ডার হয়েছে। আরও অর্ডার করতে চাইলে পরে চেষ্টা করুন।" plus "জরুরি হলে কল করুন <support phone>।".
+- Local development uses Cloudflare's test keys (site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA` always pass; secret `2x0000000000000000000000000000000AA` always fails). Real keys: Cloudflare dashboard, Turnstile, Add widget, hostname kinboekhon.com, mode Managed; set them on Vercel in M16.
+- Admin order detail: a Tracking card with the Turnstile result, other orders from the same hashed address in the 24 hours before this order, the first 12 characters of the hash and the user agent.
+
 ### Admin orders (M8)
 - List: `/admin/orders`, 25 per page, newest first. Filters live in the URL (a `next/form` GET form), so a filtered list can be reloaded or bookmarked. A bad value in the URL drops only that filter.
 - Search, one box: `KE10001` or `10001` finds the order number; digits starting with 0 find phones by prefix (Bangla digits and `+880` work, via `normalizePhone`); anything else finds names (contains, ignoring case).
@@ -438,7 +450,8 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 | Phone check | Normalize (Bangla digits to English, strip spaces, `+880`/`880` prefix to `0`) then must match `^01[3-9]\d{8}$` |
 | Duplicate order | Same phone + product inside 24 hours (editable in Settings) is blocked; the customer sees the old order number |
 | Bot protection | Cloudflare Turnstile on the order form, verified on the server |
-| Rate limit | Per IP, stored in MongoDB with auto-expiry |
+| Rate limit | Per IP, stored in MongoDB with auto-expiry: every order attempt counts, 10 per 10 minutes and 50 per day (loose, because many customers share one address behind their mobile operator) |
+| Phone limit | At most 3 orders per phone in 24 hours, all products and statuses |
 | Server pricing | Price, delivery charge and total always recalculated on the server |
 | Unique TxID | One Transaction ID can be used on one order only |
 
@@ -480,6 +493,7 @@ ADMIN_PASSWORD=       # seed script only, never set on Vercel
 NEXT_PUBLIC_SITE_URL=https://kinboekhon.com
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
+IP_HASH_SECRET=        # random secret for hashing customer IPs
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
@@ -582,3 +596,9 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 61. Transaction ID: 6 to 30 letters, digits or hyphens, stored uppercase with inner spaces removed for the duplicate check. One Transaction ID can be used on one order only.
 62. Bank transfer: the customer gives only the sender account number.
 63. Wallet account types are only personal (Send Money) and merchant (Payment). Agent is removed from Settings, validation and the shop, because Cash Out adds a fee the customer would have to pay on top. A wallet still saved as agent is hidden from the shop, and the Settings page asks the admin to choose Personal or Merchant before it can be saved again.
+64. Order rate limit per IP: every attempt counts, 10 per 10 minutes and 50 per day, loose because of carrier NAT.
+65. At most 3 orders per phone in 24 hours across all products. The 24-hour same-product duplicate block stays.
+66. If our server can't reach Cloudflare, the order is accepted and marked unverified.
+67. Customer IPs are hashed with `IP_HASH_SECRET` for rate limits and the admin view; the raw IP is kept on the order only for the Conversions API.
+68. The duplicate message shows only the old order number and the call line, never the old thank-you page.
+69. The admin order detail has a Tracking box: Turnstile result, other orders from the same hashed IP in the 24 hours before the order, the hashed IP and the user agent.

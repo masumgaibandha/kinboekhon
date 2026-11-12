@@ -1,16 +1,25 @@
+import type { RefObject } from "react";
+
+import { CHECK_NOT_LOADED } from "@/components/shop/order/use-order-submit";
+
 interface OrderSubmitProps {
   message: string;
+  // Turnstile could not load, so no order can be sent.
+  checkFailed: boolean;
+  turnstileRef: RefObject<HTMLDivElement | null>;
   pending: boolean;
   advance: boolean;
 }
 
-// The form's main error, the order button and the line under it.
-export function OrderSubmit({ message, pending, advance }: OrderSubmitProps) {
+// The Turnstile slot (empty for most customers), the form's main error, the order button and the line under it.
+export function OrderSubmit({ message, checkFailed, turnstileRef, pending, advance }: OrderSubmitProps) {
+  const shown = message || (checkFailed ? CHECK_NOT_LOADED : "");
   return (
     <>
-      {message && (
+      <div ref={turnstileRef} />
+      {shown && (
         <p role="alert" className="rounded-md bg-brand-light px-3 py-2 text-center text-sm font-medium text-brand-dark">
-          {message}
+          {shown}
         </p>
       )}
       <button

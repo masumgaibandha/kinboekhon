@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 import { LandingSection } from "@/components/shop/landing/LandingSection";
 import { CityCorporationPicker } from "@/components/shop/order/CityCorporationPicker";
+import { ContactFields } from "@/components/shop/order/ContactFields";
 import { DeliveryAreaPicker } from "@/components/shop/order/DeliveryAreaPicker";
 import { LocationPicker } from "@/components/shop/order/LocationPicker";
 import { OrderField, fieldClass, labelClass } from "@/components/shop/order/OrderField";
@@ -13,6 +14,7 @@ import { PaymentSection } from "@/components/shop/order/PaymentSection";
 import { QuantityStepper } from "@/components/shop/order/QuantityStepper";
 import { useOrderSubmit } from "@/components/shop/order/use-order-submit";
 import { usePaymentChoice } from "@/components/shop/order/use-payment-choice";
+import { useTurnstile } from "@/components/shop/order/use-turnstile";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import { DELIVERY_AREA_LABELS, type DeliveryArea } from "@/lib/orders/limits";
 import type { PaymentAccount } from "@/lib/orders/payment-methods";
@@ -34,6 +36,7 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
   const [cityCorporation, setCityCorporation] = useState("");
   const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
+  const { ref: turnstileRef, failed: turnstileFailed, getToken, reset } = useTurnstile();
   const payment = usePaymentChoice({ price, quantity, deliveryCharge: deliveryCharges[area], discounts, accounts, clearError });
   const activeOption = payment.option;
 
@@ -65,7 +68,7 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
       paymentMethod: advance ? payment.method : "",
       senderNumber: advance ? text("senderNumber") : "",
       transactionId: advance ? text("transactionId") : "",
-    });
+    }, { getToken, reset });
   }
 
   const invalid = (field: string) =>
@@ -79,21 +82,7 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
         noValidate
         className="space-y-4"
       >
-        <OrderField id="order-name" label="আপনার নাম" error={errors.name}>
-          <input id="order-name" name="name" type="text" autoComplete="name" placeholder="নাম লিখুন" className={fieldClass} {...invalid("name")} />
-        </OrderField>
-        <OrderField id="order-phone" label="মোবাইল নম্বর" error={errors.phone}>
-          <input
-            id="order-phone"
-            name="phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="01XXXXXXXXX"
-            className={fieldClass}
-            {...invalid("phone")}
-          />
-        </OrderField>
+        <ContactFields errors={errors} />
 
         <DeliveryAreaPicker value={area} onChange={changeArea} charges={deliveryCharges} labelClass={labelClass} />
         {area === "inside_dhaka" ? (
@@ -138,7 +127,13 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
           advance={activeOption !== "cod"}
         />
 
-        <OrderSubmit message={message} pending={pending} advance={activeOption !== "cod"} />
+        <OrderSubmit
+          message={message}
+          checkFailed={turnstileFailed}
+          turnstileRef={turnstileRef}
+          pending={pending}
+          advance={activeOption !== "cod"}
+        />
       </form>
     </LandingSection>
   );

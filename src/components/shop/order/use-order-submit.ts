@@ -29,8 +29,14 @@ interface OrderResponse {
   fieldErrors?: Record<string, string>;
 }
 
+interface Verification {
+  getToken: () => Promise<string>;
+  reset: () => void;
+}
+
 const NETWORK_ERROR = "ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।";
 const TRY_AGAIN = "অর্ডার নেওয়া যায়নি। একটু পরে আবার চেষ্টা করুন।";
+export const CHECK_NOT_LOADED = "নিরাপত্তা যাচাই লোড হয়নি। পেজটি আবার লোড করে চেষ্টা করুন।";
 
 export function useOrderSubmit() {
   const router = useRouter();
@@ -39,29 +45,39 @@ export function useOrderSubmit() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
 
-  async function submit(fields: OrderFields) {
-    // A ref, not state, so a fast double tap cannot send two orders.
-    if (sending.current) return;
-    sending.current = true;
-    setPending(true);
-    setMessage("");
-
+  async function send(fields: OrderFields, turnstileToken: string): Promise<boolean> {
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({ ...fields, turnstileToken }),
       });
       const data = (await response.json().catch(() => ({}))) as OrderResponse;
       if (response.ok && data.publicId) {
         router.push(`/thank-you/${data.publicId}`);
-        return;
+        return true;
       }
       setErrors(data.fieldErrors ?? {});
       setMessage(data.message ?? TRY_AGAIN);
     } catch {
       setMessage(NETWORK_ERROR);
     }
+    return false;
+  }
+
+  async function submit(fields: OrderFields, verification: Verification) {
+    // A ref, not state, so a fast double tap cannot send two orders.
+    if (sending.current) return;
+    sending.current = true;
+    setPending(true);
+    setMessage("");
+
+    const token = await verification.getToken();
+    let placed = false;
+    if (token) placed = await send(fields, token);
+    else setMessage(CHECK_NOT_LOADED);
+    if (placed) return;
+    verification.reset();
     sending.current = false;
     setPending(false);
   }

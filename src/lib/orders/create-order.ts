@@ -3,7 +3,8 @@ import { randomBytes } from "node:crypto";
 import type { Types } from "mongoose";
 
 import { connectMongoose } from "@/lib/db";
-import { OrderModel, type OrderDocument } from "@/lib/models/Order";
+import { OrderModel, type OrderDocument, type OrderTracking } from "@/lib/models/Order";
+import { checkRepeatOrder } from "@/lib/orders/duplicate-check";
 import { ProductModel } from "@/lib/models/Product";
 import { nextOrderNumber } from "@/lib/orders/order-number";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
@@ -48,7 +49,10 @@ function paymentFields(payment: PaymentInput, advanceAmount: number, dueOnDelive
   return { option, method, status: "submitted", advanceAmount, dueOnDelivery, senderNumber, transactionId, transactionIdNormalized };
 }
 
-export async function createOrder(input: OrderInput): Promise<CreateOrderResult> {
+// The request facts saved with the order; the Turnstile result is "passed" or "unverified" here.
+export type OrderRequestInfo = Required<Pick<OrderTracking, "ip" | "ipHash" | "userAgent" | "turnstile">>;
+
+export async function createOrder(input: OrderInput, request: OrderRequestInfo): Promise<CreateOrderResult> {
   await connectMongoose();
   const product = await ProductModel.findOne(
     { _id: input.productId, active: true },
@@ -57,6 +61,9 @@ export async function createOrder(input: OrderInput): Promise<CreateOrderResult>
   if (!product) return { ok: false, message: "দুঃখিত, পণ্যটি এখন পাওয়া যাচ্ছে না।" };
 
   const settings = await getSettings();
+  const repeat = await checkRepeatOrder(input.phone, product._id, settings);
+  if (repeat) return { ok: false, message: repeat };
+
   const { payment } = input;
   if (payment.option !== "cod" && !enabledAccounts(settings).some((account) => account.method === payment.method)) {
     return { ok: false, message: FIX_FIELDS, fieldErrors: { paymentMethod: METHOD_OFF } };
@@ -98,6 +105,7 @@ export async function createOrder(input: OrderInput): Promise<CreateOrderResult>
       status: "pending",
       statusHistory: [{ kind: "status", status: "pending", at: new Date(), note: "" }],
       payment: paymentFields(payment, amounts.advanceAmount, amounts.dueOnDelivery),
+      tracking: request,
     });
   } catch (error) {
     if (isDuplicateTransaction(error)) return duplicateTransaction();

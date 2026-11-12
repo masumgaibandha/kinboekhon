@@ -1,70 +1,14 @@
-import { Schema, type Types } from "mongoose";
+import { Schema } from "mongoose";
 
 import { appDb } from "@/lib/db";
-import {
-  CAPI_STATUSES,
-  ORDER_STATUSES,
-  PAYMENT_METHODS,
-  PAYMENT_OPTIONS,
-  PAYMENT_STATUSES,
-  type OrderStatus,
-  type PaymentMethod,
-  type PaymentOption,
-  type PaymentStatus,
-} from "@/lib/orders/enums";
+import { HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
+import { CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES } from "@/lib/orders/enums";
 import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
-import type { OrderLocation } from "@/lib/locations/types";
-import { DELIVERY_AREAS, type DeliveryArea } from "@/lib/orders/limits";
+import { DELIVERY_AREAS } from "@/lib/orders/limits";
+import { TURNSTILE_RESULTS } from "@/lib/turnstile";
 
-export const HISTORY_KINDS = ["status", "edit", "payment"] as const;
-
-// A status change, a customer edit or a payment review (for the last two, status holds the status at that moment).
-export interface OrderHistoryEntry {
-  kind: (typeof HISTORY_KINDS)[number];
-  status: OrderStatus;
-  at: Date;
-  note: string;
-}
-
-export interface OrderDocument {
-  orderNumber: string;
-  publicId: string;
-  product: { productId: Types.ObjectId; name: string; slug: string; image: string | null; price: number };
-  quantity: number;
-  subtotal: number;
-  deliveryArea: DeliveryArea;
-  deliveryCharge: number;
-  deliveryDiscount: number;
-  total: number;
-  customer: { name: string; phone: string; address: string; location: OrderLocation };
-  status: OrderStatus;
-  statusHistory: OrderHistoryEntry[];
-  payment: {
-    option: PaymentOption;
-    method: PaymentMethod;
-    status: PaymentStatus;
-    advanceAmount: number;
-    dueOnDelivery: number;
-    senderNumber?: string;
-    transactionId?: string;
-    transactionIdNormalized?: string;
-    reviewNote?: string;
-    reviewedAt?: Date;
-  };
-  adminNote: string;
-  tracking?: {
-    ip?: string;
-    userAgent?: string;
-    fbp?: string;
-    fbc?: string;
-    sourceUrl?: string;
-    utmSource?: string;
-    utmCampaign?: string;
-  };
-  capiPurchase?: { status: (typeof CAPI_STATUSES)[number]; error?: string };
-  createdAt: Date;
-  updatedAt: Date;
-}
+export { HISTORY_KINDS } from "@/lib/models/order-document";
+export type { OrderDocument, OrderHistoryEntry, OrderTracking } from "@/lib/models/order-document";
 
 const orderSchema = new Schema<OrderDocument>(
   {
@@ -125,7 +69,9 @@ const orderSchema = new Schema<OrderDocument>(
     adminNote: { type: String, default: "" },
     tracking: {
       ip: String,
+      ipHash: String,
       userAgent: String,
+      turnstile: { type: String, enum: TURNSTILE_RESULTS },
       fbp: String,
       fbc: String,
       sourceUrl: String,
@@ -140,6 +86,8 @@ const orderSchema = new Schema<OrderDocument>(
 orderSchema.index({ "customer.phone": 1, "product.productId": 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ createdAt: -1 });
+// Orders from the same address, for the admin tracking box.
+orderSchema.index({ "tracking.ipHash": 1, createdAt: -1 });
 orderSchema.index({ "payment.status": 1, createdAt: 1 });
 orderSchema.index(
   { "payment.transactionIdNormalized": 1 },

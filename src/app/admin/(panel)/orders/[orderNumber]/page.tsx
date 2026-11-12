@@ -7,6 +7,7 @@ import { OrderAmounts } from "@/components/admin/orders/OrderAmounts";
 import { OrderCard } from "@/components/admin/orders/OrderCard";
 import { OrderCustomer } from "@/components/admin/orders/OrderCustomer";
 import { OrderPayment } from "@/components/admin/orders/OrderPayment";
+import { OrderTracking } from "@/components/admin/orders/OrderTracking";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
@@ -49,6 +50,9 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
           </OrderCard>
           <OrderCard title="Payment">
             <OrderPayment order={order} />
+          </OrderCard>
+          <OrderCard title="Tracking">
+            <OrderTracking tracking={order.tracking} />
           </OrderCard>
         </div>
         <div className="space-y-4">
