@@ -440,6 +440,7 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 - Session cookie: httpOnly, secure in production, `SameSite=Lax`, 7 day expiry (Better Auth defaults).
 - Login rate limit: Better Auth's built-in limiter with database storage (works on Vercel serverless), on in all environments, 5 sign-in attempts per minute per IP.
 - Database name is set in code (`kinboekhon` in `src/lib/db.ts`), so the connection string does not need one.
+- Database: Atlas in AWS ap-south-1 (Mumbai); Vercel functions in `bom1` (`vercel.json`). See decision 56.
 
 ### Protecting the admin
 Three layers, every one required:
@@ -522,7 +523,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 15. Prices are whole taka. (The optional old price was removed by decision 43.)
 16. Product form lists: problem points and benefits are one per line; reviews are add/remove rows (name and text).
 17. The "View" link from the admin product list to `/p/[slug]` is added in M6.
-18. Hosting region: MongoDB Atlas stays in AWS us-east-1 (Virginia) and the Vercel function region stays `iad1`, so server-to-database trips are about 1 ms. Shop speed for Bangladeshi visitors comes from cached pages, not from moving regions.
+18. Replaced by decision 56: the database moved from Virginia to Mumbai.
 19. No Better Auth session cookie cache for now. Admin pages accept the extra database trips.
 20. Product images: three lists (gallery, solution, proof), at most 8, 6 and 10 images.
 21. Image files: jpg, jpeg, png, webp and heic, up to 10 MB each. Delivered as WebP or AVIF through `f_auto`.
@@ -560,3 +561,4 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 53. The order detail URL uses the order number: `/admin/orders/KE10001`.
 54. Orders list: 25 per page, newest first. Search finds the order number (KE10001 or 10001), phone by prefix, or name (contains, ignoring case).
 55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the delivery area recalculates the delivery charge and total from Settings. Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
+56. Hosting region (replaces decision 18): MongoDB Atlas runs in AWS ap-south-1 (Mumbai), in its own Atlas project, and the Vercel function region is `bom1` (Mumbai), set in `vercel.json`, so the server sits next to the database and close to Bangladeshi customers. Moved in November 2026 by copying the whole `kinboekhon` database (all collections, documents and indexes; counts and indexes checked on both sides). The old Virginia cluster is kept untouched as a backup; its connection string stays only in the local `.env.local` as `MONGODB_URI_OLD_VIRGINIA` and is never set on Vercel.
