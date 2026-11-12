@@ -54,8 +54,10 @@ export function productTag(slug: string): string {
   return `product-${slug}`;
 }
 
+export type LandingProduct = ProductInput & { id: string };
+
 // Landing page data for an active product, or null for an inactive or unknown slug.
-export async function getProductBySlug(slug: string): Promise<ProductInput | null> {
+export async function getProductBySlug(slug: string): Promise<LandingProduct | null> {
   "use cache";
   cacheTag(productTag(slug));
   cacheLife("max");
@@ -63,7 +65,7 @@ export async function getProductBySlug(slug: string): Promise<ProductInput | nul
   if (!SLUG_PATTERN.test(slug)) return null;
   await connectMongoose();
   const doc = await ProductModel.findOne({ slug, active: true }).lean<ProductDoc>();
-  return doc ? toProductInput(doc) : null;
+  return doc ? { ...toProductInput(doc), id: String(doc._id) } : null;
 }
 
 export async function getActiveSlugs(): Promise<string[]> {

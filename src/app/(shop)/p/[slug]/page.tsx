@@ -11,6 +11,7 @@ import { SolutionSection } from "@/components/shop/landing/SolutionSection";
 import { StorySection } from "@/components/shop/landing/StorySection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
 import { getActiveSlugs, getProductBySlug } from "@/lib/catalog";
+import { deliveryChargesFrom } from "@/lib/orders/pricing";
 import { getSettings } from "@/lib/settings";
 
 // The page awaits params outside Suspense, so unlisted slugs may block on their first render; the route is still prerendered.
@@ -51,13 +52,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
         </div>
       )}
       <CtaSection product={product} />
-      <OrderForm
-        price={product.price}
-        deliveryCharges={{
-          inside_dhaka: settings.deliveryChargeInsideDhaka,
-          outside_dhaka: settings.deliveryChargeOutsideDhaka,
-        }}
-      />
+      <OrderForm productId={product.id} price={product.price} deliveryCharges={deliveryChargesFrom(settings)} />
       <StickyOrderBar price={product.price} oldPrice={product.oldPrice} />
     </div>
   );

@@ -1,0 +1,68 @@
+import { connectMongoose } from "@/lib/db";
+import { OrderModel } from "@/lib/models/Order";
+import type { DeliveryArea } from "@/lib/orders/limits";
+
+const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
+
+// Only what the thank-you page shows: no address or phone number.
+export interface ThankYouOrder {
+  orderNumber: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+  deliveryArea: DeliveryArea;
+  deliveryCharge: number;
+  deliveryDiscount: number;
+  total: number;
+  advanceAmount: number;
+  dueOnDelivery: number;
+}
+
+interface ThankYouDoc {
+  orderNumber: string;
+  product: { name: string; price: number };
+  quantity: number;
+  subtotal: number;
+  deliveryArea: DeliveryArea;
+  deliveryCharge: number;
+  deliveryDiscount: number;
+  total: number;
+  payment: { advanceAmount: number; dueOnDelivery: number };
+}
+
+export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder | null> {
+  if (!PUBLIC_ID_PATTERN.test(publicId)) return null;
+  await connectMongoose();
+  const doc = await OrderModel.findOne(
+    { publicId },
+    {
+      orderNumber: 1,
+      "product.name": 1,
+      "product.price": 1,
+      quantity: 1,
+      subtotal: 1,
+      deliveryArea: 1,
+      deliveryCharge: 1,
+      deliveryDiscount: 1,
+      total: 1,
+      "payment.advanceAmount": 1,
+      "payment.dueOnDelivery": 1,
+    },
+  ).lean<ThankYouDoc>();
+  if (!doc) return null;
+
+  return {
+    orderNumber: doc.orderNumber,
+    productName: doc.product.name,
+    price: doc.product.price,
+    quantity: doc.quantity,
+    subtotal: doc.subtotal,
+    deliveryArea: doc.deliveryArea,
+    deliveryCharge: doc.deliveryCharge,
+    deliveryDiscount: doc.deliveryDiscount,
+    total: doc.total,
+    advanceAmount: doc.payment.advanceAmount,
+    dueOnDelivery: doc.payment.dueOnDelivery,
+  };
+}
