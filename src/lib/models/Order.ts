@@ -16,6 +16,16 @@ import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
 import type { OrderLocation } from "@/lib/locations/types";
 import { DELIVERY_AREAS, type DeliveryArea } from "@/lib/orders/limits";
 
+export const HISTORY_KINDS = ["status", "edit"] as const;
+
+// A status change, or a customer edit (status then holds the status at that moment).
+export interface OrderHistoryEntry {
+  kind: (typeof HISTORY_KINDS)[number];
+  status: OrderStatus;
+  at: Date;
+  note: string;
+}
+
 export interface OrderDocument {
   orderNumber: string;
   publicId: string;
@@ -28,7 +38,7 @@ export interface OrderDocument {
   total: number;
   customer: { name: string; phone: string; address: string; location: OrderLocation };
   status: OrderStatus;
-  statusHistory: { status: OrderStatus; at: Date; note: string }[];
+  statusHistory: OrderHistoryEntry[];
   payment: {
     option: PaymentOption;
     method: PaymentMethod;
@@ -91,7 +101,15 @@ const orderSchema = new Schema<OrderDocument>(
       },
     },
     status: { type: String, enum: ORDER_STATUSES, required: true, default: "pending" },
-    statusHistory: [{ _id: false, status: { type: String, enum: ORDER_STATUSES }, at: Date, note: String }],
+    statusHistory: [
+      {
+        _id: false,
+        kind: { type: String, enum: HISTORY_KINDS, default: "status" },
+        status: { type: String, enum: ORDER_STATUSES },
+        at: Date,
+        note: String,
+      },
+    ],
     payment: {
       option: { type: String, enum: PAYMENT_OPTIONS, required: true },
       method: { type: String, enum: PAYMENT_METHODS, required: true },
@@ -121,6 +139,7 @@ const orderSchema = new Schema<OrderDocument>(
 
 orderSchema.index({ "customer.phone": 1, "product.productId": 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ createdAt: -1 });
 orderSchema.index({ "payment.status": 1, createdAt: 1 });
 orderSchema.index(
   { "payment.transactionIdNormalized": 1 },

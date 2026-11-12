@@ -68,9 +68,9 @@ kinboekhon/
    │  │  └─ (panel)/
    │  │     ├─ layout.tsx        sidebar/top nav, session check
    │  │     ├─ page.tsx          dashboard
-   │  │     ├─ orders/page.tsx
-   │  │     ├─ orders/[id]/page.tsx
-   │  │     ├─ orders/actions.ts
+   │  │     ├─ orders/page.tsx                 list, search, filters, pagination
+   │  │     ├─ orders/[orderNumber]/page.tsx   detail: /admin/orders/KE10001
+   │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
    │  │     ├─ payments/page.tsx         advance payments waiting for review
    │  │     ├─ payments/actions.ts
    │  │     ├─ incomplete/page.tsx
@@ -93,9 +93,11 @@ kinboekhon/
    │  ├─ shop/                   Header, Footer, ProductCard, PriceTag, TrustBadges,
    │  │                          landing/HookSection ... CtaSection, order/OrderForm,
    │  │                          order/PaymentPicker, order/OrderSummary, StickyOrderBar
-   │  ├─ admin/                  AdminNav, StatCard, OrdersTable, OrderFilters,
-   │  │                          StatusSelect, ProductForm, PaymentReviewCard,
-   │  │                          products/ImageUploader, ImageThumb, upload-image.ts
+   │  ├─ admin/                  AdminNav, StatCard, ProductForm, PaymentReviewCard,
+   │  │                          products/ImageUploader, ImageThumb, upload-image.ts,
+   │  │                          orders/OrdersTable, OrderFilters, Pagination, StatusBadge, OrderCard,
+   │  │                          OrderCustomer, CustomerEditor, CustomerEditForm, AdminLocationFields,
+   │  │                          OrderAmounts, StatusForm, StatusHistory, AdminNoteForm, use-admin-action.ts
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
    │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage, Money (Taka icon + amount), TakaIcon
    └─ lib/
@@ -103,13 +105,18 @@ kinboekhon/
       ├─ env.ts                  reads and checks env vars with Zod
       ├─ models/                 Product.ts, Order.ts, IncompleteOrder.ts,
       │                          Settings.ts, Counter.ts, RateLimit.ts
-      ├─ validation/             order.ts, draft.ts, product.ts, settings.ts (Zod schemas)
+      ├─ validation/             order.ts, location-fields.ts (shared location check), admin-order.ts,
+      │                          order-filters.ts, draft.ts, product.ts, settings.ts (Zod schemas)
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY, delivery areas), pricing.ts, create-order.ts,
-      │                          order-number.ts, thank-you.ts, duplicate-check.ts, stats.ts, csv.ts
+      │                          order-number.ts, thank-you.ts, status.ts (labels, allowed moves),
+      │                          admin-order-list.ts, admin-order-detail.ts, change-status.ts (status + admin note),
+      │                          edit-customer.ts, duplicate-check.ts, stats.ts, csv.ts
+      ├─ admin-result.ts         result type and helpers for admin Server Actions
       ├─ phone.ts                normalize + validate BD mobile numbers
-      ├─ locations/              types.ts (location types), dhaka.ts (city corporations), resolve.ts (server check + Bangla names)
+      ├─ locations/              types.ts (location types), dhaka.ts (city corporations), resolve.ts (server check + Bangla names),
+      │                          format.ts (location as admin text)
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
-      ├─ dates.ts                Asia/Dhaka day/week/month ranges
+      ├─ dates.ts                Asia/Dhaka date format and day ranges (week/month ranges added in M12)
       ├─ turnstile.ts            server verify
       ├─ rate-limit.ts
       ├─ request.ts              client IP, user agent, cookie read
@@ -169,7 +176,7 @@ Any landing section left empty is simply not rendered.
 | total | number | subtotal + deliveryCharge - deliveryDiscount |
 | customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` has `kind: dhaka_city | outside_dhaka`. Inside Dhaka: `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`, plus division and district ঢাকা. Outside Dhaka: `divisionId, division, districtId, district, upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
-| statusHistory | `{ status, at, note }[]` | every change, for audit |
+| statusHistory | `{ kind, status, at, note }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit (then `status` is the status at that moment and `note` says what changed) |
 | payment.option | `cod` \| `advance_delivery` \| `advance_full` | see section 6, "Payment options" |
 | payment.method | `cod` \| `bkash` \| `nagad` \| `rocket` \| `bank` | `cod` only with option `cod` |
 | payment.status | `cod` \| `submitted` \| `verified` \| `rejected` | `cod` for cash on delivery |
@@ -188,6 +195,7 @@ Indexes:
 - `orderNumber` unique, `publicId` unique
 - `{ "customer.phone": 1, "product.productId": 1, createdAt: -1 }` for the duplicate check
 - `{ status: 1, createdAt: -1 }` for lists and dashboard
+- `{ createdAt: -1 }` for the unfiltered admin list, newest first
 - `{ "payment.status": 1, createdAt: 1 }` for the payment queue
 - `payment.transactionIdNormalized` unique, partial (only when it is a string), so one TxID cannot be used twice
 
@@ -301,8 +309,8 @@ Order form fields:
 |---|---|
 | `/admin/login` | Email + password |
 | `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting |
-| `/admin/orders` | Table with search (order number, phone, name), filters (status, payment method, payment status, product, date range), pagination, CSV export button using the same filters |
-| `/admin/orders/[id]` | Full order, status change with optional note, status history, admin note, call button (`tel:`) |
+| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9), 25 per page newest first, CSV export button using the same filters (added in M13) |
+| `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), customer edit while pending or confirmed |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders newest first, with call button and delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
@@ -331,7 +339,7 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 Login: the `/admin/login` form posts to `/api/auth/sign-in/email`. It must go through this route, because Better Auth only applies its rate limit to requests through its handler, not to direct server API calls. Logout is a Server Action in the panel nav; Better Auth's `nextCookies` plugin clears the cookie.
 
 Server Actions (each calls `requireAdmin()` first):
-- orders: `updateOrderStatus`, `saveAdminNote`
+- orders: `updateOrderStatus`, `saveAdminNote`, `updateOrderCustomer`
 - payments: `approvePayment`, `rejectPayment`
 - products: `createProduct`, `updateProduct`, `setProductActive` (no delete in v1, deactivate instead)
 - incomplete: `deleteIncompleteOrder`
@@ -359,6 +367,16 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - The form blocks a second submit while one is running (a ref, so a double tap sends one request), keeps typed values on errors, and clears a field's error when it is edited.
 - Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, delivery charge with the area, discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
 11. After the response (`after()` from `next/server`), send Purchase to CAPI and save the result in `capiPurchase`.
+
+### Admin orders (M8)
+- List: `/admin/orders`, 25 per page, newest first. Filters live in the URL (a `next/form` GET form), so a filtered list can be reloaded or bookmarked. A bad value in the URL drops only that filter.
+- Search, one box: `KE10001` or `10001` finds the order number; digits starting with 0 find phones by prefix (Bangla digits and `+880` work, via `normalizePhone`); anything else finds names (contains, ignoring case).
+- Date range: `from` and `to` are Dhaka calendar days, both included (`src/lib/dates.ts`, Dhaka is always UTC+6).
+- Area column: Dhaka North or Dhaka South inside Dhaka, "upazila, district" outside.
+- Detail: `/admin/orders/KE10001`. Customer (with a Call button `tel:`), product and amounts, status, admin note, history (newest first).
+- Status moves (`src/lib/orders/status.ts`): pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned; cancelled can be reopened to pending; delivered and returned are final. The form lists only allowed moves; Zod refuses any other move. Every change pushes a history entry with the optional note.
+- Stale protection: the status form sends the status it was loaded with and the update matches on it (`findOneAndUpdate({ orderNumber, status: from })`). The note form sends the note it was loaded with. The customer form sends all loaded values (`initialValues`) and writes only changed fields, each matched against its loaded value. Any miss shows "This order was changed since you opened it. Reload the page." Every form is keyed on the order's `updatedAt`, and each action calls `refresh()` from `next/cache`.
+- Customer edit: name, phone, typed address and location, with the same rules as the shop form (area first, city corporation or division, district, upazila, switching the area clears the choices) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. Changing the delivery area takes the charge from the current Settings and recalculates subtotal, total and due on delivery with `calculateOrder()`. Each save pushes a `kind: edit` history entry listing old and new values. M9 must extend this recalculation for advance payment orders.
 
 ### Payment options
 One function in `src/lib/orders/pricing.ts` does this math. The order form uses it for the live summary and the server uses it again to save the order.
@@ -471,7 +489,7 @@ Each module ends with a browser test. Do not start the next module until the tes
 | M5 | **Home page**: active product grid | Active product shows, inactive one does not |
 | M6 | **Landing page**: all sections, gallery, price block, trust badges, sticky bar, form layout (not submitting yet) | Open `/p/slug` on mobile view; order button scrolls to form; empty sections are hidden |
 | M7 | **COD order**: phone helper, Zod schema, Counter, Order model, `/api/orders` (without Turnstile and rate limit), thank-you page | Place a COD order, land on thank-you page with order number; wrong phone shows Bangla error |
-| M8 | **Admin orders**: list, search, filters, detail, status change with history, admin note | Find the order by phone, change status to Confirmed, history shows it |
+| M8 | **Admin orders**: list, search, filters, detail, status change with history, admin note, customer edit (decision 55) | Find the order by phone, change status to Confirmed, history shows it |
 | M9 | **Advance payment**: three payment options with discounts, `pricing.ts`, live summary, method picker, account display with copy, TxID fields, server checks, `/admin/payments` approve and reject | Each option shows the right discount, total, pay now and due amounts; change discounts in Settings and see the form update; place a bKash order, approve it, order turns Confirmed; reuse same TxID, see error |
 | M10 | **Fake order protection**: duplicate check, Turnstile, rate limit | Same phone + product twice shows old order number; Turnstile test "always fails" key blocks order; 6th quick order is rate limited |
 | M11 | **Incomplete orders**: autosave draft on field blur, `/api/drafts`, admin list, delete on order | Type name and phone, close tab, see it in `/admin/incomplete`; place order, draft disappears |
@@ -537,3 +555,8 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 48. The delivery area picker comes first. ঢাকার ভিতরে: the customer picks only ঢাকা উত্তর or ঢাকা দক্ষিণ সিটি কর্পোরেশন (with well-known areas under each); division and district are ঢাকা. ঢাকার বাইরে: বিভাগ, জেলা, উপজেলা; Dhaka district shows only its upazilas. The DMP thana list is removed from the shop.
 49. Switching the delivery area clears the location choices. No mismatch hint.
 50. Orders save the city corporation inside Dhaka, and division, district and upazila outside. The server refuses anything else with a Bangla error.
+51. Order status flow: pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned. Delivered and returned are final. Cancelled can be reopened to pending. Every change is added to the history with an optional note.
+52. The payment method and payment status filters are hidden until M9. The CSV export button is hidden until M13.
+53. The order detail URL uses the order number: `/admin/orders/KE10001`.
+54. Orders list: 25 per page, newest first. Search finds the order number (KE10001 or 10001), phone by prefix, or name (contains, ignoring case).
+55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the delivery area recalculates the delivery charge and total from Settings. Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.

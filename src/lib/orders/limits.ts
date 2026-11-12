@@ -8,3 +8,8 @@ export const DELIVERY_AREA_LABELS: Record<DeliveryArea, string> = {
   inside_dhaka: "ঢাকার ভিতরে",
   outside_dhaka: "ঢাকার বাইরে",
 };
+
+export const DELIVERY_AREA_ADMIN_LABELS: Record<DeliveryArea, string> = {
+  inside_dhaka: "Inside Dhaka",
+  outside_dhaka: "Outside Dhaka",
+};

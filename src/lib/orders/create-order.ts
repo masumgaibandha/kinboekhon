@@ -54,7 +54,7 @@ export async function createOrder(input: OrderInput): Promise<CreateOrderResult>
     total: amounts.total,
     customer: { name: input.name, phone: input.phone, address: input.address, location: input.location },
     status: "pending",
-    statusHistory: [{ status: "pending", at: new Date(), note: "" }],
+    statusHistory: [{ kind: "status", status: "pending", at: new Date(), note: "" }],
     payment: {
       option: "cod",
       method: "cod",
