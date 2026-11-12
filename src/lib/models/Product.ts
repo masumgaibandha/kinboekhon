@@ -15,7 +15,6 @@ const productSchema = new Schema<ProductInput>(
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     price: { type: Number, required: true, min: 0 },
-    oldPrice: { type: Number, default: null },
     shortDescription: String,
     images: [imageSchema],
     hook: { headline: String, subheadline: String },

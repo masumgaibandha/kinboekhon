@@ -1,4 +1,4 @@
-import { formatTaka } from "@/lib/money";
+import { Money } from "@/components/ui/Money";
 import { DELIVERY_AREA_LABELS, DELIVERY_AREAS, type DeliveryArea } from "@/lib/orders/limits";
 
 interface DeliveryAreaPickerProps {
@@ -31,7 +31,7 @@ export function DeliveryAreaPicker({ value, onChange, charges, labelClass }: Del
               />
               {DELIVERY_AREA_LABELS[area]}
             </span>
-            <span className="mt-1 pl-6 text-sm text-desc">ডেলিভারি {formatTaka(charges[area])}</span>
+            <span className="mt-1 pl-6 text-sm text-desc">ডেলিভারি <Money amount={charges[area]} /></span>
           </label>
         ))}
       </div>

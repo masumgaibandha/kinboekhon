@@ -53,7 +53,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
       )}
       <CtaSection product={product} />
       <OrderForm productId={product.id} price={product.price} deliveryCharges={deliveryChargesFrom(settings)} />
-      <StickyOrderBar price={product.price} oldPrice={product.oldPrice} />
+      <StickyOrderBar price={product.price} />
     </div>
   );
 }

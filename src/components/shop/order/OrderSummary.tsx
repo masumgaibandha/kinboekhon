@@ -1,4 +1,4 @@
-import { formatTaka, toBanglaDigits } from "@/lib/money";
+import { Money } from "@/components/ui/Money";
 import { calculateOrder } from "@/lib/orders/pricing";
 
 interface OrderSummaryProps {
@@ -15,17 +15,23 @@ export function OrderSummary({ price, quantity, deliveryCharge, areaLabel }: Ord
     <dl className="space-y-1.5 border-t border-dashed border-line-strong pt-3 text-[15px] text-desc">
       <div className="flex justify-between gap-3">
         <dt>
-          পণ্যের দাম ({formatTaka(price)} × {toBanglaDigits(quantity)})
+          পণ্যের দাম (<Money amount={price} /> × {quantity})
         </dt>
-        <dd>{formatTaka(amounts.subtotal)}</dd>
+        <dd>
+          <Money amount={amounts.subtotal} />
+        </dd>
       </div>
       <div className="flex justify-between gap-3">
         <dt>ডেলিভারি চার্জ ({areaLabel})</dt>
-        <dd>{formatTaka(amounts.deliveryCharge)}</dd>
+        <dd>
+          <Money amount={amounts.deliveryCharge} />
+        </dd>
       </div>
       <div className="flex justify-between gap-3 text-lg font-bold text-body">
         <dt>মোট</dt>
-        <dd>{formatTaka(amounts.total)}</dd>
+        <dd>
+          <Money amount={amounts.total} bold />
+        </dd>
       </div>
     </dl>
   );

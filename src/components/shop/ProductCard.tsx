@@ -34,7 +34,7 @@ export function ProductCard({ product, eager }: ProductCardProps) {
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-heading sm:text-base">{product.name}</h2>
-        <PriceTag price={product.price} oldPrice={product.oldPrice} />
+        <PriceTag price={product.price} />
         <span className="mt-auto block rounded-lg bg-brand py-2 text-center text-sm font-bold text-white transition-colors group-hover:bg-brand-dark">
           অর্ডার করুন
         </span>

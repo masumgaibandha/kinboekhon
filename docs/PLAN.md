@@ -95,7 +95,7 @@ kinboekhon/
    │  │                          StatusSelect, ProductForm, PaymentReviewCard,
    │  │                          products/ImageUploader, ImageThumb, upload-image.ts
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
-   │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage
+   │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage, Money (Taka icon + amount), TakaIcon
    └─ lib/
       ├─ db.ts                   cached Mongoose connection
       ├─ env.ts                  reads and checks env vars with Zod
@@ -105,7 +105,6 @@ kinboekhon/
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY, delivery areas), pricing.ts, create-order.ts,
       │                          order-number.ts, thank-you.ts, duplicate-check.ts, stats.ts, csv.ts
       ├─ phone.ts                normalize + validate BD mobile numbers
-      ├─ money.ts                Taka formatting (lakh grouping), Bangla digits, discount percent
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
       ├─ dates.ts                Asia/Dhaka day/week/month ranges
       ├─ turnstile.ts            server verify
@@ -130,7 +129,6 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | name | string | Bangla name |
 | slug | string, unique | used in `/p/[slug]`, typed by the admin: lowercase English letters, numbers and single hyphens |
 | price | number | selling price |
-| oldPrice | number or null | optional; if set, must be higher than price; shown struck through; discount % computed |
 | images | `{ publicId, width, height }[]` | gallery, first image is the main one, up to 8 |
 | shortDescription | string | one or two lines under the headline |
 | hook | `{ headline, subheadline }` | first screen |
@@ -230,13 +228,13 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 ### Customer site (Bangla)
 | Route | What it shows |
 |---|---|
-| `/` | Logo header, notice strip (সারা বাংলাদেশে ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, old price, discount badge, order button) |
+| `/` | Logo header, notice strip (সারা বাংলাদেশে ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
 | `/p/[slug]` | Landing page, see below |
 | `/thank-you/[publicId]` | Thank-you message, order number, product, total, discount, advance paid (with "payment under review" note) and amount due on delivery, support phone |
 | `/privacy`, `/terms`, `/return-policy` | Static Bangla text, linked in the footer |
 
 Landing page `/p/[slug]`, top to bottom. Visual reference: `docs/design/landing-design-d.html` (design D), rebuilt with Tailwind and brand tokens; its placeholder header is not used. Single column, `max-w-xl`, white sections with a 10px gap on the grey page:
-1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price, old price, discount badge, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ডেলিভারি, পণ্য দেখে টাকা দিন).
+1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ডেলিভারি, পণ্য দেখে টাকা দিন).
 2. **Problem**: title + list of pain points.
 3. **Story**: short paragraph.
 4. **Solution**: benefit list with check icons + images.
@@ -251,12 +249,12 @@ Landing details:
 - Solution and proof images keep their own shape (no crop).
 - Order form in M6: name, phone, address, quantity 1 to 5, delivery area (ঢাকার ভিতরে / ঢাকার বাইরে) and a live summary from the Settings charges. The confirm button is visible but disabled until M7.
 - Unavailable page (inactive or unknown slug): Bangla message, home button, up to 4 other active products.
-- Header: white phone icon with `supportPhone` as a `tel:` link, hidden when empty. Footer: phone (`tel:`) and WhatsApp (`https://wa.me/880...`), each hidden when empty. Numbers shown in Bangla digits.
+- Header: white phone icon with `supportPhone` as a `tel:` link, hidden when empty. Footer: phone (`tel:`) and WhatsApp (`https://wa.me/880...`), each hidden when empty. Numbers shown in English digits (decision 41).
 
 Pages are statically generated. Their data comes from `"use cache"` functions with cache tags, and admin saves call `updateTag`, so pages stay fast and still show changes right away.
 
 #### Shop caching
-- `getActiveProducts()` in `src/lib/catalog.ts`: `"use cache"`, `cacheTag("products")`, `cacheLife("max")`. Loads card fields only (name, slug, price, old price, first image) of active products, sorted by `sortOrder` then newest.
+- `getActiveProducts()` in `src/lib/catalog.ts`: `"use cache"`, `cacheTag("products")`, `cacheLife("max")`. Loads card fields only (name, slug, price, first image) of active products, sorted by `sortOrder` then newest.
 - `/` reads only cached data and no request data, so `next build` prerenders it as a static page (CDN on Vercel). Visits do not touch the database.
 - `createProduct`, `updateProduct` and `setProductActive` call `updateTag("products")` after a successful write. The next visit renders fresh (one database read), later visits are cached again.
 - The build reads Atlas, so the Vercel build needs `MONGODB_URI` and Atlas network access.
@@ -269,7 +267,6 @@ Pages are statically generated. Their data comes from `"use cache"` functions wi
 - Grid: 2 columns on mobile, 3 from 640px, 4 from 1024px.
 - Each card is one link to `/p/[slug]`. "অর্ডার করুন" is a button-styled `span` inside the link, never a real `button`.
 - The first 2 card images load with `loading="eager"` and `fetchPriority="high"`; the rest are lazy.
-- Discount badge: `৩৪% ছাড়`, percent rounded down.
 
 Order form fields:
 - নাম (required)
@@ -279,8 +276,8 @@ Order form fields:
 - ডেলিভারি এলাকা: ঢাকার ভিতরে / ঢাকার বাইরে (charges from Settings)
 - পেমেন্ট অপশন, three cards, each showing its saving:
   - ক্যাশ অন ডেলিভারি (default, no discount)
-  - ডেলিভারি চার্জ অগ্রিম দিন (৳২০ ছাড় on delivery)
-  - পুরো টাকা অগ্রিম দিন (৳৫০ ছাড় on delivery)
+  - ডেলিভারি চার্জ অগ্রিম দিন (৳20 ছাড় on delivery)
+  - পুরো টাকা অগ্রিম দিন (৳50 ছাড় on delivery)
 - For an advance option: choose বিকাশ / নগদ / রকেট / ব্যাংক (only enabled ones), see our account number with a copy button and the exact amount to send, then fill sender number and Transaction ID.
 - Live summary: product price x quantity, delivery charge, delivery discount (shown in brand-dark as a minus line), total, "এখন পরিশোধ করবেন" (advance amount) and "ডেলিভারির সময় দেবেন" (due on delivery). Updates instantly when quantity, area or payment option changes.
 - Turnstile widget (invisible or managed mode).
@@ -296,7 +293,7 @@ Order form fields:
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders newest first, with call button and delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
-| `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, old price, images (upload, reorder, remove), landing sections, active |
+| `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, images (upload, reorder, remove), landing sections, active |
 | `/admin/settings` | Delivery charges, advance payment discounts, payment accounts, support phone, duplicate window |
 
 Dashboard definitions (dates in Asia/Dhaka):
@@ -361,10 +358,10 @@ One function in `src/lib/orders/pricing.ts` does this math. The order form uses 
 
 - total = subtotal + deliveryCharge - discount.
 - The discount is capped at the delivery charge, so it is never negative.
-- Example inside Dhaka, product ৳৮৯০, quantity 1, delivery ৳৮০:
-  - COD: total ৳৯৭০, pay now ৳০, due ৳৯৭০.
-  - Delivery advance: total ৳৯৫০, pay now ৳৬০, due ৳৮৯০.
-  - Full advance: total ৳৯২০, pay now ৳৯২০, due ৳০.
+- Example inside Dhaka, product ৳890, quantity 1, delivery ৳80:
+  - COD: total ৳970, pay now ৳0, due ৳970.
+  - Delivery advance: total ৳950, pay now ৳60, due ৳890.
+  - Full advance: total ৳920, pay now ৳920, due ৳0.
 
 ### Payment verification
 - Approve: atomic update only when `payment.status` is `submitted`. Sets `verified`, note, time, and moves order `pending` to `confirmed`.
@@ -453,7 +450,7 @@ Each module ends with a browser test. Do not start the next module until the tes
 
 | # | Module | Browser test |
 |---|---|---|
-| M0 | **Project setup**: create-next-app (TypeScript, Tailwind, App Router, `src/`), brand tokens, Hind Siliguri, logos in `public/brand`, shop layout (header, notice strip, footer), placeholder home, `.env.example` | Open `/` on a 375px wide view: branded header, Bangla text in Hind Siliguri, footer in #2B2B2B |
+| M0 | **Project setup**: create-next-app (TypeScript, Tailwind, App Router, `src/`), brand tokens, system font stack (decision 40), logos in `public/brand`, shop layout (header, notice strip, footer), placeholder home, `.env.example` | Open `/` on a 375px wide view: branded header, Bangla text in Hind Siliguri, footer in #2B2B2B |
 | M1 | **Admin login**: Mongo connection (`src/lib/db.ts`), Better Auth config (MongoDB adapter, email + password, sign-up off, database rate limit), `/api/auth/[...all]`, seed script, `proxy.ts`, `requireAdmin()`, `/admin/login`, empty panel layout with nav and logout | Run `npm run seed:admin`; `/admin` redirects to login; wrong password fails; right password opens panel; logout works; a direct sign-up request to `/api/auth/sign-up/email` is refused; `/api/admin/orders-export` without login returns 401 |
 | M2 | **Settings**: Settings model, settings page | Save delivery charges and bKash number, reload, values stay |
 | M3 | **Products (text)**: Product model, list, create, edit, active toggle, landing section fields | Create a product, edit it, toggle inactive, see changes in the list |
@@ -491,7 +488,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 12. Admin login uses Better Auth (not Auth.js): email and password, MongoDB adapter, public sign-up disabled, one admin created by a seed script from `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 13. Products are never deleted, only deactivated.
 14. Product slug is typed by hand (lowercase English letters, numbers, hyphens, unique). The edit page warns when the slug is changed, because it breaks old links and ads.
-15. Old price is optional; if given, it must be higher than the price. Prices are whole taka.
+15. Prices are whole taka. (The optional old price was removed by decision 43.)
 16. Product form lists: problem points and benefits are one per line; reviews are add/remove rows (name and text).
 17. The "View" link from the admin product list to `/p/[slug]` is added in M6.
 18. Hosting region: MongoDB Atlas stays in AWS us-east-1 (Virginia) and the Vercel function region stays `iad1`, so server-to-database trips are about 1 ms. Shop speed for Bangladeshi visitors comes from cached pages, not from moving regions.
@@ -502,7 +499,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 23. Each image stores only `{ publicId, width, height }`. URLs are built in code from the `publicId`.
 24. Shop header is orange (`brand`, #F85606) with the white horizontal logo. `public/brand/logo-horizontal-white.svg` is made from `logos/kinboekhon-logo-horizontal-white.svg` with the orange background removed and the viewBox cropped tightly to the artwork; the original in `logos/` is unchanged. It is shown 28px tall, so it matches the old header logo. Header text and icons are white. The notice strip and footer stay as they are and must read well under the orange header.
 25. Home page: slim one-line heading, no banner.
-26. Discount percent is rounded down.
+26. Replaced by decision 43: there is no discount percent.
 27. The whole product card is one link to `/p/[slug]`; the order "button" inside it is a styled `span`.
 28. Product grid: 2, 3 and 4 columns; the first 2 images load with high priority.
 29. Landing page design: design D (`docs/design/landing-design-d.html`), with our orange header.
@@ -516,3 +513,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 37. Order form limits: name 2 to 60 characters, address 6 to 300 characters (short real addresses like "মিরপুর ১০" pass).
 38. The thank-you page shows the delivery area next to the charge and links to more products.
 39. Order `tracking` is filled in M10 (IP, user agent) and M14 (fbp, fbc, UTM).
+40. Font follows Daraz: no web font (Hind Siliguri removed). Shop and admin use the system font stack system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", "Nirmala UI", sans-serif. The logo SVGs are paths only, so they do not depend on the site font.
+41. Numbers use English digits, like Daraz: prices (৳ 850, ৳ 1,290), quantities, phone numbers, order numbers (KE10001) and percentages, also inside Bangla error messages. All other customer text stays Bangla. The phone field keeps accepting Bangla digits.
+42. Money is shown with a Taka icon instead of the "৳" character, which looks weak in system fonts. `TakaIcon` (`src/components/ui/TakaIcon.tsx`) is the taka stroke of Heroicons `currency-bangladeshi` (MIT) without the circle, with the viewBox cropped to the stroke (outline 8.25, 7.214, 7.5 × 10.037 plus half the stroke on each side). It is 0.71em tall, the measured digit height of the system font, sits on the text baseline, and takes the text color. `Money` (`src/components/ui/Money.tsx`) puts a 0.15em gap before the amount (English digits, lakh grouping: 850, 1,290). Stroke 1.3 for regular text and 2.8 for bold prices, matching the digit stems at weight 400 and 700. The icon is `aria-hidden` with a visually hidden "টাকা". Every on-screen amount in the shop and admin uses `Money`; plain text that cannot show an icon (page title, meta description, Zod messages) writes "৳".
+43. No old price anywhere: no struck-through price, no discount badge, no "% ছাড়". The field is removed from the admin form and list, the Zod schema and the Mongoose schema, and the stored `oldPrice` values were unset in the database. The delivery discount for advance payment (M9) is a different thing and stays.

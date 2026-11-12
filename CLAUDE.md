@@ -52,22 +52,23 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 | Token | Hex | Use |
 |---|---|---|
 | `brand` | #F85606 | Buttons, price, header, icons |
-| `brand-dark` | #B33F00 | Small accent text, product name highlight, discount text |
-| `brand-light` | #FFF0E8 | Notice strip, discount badge background |
+| `brand-dark` | #B33F00 | Small accent text, product name highlight, error text |
+| `brand-light` | #FFF0E8 | Notice strip, highlight boxes |
 | `heading` | #111111 | Headings, important text |
 | `body` | #212121 | Normal text, forms, totals |
 | `desc` | #4A4A4A | Product description, helper text |
-| `muted` | #757575 | Old price (strike-through), hints |
+| `muted` | #757575 | Hints, placeholders |
 | `page` | #F5F5F5 | Page background |
 | `card` | #FFFFFF | Sections, cards, form |
 | `line` | #EEEEEE | Card borders |
 | `line-strong` | #D6D6D6 | Input borders, dividers |
 | `footer` | #2B2B2B | Footer background |
 
-- Font: Hind Siliguri via `next/font/google`, weights 400, 500, 600, 700.
+- Font: no web font. Shop and admin use the system font stack set as `--font-sans` in `globals.css`: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", "Nirmala UI", sans-serif.
 - Logos: use the files from `logos/` (copied into `public/brand/`). Do not redraw or recolor the logo.
 - Design: mobile first, premium, fast, built to sell. Big product images, clear price, clear order button, COD and delivery info, short order form.
-- Show prices with the Taka sign and Bangla digits on the customer site (৳৮৯০). Admin uses English digits.
+- Numbers use English digits everywhere, like Daraz: prices, quantities, phone numbers (01712345678), order numbers (KE10001) and percentages, including numbers inside Bangla messages. All other customer text stays Bangla. The phone field still accepts Bangla digits typed by customers.
+- On screen, money is always rendered with `<Money amount={...} />` (`src/components/ui/Money.tsx`): the Taka icon (`TakaIcon`: the Heroicons `currency-bangladeshi` taka stroke without the circle, digit height, on the baseline) plus the amount, for example 850 or 1,290. Never type "৳" next to a number in UI. Plain text that cannot show an icon (page title, meta description, Zod messages) uses "৳". There is no old price or discount badge.
 
 ## Conventions
 

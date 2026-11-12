@@ -21,7 +21,7 @@ export function HookSection({ product }: { product: ProductInput }) {
       {product.shortDescription && <p className="mt-4 leading-relaxed text-desc">{product.shortDescription}</p>}
 
       <div className="mt-4 space-y-3.5">
-        <PriceTag price={product.price} oldPrice={product.oldPrice} size="lg" />
+        <PriceTag price={product.price} size="lg" />
         <OrderButton />
         <TrustBadges />
       </div>

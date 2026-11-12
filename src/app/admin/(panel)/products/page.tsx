@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ActiveToggle } from "@/components/admin/products/ActiveToggle";
+import { Money } from "@/components/ui/Money";
 import { ProductListThumb } from "@/components/admin/products/ProductListThumb";
 import { requireAdmin } from "@/lib/admin-session";
 import { listProductsForAdmin } from "@/lib/products";
@@ -36,7 +37,6 @@ export default async function ProductsPage() {
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
                 <th className="px-4 py-3 font-medium">Price</th>
-                <th className="px-4 py-3 font-medium">Old price</th>
                 <th className="px-4 py-3 font-medium">Order</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3" />
@@ -54,8 +54,7 @@ export default async function ProductsPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-desc">{product.slug}</td>
-                  <td className="px-4 py-3">Tk {product.price}</td>
-                  <td className="px-4 py-3 text-muted">{product.oldPrice ? `Tk ${product.oldPrice}` : "-"}</td>
+                  <td className="whitespace-nowrap px-4 py-3"><Money amount={product.price} /></td>
                   <td className="px-4 py-3">{product.sortOrder}</td>
                   <td className="px-4 py-3">
                     <ActiveToggle

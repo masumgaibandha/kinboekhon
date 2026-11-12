@@ -2,14 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-import { formatTaka } from "@/lib/money";
+import { Money } from "@/components/ui/Money";
 
-interface StickyOrderBarProps {
-  price: number;
-  oldPrice: number | null;
-}
-
-export function StickyOrderBar({ price, oldPrice }: StickyOrderBarProps) {
+export function StickyOrderBar({ price }: { price: number }) {
   const [hidden, setHidden] = useState(false);
 
   // Hidden while the order form is on screen or already scrolled past.
@@ -32,10 +27,9 @@ export function StickyOrderBar({ price, oldPrice }: StickyOrderBarProps) {
       }`}
     >
       <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
-        <div className="leading-tight">
-          <p className="text-xl font-bold text-brand">{formatTaka(price)}</p>
-          {oldPrice !== null && oldPrice > price && <p className="text-sm text-muted line-through">{formatTaka(oldPrice)}</p>}
-        </div>
+        <p className="text-xl font-bold leading-tight text-brand">
+          <Money amount={price} bold />
+        </p>
         <a href="#order" className="rounded-md bg-brand px-6 py-3 text-lg font-bold text-white">
           অর্ডার করুন
         </a>

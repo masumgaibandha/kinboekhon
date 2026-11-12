@@ -73,11 +73,6 @@ export const productSchema = z
       .regex(/^\d{1,6}$/, "Enter a whole amount in taka.")
       .transform(Number)
       .refine((price) => price > 0, "Price must be more than 0."),
-    oldPrice: z
-      .string()
-      .trim()
-      .regex(/^(\d{1,6})?$/, "Enter a whole amount in taka, or leave it empty.")
-      .transform((value) => (value === "" ? null : Number(value))),
     shortDescription: text(300),
     sortOrder: z
       .string()
@@ -96,13 +91,6 @@ export const productSchema = z
     }),
     proof: z.object({ title: text(150), images: imageList(IMAGE_LIMITS["proof.images"]), reviews }),
     cta: z.object({ title: text(150), text: text(300) }),
-  })
-  .superRefine((product, ctx) => {
-    const { price, oldPrice } = product;
-    if (!Number.isInteger(price) || oldPrice === null || !Number.isInteger(oldPrice)) return;
-    if (oldPrice <= price) {
-      ctx.addIssue({ code: "custom", path: ["oldPrice"], message: "Old price must be higher than the price." });
-    }
   });
 
 export type ProductInput = z.output<typeof productSchema>;

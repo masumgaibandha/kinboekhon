@@ -26,7 +26,6 @@ function readForm(formData: FormData) {
     name: text("name"),
     slug: text("slug"),
     price: text("price"),
-    oldPrice: text("oldPrice"),
     shortDescription: text("shortDescription"),
     sortOrder: text("sortOrder"),
     active: formData.get("active") === "on",

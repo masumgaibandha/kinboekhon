@@ -14,7 +14,6 @@ export interface ProductCardData {
   name: string;
   slug: string;
   price: number;
-  oldPrice: number | null;
   image: ProductImage | null;
 }
 
@@ -23,7 +22,6 @@ interface CardDoc {
   name: string;
   slug: string;
   price: number;
-  oldPrice?: number | null;
   images?: ProductImage[];
 }
 
@@ -35,7 +33,7 @@ export async function getActiveProducts(): Promise<ProductCardData[]> {
   await connectMongoose();
   const docs = await ProductModel.find(
     { active: true },
-    { name: 1, slug: 1, price: 1, oldPrice: 1, images: { $slice: 1 } },
+    { name: 1, slug: 1, price: 1, images: { $slice: 1 } },
   )
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean<CardDoc[]>();
@@ -45,7 +43,6 @@ export async function getActiveProducts(): Promise<ProductCardData[]> {
     name: doc.name,
     slug: doc.slug,
     price: doc.price,
-    oldPrice: doc.oldPrice ?? null,
     image: pickImages(doc.images)[0] ?? null,
   }));
 }

@@ -16,7 +16,6 @@ export const EMPTY_PRODUCT: ProductInput = {
   name: "",
   slug: "",
   price: 0,
-  oldPrice: null,
   shortDescription: "",
   sortOrder: 0,
   active: false,
@@ -34,7 +33,6 @@ export function toProductInput(doc: ProductDoc): ProductInput {
     name: doc.name,
     slug: doc.slug,
     price: doc.price,
-    oldPrice: doc.oldPrice ?? null,
     shortDescription: doc.shortDescription ?? "",
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
@@ -61,7 +59,6 @@ export interface ProductListItem {
   name: string;
   slug: string;
   price: number;
-  oldPrice: number | null;
   sortOrder: number;
   active: boolean;
   mainImage: ProductImage | null;
@@ -73,7 +70,6 @@ export async function listProductsForAdmin(): Promise<ProductListItem[]> {
     name: 1,
     slug: 1,
     price: 1,
-    oldPrice: 1,
     sortOrder: 1,
     active: 1,
     images: { $slice: 1 },
@@ -86,7 +82,6 @@ export async function listProductsForAdmin(): Promise<ProductListItem[]> {
     name: doc.name,
     slug: doc.slug,
     price: doc.price,
-    oldPrice: doc.oldPrice ?? null,
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
     mainImage: pickImages(doc.images)[0] ?? null,

@@ -87,14 +87,6 @@ export function ProductForm({ productId, product }: ProductFormProps) {
           error={errors.price}
           numeric
         />
-        <TextField
-          name="oldPrice"
-          label="Old price (taka)"
-          defaultValue={product.oldPrice === null ? "" : String(product.oldPrice)}
-          error={errors.oldPrice}
-          hint="Optional. Must be higher than the price."
-          numeric
-        />
         <TextArea
           name="shortDescription"
           label="Short description"
