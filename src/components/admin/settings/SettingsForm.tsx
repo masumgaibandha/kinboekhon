@@ -8,6 +8,7 @@ import { saveSettings } from "@/app/admin/(panel)/settings/actions";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
+import type { WalletKey } from "@/lib/settings";
 import type { Settings } from "@/lib/validation/settings";
 
 type NumberKey =
@@ -17,7 +18,13 @@ type NumberKey =
   | "fullAdvanceDiscount"
   | "duplicateWindowHours";
 
-export function SettingsForm({ settings }: { settings: Settings }) {
+interface SettingsFormProps {
+  settings: Settings;
+  saved: Settings;
+  reviewWallets: WalletKey[];
+}
+
+export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormProps) {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -54,7 +61,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <input type="hidden" name={INITIAL_VALUES_FIELD} value={JSON.stringify(settings)} />
+      <input type="hidden" name={INITIAL_VALUES_FIELD} value={JSON.stringify(saved)} />
       <Section title="Delivery charges" description="Whole taka.">
         {amount("deliveryChargeInsideDhaka", "Inside Dhaka")}
         {amount("deliveryChargeOutsideDhaka", "Outside Dhaka")}
@@ -69,14 +76,15 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       </Section>
 
       <Section title="Mobile wallets">
-        <WalletFields prefix="bkash" title="bKash" wallet={settings.bkash} errors={errors} hint={walletHint} />
-        <WalletFields prefix="nagad" title="Nagad" wallet={settings.nagad} errors={errors} hint={walletHint} />
+        <WalletFields prefix="bkash" title="bKash" wallet={settings.bkash} errors={errors} hint={walletHint} review={reviewWallets.includes("bkash")} />
+        <WalletFields prefix="nagad" title="Nagad" wallet={settings.nagad} errors={errors} hint={walletHint} review={reviewWallets.includes("nagad")} />
         <WalletFields
           prefix="rocket"
           title="Rocket"
           wallet={settings.rocket}
           errors={errors}
           hint="11 or 12 digits. Shown to customers who pay in advance."
+          review={reviewWallets.includes("rocket")}
         />
       </Section>
 

@@ -16,9 +16,9 @@ import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
 import type { OrderLocation } from "@/lib/locations/types";
 import { DELIVERY_AREAS, type DeliveryArea } from "@/lib/orders/limits";
 
-export const HISTORY_KINDS = ["status", "edit"] as const;
+export const HISTORY_KINDS = ["status", "edit", "payment"] as const;
 
-// A status change, or a customer edit (status then holds the status at that moment).
+// A status change, a customer edit or a payment review (for the last two, status holds the status at that moment).
 export interface OrderHistoryEntry {
   kind: (typeof HISTORY_KINDS)[number];
   status: OrderStatus;

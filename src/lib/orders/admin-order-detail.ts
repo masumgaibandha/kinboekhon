@@ -1,10 +1,22 @@
 import { connectMongoose } from "@/lib/db";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel, type OrderDocument, type OrderHistoryEntry } from "@/lib/models/Order";
-import type { OrderStatus, PaymentOption } from "@/lib/orders/enums";
+import type { OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
 import type { DeliveryArea } from "@/lib/orders/limits";
 
 export const ORDER_NUMBER_PATTERN = /^KE\d{5,9}$/;
+
+export interface AdminPayment {
+  option: PaymentOption;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  advanceAmount: number;
+  dueOnDelivery: number;
+  senderNumber: string;
+  transactionId: string;
+  reviewNote: string;
+  reviewedAt: Date | null;
+}
 
 export interface AdminOrder {
   orderNumber: string;
@@ -19,9 +31,7 @@ export interface AdminOrder {
   deliveryCharge: number;
   deliveryDiscount: number;
   total: number;
-  paymentOption: PaymentOption;
-  advanceAmount: number;
-  dueOnDelivery: number;
+  payment: AdminPayment;
   customer: { name: string; phone: string; address: string; location: OrderLocation };
   history: OrderHistoryEntry[];
   adminNote: string;
@@ -45,9 +55,17 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     deliveryCharge: doc.deliveryCharge,
     deliveryDiscount: doc.deliveryDiscount,
     total: doc.total,
-    paymentOption: doc.payment.option,
-    advanceAmount: doc.payment.advanceAmount,
-    dueOnDelivery: doc.payment.dueOnDelivery,
+    payment: {
+      option: doc.payment.option,
+      method: doc.payment.method,
+      status: doc.payment.status,
+      advanceAmount: doc.payment.advanceAmount,
+      dueOnDelivery: doc.payment.dueOnDelivery,
+      senderNumber: doc.payment.senderNumber ?? "",
+      transactionId: doc.payment.transactionIdNormalized ?? "",
+      reviewNote: doc.payment.reviewNote ?? "",
+      reviewedAt: doc.payment.reviewedAt ?? null,
+    },
     customer: {
       name: doc.customer.name,
       phone: doc.customer.phone,

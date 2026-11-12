@@ -49,7 +49,7 @@ export function ThankYouDetails({ order }: { order: ThankYouOrder }) {
       <div className="border-t border-dashed border-line-strong pt-2">
         <Row label="মোট" value={<Money amount={order.total} bold />} strong large />
       </div>
-      {order.advanceAmount > 0 && <Row label="অগ্রিম পরিশোধ" value={<Money amount={order.advanceAmount} />} />}
+      {order.advanceAmount > 0 && <Row label="অগ্রিম পাঠিয়েছেন" value={<Money amount={order.advanceAmount} />} />}
       <div className="rounded-md bg-brand-light px-3 py-2 text-brand-dark">
         <Row label="ডেলিভারির সময় দেবেন" value={<Money amount={order.dueOnDelivery} bold />} strong />
       </div>

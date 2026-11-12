@@ -16,6 +16,7 @@ export function OrderCustomer({ order, charges }: { order: AdminOrder; charges: 
       charges={charges}
       price={order.product.price}
       quantity={order.quantity}
+      areaLocked={order.payment.option !== "cod"}
     >
       <div className="space-y-1 text-sm">
         <p className="text-base font-semibold text-heading">{customer.name}</p>

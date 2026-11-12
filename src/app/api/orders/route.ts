@@ -5,7 +5,18 @@ import { isSameOrigin } from "@/lib/request";
 import { orderSchema } from "@/lib/validation/order";
 
 const MAX_BODY_BYTES = 4096;
-const SHOWN_FIELDS = new Set(["name", "phone", "cityCorporation", "divisionId", "districtId", "upazilaId", "address"]);
+const SHOWN_FIELDS = new Set([
+  "name",
+  "phone",
+  "cityCorporation",
+  "divisionId",
+  "districtId",
+  "upazilaId",
+  "address",
+  "paymentMethod",
+  "senderNumber",
+  "transactionId",
+]);
 const TRY_AGAIN = "অর্ডার নেওয়া যায়নি। একটু পরে আবার চেষ্টা করুন।";
 
 function reply(body: object, status: number) {
@@ -37,7 +48,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await createOrder(parsed.data);
-    if (!result.ok) return reply({ message: result.message }, 409);
+    if (!result.ok) return reply({ message: result.message, fieldErrors: result.fieldErrors ?? {} }, 409);
     return reply({ publicId: result.publicId }, 201);
   } catch {
     return reply({ message: TRY_AGAIN }, 500);

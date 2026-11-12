@@ -13,16 +13,24 @@ export async function missOrStale(orderNumber: string): Promise<AdminActionResul
   return adminFail(exists ? ORDER_CHANGED : ORDER_NOT_FOUND);
 }
 
+export const REVIEW_PAYMENT_FIRST = "Approve or reject the advance payment first.";
+
 // Moves the order only if it still has the status the admin saw, so two tabs cannot skip a step.
+// An order with a payment waiting for review is confirmed only by approving that payment.
 export async function changeOrderStatus({ orderNumber, from, to, note }: StatusChange): Promise<AdminActionResult> {
   await connectMongoose();
+  const filter: Record<string, unknown> = { orderNumber, status: from };
+  if (to === "confirmed") filter["payment.status"] = { $ne: "submitted" };
   const updated = await OrderModel.findOneAndUpdate(
-    { orderNumber, status: from },
+    filter,
     { $set: { status: to }, $push: { statusHistory: { kind: "status", status: to, at: new Date(), note } } },
     { projection: { _id: 1 } },
   ).lean();
-  if (!updated) return missOrStale(orderNumber);
-  return { ok: true, message: `Status changed to ${STATUS_LABELS[to]}.` };
+  if (updated) return { ok: true, message: `Status changed to ${STATUS_LABELS[to]}.` };
+  if (to === "confirmed" && (await OrderModel.exists({ orderNumber, status: from, "payment.status": "submitted" }))) {
+    return adminFail(REVIEW_PAYMENT_FIRST);
+  }
+  return missOrStale(orderNumber);
 }
 
 // Writes the note only if nobody changed it since the form was loaded.

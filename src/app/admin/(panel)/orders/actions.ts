@@ -7,7 +7,14 @@ import { TRY_AGAIN, adminFail, zodFail, type AdminActionResult } from "@/lib/adm
 import { INITIAL_VALUES_FIELD, readJsonField } from "@/lib/changed-fields";
 import { changeOrderStatus, saveOrderNote } from "@/lib/orders/change-status";
 import { editOrderCustomer } from "@/lib/orders/edit-customer";
-import { adminNoteSchema, customerEditSchema, customerFieldsSchema, statusChangeSchema } from "@/lib/validation/admin-order";
+import { switchToCashOnDelivery } from "@/lib/orders/payment-review";
+import {
+  adminNoteSchema,
+  customerEditSchema,
+  customerFieldsSchema,
+  statusChangeSchema,
+  switchToCodSchema,
+} from "@/lib/validation/admin-order";
 
 const RELOAD = "Reload the page and try again.";
 
@@ -69,4 +76,13 @@ export async function updateOrderCustomer(formData: FormData): Promise<AdminActi
   });
   if (!parsed.success) return zodFail(parsed.error);
   return run(() => editOrderCustomer(parsed.data, initial.data));
+}
+
+export async function switchOrderToCod(formData: FormData): Promise<AdminActionResult> {
+  await requireAdmin();
+  const text = reader(formData);
+  const parsed = switchToCodSchema.safeParse({ orderNumber: text("orderNumber"), note: text("note") });
+  if (!parsed.success) return zodFail(parsed.error);
+  const { orderNumber, note } = parsed.data;
+  return run(() => switchToCashOnDelivery(orderNumber, note));
 }

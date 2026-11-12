@@ -50,6 +50,8 @@ function searchQuery(q: string): Record<string, unknown> {
 function buildQuery(filters: OrderFilters): Record<string, unknown> {
   const query: Record<string, unknown> = filters.q ? searchQuery(filters.q) : {};
   if (filters.status) query.status = filters.status;
+  if (filters.method) query["payment.method"] = filters.method;
+  if (filters.payment) query["payment.status"] = filters.payment;
   if (filters.product) query["product.productId"] = filters.product;
 
   const from = filters.from ? dhakaDayStart(filters.from) : null;

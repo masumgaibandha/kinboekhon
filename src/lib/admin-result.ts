@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 export type AdminActionResult =
-  | { ok: true; message: string }
+  | { ok: true; message: string; warning?: boolean }
   | { ok: false; message: string; fieldErrors: Record<string, string> };
 
 export const FIX_FIELDS = "Please fix the highlighted fields.";

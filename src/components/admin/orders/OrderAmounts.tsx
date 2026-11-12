@@ -4,12 +4,7 @@ import type { ReactNode } from "react";
 import { Money } from "@/components/ui/Money";
 import type { AdminOrder } from "@/lib/orders/admin-order-detail";
 import { DELIVERY_AREA_ADMIN_LABELS } from "@/lib/orders/limits";
-
-const PAYMENT_LABELS: Record<AdminOrder["paymentOption"], string> = {
-  cod: "Cash on delivery",
-  advance_delivery: "Delivery charge in advance",
-  advance_full: "Full amount in advance",
-};
+import { OPTION_LABELS } from "@/lib/orders/payment-methods";
 
 function Row({ label, children, strong }: { label: string; children: ReactNode; strong?: boolean }) {
   return (
@@ -39,23 +34,22 @@ export function OrderAmounts({ order }: { order: AdminOrder }) {
           <Money amount={order.deliveryCharge} />
         </Row>
         {order.deliveryDiscount > 0 && (
-          <Row label="Delivery discount">
+          <Row label={`Delivery discount (${OPTION_LABELS[order.payment.option].toLowerCase()})`}>
             - <Money amount={order.deliveryDiscount} />
           </Row>
         )}
         <Row label="Total" strong>
           <Money amount={order.total} bold />
         </Row>
-        {order.advanceAmount > 0 && (
-          <Row label="Paid in advance">
-            <Money amount={order.advanceAmount} />
+        {order.payment.advanceAmount > 0 && (
+          <Row label="Advance">
+            <Money amount={order.payment.advanceAmount} />
           </Row>
         )}
         <Row label="Due on delivery" strong>
-          <Money amount={order.dueOnDelivery} bold />
+          <Money amount={order.payment.dueOnDelivery} bold />
         </Row>
       </dl>
-      <p className="text-desc">Payment: {PAYMENT_LABELS[order.paymentOption]}</p>
     </div>
   );
 }

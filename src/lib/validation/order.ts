@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DELIVERY_AREAS, MAX_QUANTITY } from "@/lib/orders/limits";
 import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
 import { LOCATION_CHECK, addLocationIssues, resolveAreaLocation } from "@/lib/validation/location-fields";
+import { PAYMENT_CHECK, addPaymentIssues, checkPayment, paymentShape } from "@/lib/validation/order-payment";
 
 const PHONE_MESSAGE = "সঠিক 11 সংখ্যার মোবাইল নম্বর দিন, যেমন 01712345678।";
 const NAME_MESSAGE = "আপনার নাম লিখুন (2 থেকে 60 অক্ষর)।";
@@ -32,15 +33,20 @@ export const orderSchema = z
     districtId: optionalId,
     upazilaId: optionalId,
     address: z.string({ error: ADDRESS_MESSAGE }).trim().min(3, ADDRESS_MESSAGE).max(200, ADDRESS_MESSAGE),
+    ...paymentShape,
   })
   .superRefine((order, ctx) => addLocationIssues(order, ctx), LOCATION_CHECK)
-  .transform(({ cityCorporation, divisionId, districtId, upazilaId, ...order }, ctx) => {
-    const result = resolveAreaLocation({ deliveryArea: order.deliveryArea, cityCorporation, divisionId, districtId, upazilaId });
-    if (!result.ok) {
+  .superRefine((order, ctx) => addPaymentIssues(order, ctx), PAYMENT_CHECK)
+  .transform((fields, ctx) => {
+    const { cityCorporation, divisionId, districtId, upazilaId, paymentOption, paymentMethod, senderNumber, transactionId, ...order } =
+      fields;
+    const location = resolveAreaLocation({ deliveryArea: order.deliveryArea, cityCorporation, divisionId, districtId, upazilaId });
+    const payment = checkPayment({ paymentOption, paymentMethod, senderNumber, transactionId });
+    if (!location.ok || !payment.ok) {
       ctx.addIssue({ code: "custom", path: ["deliveryArea"], message: LOCATION_MESSAGE });
       return z.NEVER;
     }
-    return { ...order, location: result.location };
+    return { ...order, location: location.location, payment: payment.payment };
   });
 
 export type OrderInput = z.output<typeof orderSchema>;

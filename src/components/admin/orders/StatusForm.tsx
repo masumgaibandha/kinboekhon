@@ -10,16 +10,18 @@ import { STATUS_LABELS, STATUS_MOVES } from "@/lib/orders/status";
 interface StatusFormProps {
   orderNumber: string;
   status: OrderStatus;
+  // A payment waiting for review: the order is confirmed by approving it, not here.
+  paymentWaiting: boolean;
 }
 
 const fieldClass =
   "mt-1 w-full rounded-lg border bg-card px-3 py-2 text-sm text-body outline-none focus:border-brand";
 
-export function StatusForm({ orderNumber, status }: StatusFormProps) {
+export function StatusForm({ orderNumber, status, paymentWaiting }: StatusFormProps) {
   const { submit, pending, errors } = useAdminAction("order-status");
-  const moves = STATUS_MOVES[status];
+  const moves = STATUS_MOVES[status].filter((move) => !(paymentWaiting && move === "confirmed"));
 
-  if (moves.length === 0) {
+  if (STATUS_MOVES[status].length === 0) {
     return <p className="text-sm text-desc">This order is {STATUS_LABELS[status].toLowerCase()}. Its status is final.</p>;
   }
 
@@ -32,6 +34,11 @@ export function StatusForm({ orderNumber, status }: StatusFormProps) {
     <form onSubmit={handleSubmit} noValidate className="space-y-3">
       <input type="hidden" name="orderNumber" value={orderNumber} />
       <input type="hidden" name="from" value={status} />
+      {paymentWaiting && (
+        <p className="rounded-lg bg-brand-light px-3 py-2 text-sm text-brand-dark">
+          An advance payment is waiting for review. Approving it confirms the order.
+        </p>
+      )}
       <div>
         <label htmlFor="status-to" className="block text-sm font-medium text-body">
           New status

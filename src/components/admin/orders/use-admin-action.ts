@@ -19,7 +19,8 @@ export function useAdminAction(toastId: string, onSuccess?: () => void) {
         return;
       }
       setErrors({});
-      toast.success(result.message, { id: toastId });
+      if (result.warning) toast(result.message, { id: toastId, icon: "!", duration: 6000 });
+      else toast.success(result.message, { id: toastId });
       onSuccess?.();
     });
   }

@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 import { ACCOUNT_TYPES } from "@/lib/account-types";
-import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
-
-// Rocket numbers are the mobile number plus one check digit.
-const ROCKET_PATTERN = /^01[3-9]\d{8}\d?$/;
+import { BD_MOBILE_PATTERN, ROCKET_PATTERN, normalizePhone } from "@/lib/phone";
 
 const amount = z
   .string()
@@ -24,7 +21,7 @@ function walletSchema(pattern: RegExp, message: string) {
     .object({
       enabled: z.boolean(),
       number: phone(pattern, message),
-      accountType: z.enum(ACCOUNT_TYPES),
+      accountType: z.enum(ACCOUNT_TYPES, { error: "Choose Personal or Merchant." }),
     })
     .refine((wallet) => !wallet.enabled || wallet.number !== "", {
       path: ["number"],

@@ -2,6 +2,9 @@ const BANGLA_DIGITS = "০১২৩৪৫৬৭৮৯";
 
 export const BD_MOBILE_PATTERN = /^01[3-9]\d{8}$/;
 
+// Rocket numbers are the mobile number plus one check digit.
+export const ROCKET_PATTERN = /^01[3-9]\d{8}\d?$/;
+
 export function normalizePhone(raw: string): string {
   return raw
     .replace(/[০-৯]/g, (digit) => String(BANGLA_DIGITS.indexOf(digit)))

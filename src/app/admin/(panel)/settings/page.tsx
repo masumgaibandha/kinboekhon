@@ -10,13 +10,13 @@ export const instant = false;
 
 export default async function SettingsPage() {
   await requireAdmin();
-  const { settings, version } = await getSettingsForAdmin();
+  const { settings, saved, reviewWallets, version } = await getSettingsForAdmin();
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-heading">Settings</h1>
       {/* Keyed on the saved version, so a page restored from navigation history shows fresh values. */}
-      <SettingsForm key={version} settings={settings} />
+      <SettingsForm key={version} settings={settings} saved={saved} reviewWallets={reviewWallets} />
     </div>
   );
 }

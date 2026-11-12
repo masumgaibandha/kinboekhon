@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const inputClass =
+export const inputClass =
   "mt-1 w-full rounded-lg border bg-card px-3 py-2 text-body outline-none focus:border-brand";
 
 interface SectionProps {
@@ -100,37 +100,6 @@ export function TextArea({ name, label, defaultValue, error, hint, rows = 3 }: T
           {note}
         </p>
       )}
-    </div>
-  );
-}
-
-interface SelectFieldProps {
-  name: string;
-  label: string;
-  defaultValue: string;
-  options: readonly string[];
-}
-
-export function SelectField({ name, label, defaultValue, options }: SelectFieldProps) {
-  const id = name.replace(".", "-");
-
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-body">
-        {label}
-      </label>
-      <select
-        id={id}
-        name={name}
-        defaultValue={defaultValue}
-        className={`${inputClass} border-line-strong capitalize`}
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

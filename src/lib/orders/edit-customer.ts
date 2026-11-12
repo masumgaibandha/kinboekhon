@@ -1,10 +1,10 @@
-import { adminFail, type AdminActionResult } from "@/lib/admin-result";
+import { FIX_FIELDS, adminFail, type AdminActionResult } from "@/lib/admin-result";
 import { connectMongoose } from "@/lib/db";
 import { formatLocation } from "@/lib/locations/format";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel } from "@/lib/models/Order";
 import { missOrStale, ORDER_NOT_FOUND } from "@/lib/orders/change-status";
-import type { OrderStatus } from "@/lib/orders/enums";
+import type { OrderStatus, PaymentOption } from "@/lib/orders/enums";
 import { DELIVERY_AREA_ADMIN_LABELS, type DeliveryArea } from "@/lib/orders/limits";
 import { calculateOrder, deliveryChargesFrom } from "@/lib/orders/pricing";
 import { CUSTOMER_EDITABLE_STATUSES, canEditCustomer } from "@/lib/orders/status";
@@ -19,7 +19,11 @@ interface EditDoc {
   deliveryCharge: number;
   total: number;
   customer: { name: string; phone: string; address: string; location: OrderLocation };
+  payment: { option: PaymentOption };
 }
+
+export const AREA_LOCKED =
+  "The delivery area can't be changed on an advance payment order, because the customer paid for this area. Cancel the order and place a new one instead.";
 
 const LOCATION_KEYS = ["deliveryArea", "cityCorporation", "divisionId", "districtId", "upazilaId"] as const;
 const money = (amount: number) => amount.toLocaleString("en-IN");
@@ -54,8 +58,13 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
   if (!canEditCustomer(order.status)) {
     return adminFail("Customer details can be edited only while the order is pending or confirmed.");
   }
+  if (changed.area && order.payment.option !== "cod") {
+    return adminFail(FIX_FIELDS, { deliveryArea: AREA_LOCKED });
+  }
 
   const guard: Record<string, unknown> = { orderNumber: edit.orderNumber, status: { $in: CUSTOMER_EDITABLE_STATUSES } };
+  // The amounts are recalculated as cash on delivery, so the option must not have changed meanwhile.
+  if (changed.area) guard["payment.option"] = "cod";
   const set: Record<string, unknown> = {};
   const notes: string[] = [];
 

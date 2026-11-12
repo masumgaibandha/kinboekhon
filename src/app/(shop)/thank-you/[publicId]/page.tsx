@@ -45,7 +45,11 @@ async function ThankYou({ params }: Pick<PageProps<"/thank-you/[publicId]">, "pa
         <ThankYouDetails order={order} />
       </div>
 
-      <p className="mt-5 text-center leading-relaxed text-body">আমরা শীঘ্রই ফোন করে আপনার অর্ডারটি কনফার্ম করব।</p>
+      <p className="mt-5 text-center leading-relaxed text-body">
+        {order.paymentStatus === "submitted"
+          ? "আপনার অগ্রিম পেমেন্ট যাচাই করে আমরা অর্ডারটি কনফার্ম করব।"
+          : "আমরা শীঘ্রই ফোন করে আপনার অর্ডারটি কনফার্ম করব।"}
+      </p>
       {supportPhone && (
         <p className="mt-2 text-center text-sm text-desc">
           কোনো প্রশ্ন থাকলে কল করুন:{" "}

@@ -1,7 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 
-import { ORDER_STATUSES } from "@/lib/orders/enums";
+import { METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/orders/payment-methods";
 import { STATUS_LABELS } from "@/lib/orders/status";
 import type { OrderFilters as Filters } from "@/lib/validation/order-filters";
 
@@ -14,10 +14,36 @@ const fieldClass =
   "mt-1 w-full rounded-lg border border-line-strong bg-card px-3 py-2 text-sm text-body outline-none focus:border-brand";
 const labelClass = "block text-xs font-medium text-desc";
 
+interface FilterSelectProps {
+  name: string;
+  label: string;
+  value: string;
+  all: string;
+  labels: Record<string, string>;
+}
+
+function FilterSelect({ name, label, value, all, labels }: FilterSelectProps) {
+  return (
+    <div>
+      <label htmlFor={`filter-${name}`} className={labelClass}>
+        {label}
+      </label>
+      <select id={`filter-${name}`} name={name} defaultValue={value} className={fieldClass}>
+        <option value="">{all}</option>
+        {Object.entries(labels).map(([key, text]) => (
+          <option key={key} value={key}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // A plain GET form: the filters live in the URL, so a filtered list can be bookmarked or reloaded.
 export function OrderFilters({ filters, products }: OrderFiltersProps) {
   return (
-    <Form action="/admin/orders" className="grid gap-3 rounded-xl border border-line bg-card p-4 sm:grid-cols-2 lg:grid-cols-6">
+    <Form action="/admin/orders" className="grid gap-3 rounded-xl border border-line bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
       <div className="sm:col-span-2">
         <label htmlFor="filter-q" className={labelClass}>
           Search
@@ -31,19 +57,15 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
           className={fieldClass}
         />
       </div>
-      <div>
-        <label htmlFor="filter-status" className={labelClass}>
-          Status
-        </label>
-        <select id="filter-status" name="status" defaultValue={filters.status} className={fieldClass}>
-          <option value="">All statuses</option>
-          {ORDER_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {STATUS_LABELS[status]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FilterSelect name="status" label="Status" value={filters.status} all="All statuses" labels={STATUS_LABELS} />
+      <FilterSelect name="method" label="Payment method" value={filters.method} all="All methods" labels={METHOD_LABELS} />
+      <FilterSelect
+        name="payment"
+        label="Payment status"
+        value={filters.payment}
+        all="All payment statuses"
+        labels={PAYMENT_STATUS_LABELS}
+      />
       <div>
         <label htmlFor="filter-product" className={labelClass}>
           Product
@@ -69,7 +91,7 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
         </label>
         <input id="filter-to" name="to" type="date" defaultValue={filters.to} className={fieldClass} />
       </div>
-      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-6">
+      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-4">
         <button type="submit" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white">
           Apply filters
         </button>

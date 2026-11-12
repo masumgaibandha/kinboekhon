@@ -6,6 +6,7 @@ import { AdminNoteForm } from "@/components/admin/orders/AdminNoteForm";
 import { OrderAmounts } from "@/components/admin/orders/OrderAmounts";
 import { OrderCard } from "@/components/admin/orders/OrderCard";
 import { OrderCustomer } from "@/components/admin/orders/OrderCustomer";
+import { OrderPayment } from "@/components/admin/orders/OrderPayment";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
@@ -46,10 +47,18 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
           <OrderCard title="Product and amounts">
             <OrderAmounts order={order} />
           </OrderCard>
+          <OrderCard title="Payment">
+            <OrderPayment order={order} />
+          </OrderCard>
         </div>
         <div className="space-y-4">
           <OrderCard title="Status">
-            <StatusForm key={key} orderNumber={order.orderNumber} status={order.status} />
+            <StatusForm
+              key={key}
+              orderNumber={order.orderNumber}
+              status={order.status}
+              paymentWaiting={order.payment.status === "submitted"}
+            />
           </OrderCard>
           <OrderCard title="Admin note">
             <AdminNoteForm key={key} orderNumber={order.orderNumber} note={order.adminNote} />

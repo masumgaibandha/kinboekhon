@@ -33,6 +33,16 @@ export const statusChangeSchema = z
 
 export type StatusChange = z.output<typeof statusChangeSchema>;
 
+const reviewNote = z.string().trim().max(300, "Keep the note under 300 characters.");
+
+export const paymentReviewSchema = z.object({
+  orderNumber,
+  decision: z.enum(["approve", "reject"], { error: RELOAD }),
+  note: reviewNote,
+});
+
+export const switchToCodSchema = z.object({ orderNumber, note: reviewNote });
+
 export const adminNoteSchema = z.object({
   orderNumber,
   note: z.string().trim().max(2000, "Keep the note under 2,000 characters."),

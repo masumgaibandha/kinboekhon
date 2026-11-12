@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import type { PaymentOption } from "@/lib/orders/enums";
 import type { DeliveryArea } from "@/lib/orders/limits";
 
 export interface OrderFields {
@@ -16,6 +17,10 @@ export interface OrderFields {
   districtId: string;
   upazilaId: string;
   address: string;
+  paymentOption: PaymentOption;
+  paymentMethod: string;
+  senderNumber: string;
+  transactionId: string;
 }
 
 interface OrderResponse {

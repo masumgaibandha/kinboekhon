@@ -72,7 +72,7 @@ kinboekhon/
    │  │     ├─ orders/[orderNumber]/page.tsx   detail: /admin/orders/KE10001
    │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
    │  │     ├─ payments/page.tsx         advance payments waiting for review
-   │  │     ├─ payments/actions.ts
+   │  │     ├─ payments/actions.ts       reviewPayment (approve or reject)
    │  │     ├─ incomplete/page.tsx
    │  │     ├─ incomplete/actions.ts
    │  │     ├─ products/page.tsx
@@ -92,12 +92,14 @@ kinboekhon/
    ├─ components/
    │  ├─ shop/                   Header, Footer, ProductCard, PriceTag, TrustBadges,
    │  │                          landing/HookSection ... CtaSection, order/OrderForm,
-   │  │                          order/PaymentPicker, order/OrderSummary, StickyOrderBar
-   │  ├─ admin/                  AdminNav, StatCard, ProductForm, PaymentReviewCard,
+   │  │                          order/PaymentSection, PaymentOptionPicker, PaymentAccountBox, CopyButton,
+   │  │                          order/OrderSummary, OrderSubmit, use-payment-choice.ts, StickyOrderBar
+   │  ├─ admin/                  AdminNav, StatCard, ProductForm, payments/PaymentReviewCard, ReviewForm,
    │  │                          products/ImageUploader, ImageThumb, upload-image.ts,
    │  │                          orders/OrdersTable, OrderFilters, Pagination, StatusBadge, OrderCard,
    │  │                          OrderCustomer, CustomerEditor, CustomerEditForm, AdminLocationFields,
-   │  │                          OrderAmounts, StatusForm, StatusHistory, AdminNoteForm, use-admin-action.ts
+   │  │                          OrderAmounts, OrderPayment, SwitchToCodForm, StatusForm, StatusHistory, AdminNoteForm,
+   │  │                          use-admin-action.ts
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
    │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage, Money (Taka icon + amount), TakaIcon
    └─ lib/
@@ -106,11 +108,13 @@ kinboekhon/
       ├─ models/                 Product.ts, Order.ts, IncompleteOrder.ts,
       │                          Settings.ts, Counter.ts, RateLimit.ts
       ├─ validation/             order.ts, location-fields.ts (shared location check), admin-order.ts,
-      │                          order-filters.ts, draft.ts, product.ts, settings.ts (Zod schemas)
+      │                          order-payment.ts, order-filters.ts, draft.ts, product.ts, settings.ts (Zod schemas)
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY, delivery areas), pricing.ts, create-order.ts,
       │                          order-number.ts, thank-you.ts, status.ts (labels, allowed moves),
       │                          admin-order-list.ts, admin-order-detail.ts, change-status.ts (status + admin note),
-      │                          edit-customer.ts, duplicate-check.ts, stats.ts, csv.ts
+      │                          edit-customer.ts, payment-methods.ts (enabled accounts, labels), transaction-id.ts,
+      │                          payment-queue.ts, payment-review.ts (approve, reject, switch to COD),
+      │                          duplicate-check.ts, stats.ts, csv.ts
       ├─ admin-result.ts         result type and helpers for admin Server Actions
       ├─ phone.ts                normalize + validate BD mobile numbers
       ├─ locations/              types.ts (location types), dhaka.ts (city corporations), resolve.ts (server check + Bangla names),
@@ -176,7 +180,7 @@ Any landing section left empty is simply not rendered.
 | total | number | subtotal + deliveryCharge - deliveryDiscount |
 | customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` has `kind: dhaka_city | outside_dhaka`. Inside Dhaka: `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`, plus division and district ঢাকা. Outside Dhaka: `divisionId, division, districtId, district, upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
-| statusHistory | `{ kind, status, at, note }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit (then `status` is the status at that moment and `note` says what changed) |
+| statusHistory | `{ kind, status, at, note }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit and `kind: payment` for a payment review or a switch to cash on delivery (for both, `status` is the status at that moment and `note` says what happened) |
 | payment.option | `cod` \| `advance_delivery` \| `advance_full` | see section 6, "Payment options" |
 | payment.method | `cod` \| `bkash` \| `nagad` \| `rocket` \| `bank` | `cod` only with option `cod` |
 | payment.status | `cod` \| `submitted` \| `verified` \| `rejected` | `cod` for cash on delivery |
@@ -184,7 +188,7 @@ Any landing section left empty is simply not rendered.
 | payment.dueOnDelivery | number | total - advanceAmount, collected by the courier |
 | payment.senderNumber | string | mobile wallet number, or sender account for bank |
 | payment.transactionId | string | as typed |
-| payment.transactionIdNormalized | string | trimmed + uppercase, for duplicate check |
+| payment.transactionIdNormalized | string | uppercase with every space removed, for the duplicate check; the admin panel shows this form |
 | payment.reviewNote | string | admin note on approve or reject |
 | payment.reviewedAt | Date | |
 | adminNote | string | free note |
@@ -217,7 +221,7 @@ TTL index: removed 30 days after `updatedAt`. Deleted as soon as the matching or
 | deliveryChargeOutsideDhaka | number, default 150 |
 | advanceDeliveryDiscount | number, default 20: delivery discount when the delivery charge is paid in advance |
 | fullAdvanceDiscount | number, default 50: delivery discount when the full amount is paid in advance |
-| bkash, nagad, rocket | `{ enabled, number, accountType: personal\|agent\|merchant }` |
+| bkash, nagad, rocket | `{ enabled, number, accountType: personal\|merchant }`; agent accounts are not offered (decision 63) |
 | bank | `{ enabled, bankName, accountName, accountNumber, branch, routingNumber }` |
 | supportPhone | shown in header and thank-you page |
 | whatsappNumber | shown to customers |
@@ -340,7 +344,7 @@ Login: the `/admin/login` form posts to `/api/auth/sign-in/email`. It must go th
 
 Server Actions (each calls `requireAdmin()` first):
 - orders: `updateOrderStatus`, `saveAdminNote`, `updateOrderCustomer`
-- payments: `approvePayment`, `rejectPayment`
+- payments: `reviewPayment` (approve or reject); orders: `switchOrderToCod`
 - products: `createProduct`, `updateProduct`, `setProductActive` (no delete in v1, deactivate instead)
 - incomplete: `deleteIncompleteOrder`
 - settings: `saveSettings`
@@ -376,7 +380,7 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Detail: `/admin/orders/KE10001`. Customer (with a Call button `tel:`), product and amounts, status, admin note, history (newest first).
 - Status moves (`src/lib/orders/status.ts`): pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned; cancelled can be reopened to pending; delivered and returned are final. The form lists only allowed moves; Zod refuses any other move. Every change pushes a history entry with the optional note.
 - Stale protection: the status form sends the status it was loaded with and the update matches on it (`findOneAndUpdate({ orderNumber, status: from })`). The note form sends the note it was loaded with. The customer form sends all loaded values (`initialValues`) and writes only changed fields, each matched against its loaded value. Any miss shows "This order was changed since you opened it. Reload the page." Every form is keyed on the order's `updatedAt`, and each action calls `refresh()` from `next/cache`.
-- Customer edit: name, phone, typed address and location, with the same rules as the shop form (area first, city corporation or division, district, upazila, switching the area clears the choices) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. Changing the delivery area takes the charge from the current Settings and recalculates subtotal, total and due on delivery with `calculateOrder()`. Each save pushes a `kind: edit` history entry listing old and new values. M9 must extend this recalculation for advance payment orders.
+- Customer edit: name, phone, typed address and location, with the same rules as the shop form (area first, city corporation or division, district, upazila, switching the area clears the choices) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. Changing the delivery area takes the charge from the current Settings and recalculates subtotal, total and due on delivery with `calculateOrder()`. Each save pushes a `kind: edit` history entry listing old and new values. On an advance payment order the delivery area is locked (decision 60); name, phone, address and the location inside the same area stay editable.
 
 ### Payment options
 One function in `src/lib/orders/pricing.ts` does this math. The order form uses it for the live summary and the server uses it again to save the order.
@@ -398,6 +402,15 @@ One function in `src/lib/orders/pricing.ts` does this math. The order form uses 
 - Approve: atomic update only when `payment.status` is `submitted`. Sets `verified`, note, time, and moves order `pending` to `confirmed`.
 - Reject: same atomic guard. Sets `rejected` and note. Order stays `pending` so the owner can call the customer, then confirm as COD or cancel.
 - A second click on an already reviewed payment changes nothing and shows "Already reviewed".
+
+### Advance payment (M9)
+- `calculateOrder(price, quantity, deliveryCharge, option, discounts)` in `pricing.ts` does all money math for the form summary, the saved order, the customer edit and the switch to cash on delivery. The discounts come from Settings (`deliveryDiscountsFrom`).
+- Shop form: after the quantity, a "পেমেন্ট" picker with three cards (ক্যাশ অন ডেলিভারি, ডেলিভারি চার্জ অগ্রিম, পুরো টাকা অগ্রিম), each with its discount and total. An advance option whose pay-now amount is 0 is hidden. Choosing an advance option picks the first enabled method; the customer can pick another. The account box shows the number and account type (wallets: পার্সোনাল means সেন্ড মানি, মার্চেন্ট means পেমেন্ট) or the bank details, then "পাঠাবেন" with the exact pay-now amount. The number, bank account number and amount each have a copy button (`navigator.clipboard`). Then the sender number (bank: sender account number, 6 to 20 digits; Rocket may have 12 digits) and the Transaction ID. The summary adds the discount, "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন".
+- Only methods enabled in Settings with a number (bank: with an account number) are shown (`enabledAccounts()`). With none, the form shows no payment picker: cash on delivery only, as before.
+- Server (`/api/orders`): Zod checks the option, method, sender number and Transaction ID (`src/lib/validation/order-payment.ts`, Bangla messages). `createOrder()` then refuses a method that is no longer enabled (error on the method field) and a Transaction ID already used (checked first; the unique partial index on `payment.transactionIdNormalized` catches a race). The order saves `payment.status: submitted` with the sender and both Transaction ID forms. The thank-you page says the advance will be checked before the order is confirmed.
+- `/admin/payments`: one card per `submitted` payment, oldest first, with expected advance, method, option, sender, Transaction ID, order total, customer and product, an optional note, and Approve and Reject. Approve on a pending order also confirms it in the same guarded update and adds a `payment` and a `status` history entry. Approve on an order that is no longer pending only verifies the payment and shows a warning toast. Reject keeps the status and adds a `payment` history entry.
+- Order detail: a Payment card (option, payment status, method, advance, sender, Transaction ID, review time and note). While a payment waits, the status form hides Confirmed and the server refuses Pending to Confirmed ("Approve or reject the advance payment first."); Cancel stays allowed. After a rejected advance payment, "Switch to cash on delivery" sets the option, method and payment status to `cod`, removes the discount (the delivery charge stays as at order time), sets pay-now to 0 and due to the new total, and adds a `payment` history entry.
+- Orders list: payment method and payment status filters.
 
 ## 7. Facebook tracking
 
@@ -562,3 +575,10 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 54. Orders list: 25 per page, newest first. Search finds the order number (KE10001 or 10001), phone by prefix, or name (contains, ignoring case).
 55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the delivery area recalculates the delivery charge and total from Settings. Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
 56. Hosting region (replaces decision 18): MongoDB Atlas runs in AWS ap-south-1 (Mumbai), in its own Atlas project, and the Vercel function region is `bom1` (Mumbai), set in `vercel.json`, so the server sits next to the database and close to Bangladeshi customers. Moved in November 2026 by copying the whole `kinboekhon` database (all collections, documents and indexes; counts and indexes checked on both sides). The old Virginia cluster is kept untouched as a backup; its connection string stays only in the local `.env.local` as `MONGODB_URI_OLD_VIRGINIA` and is never set on Vercel.
+57. Approving a payment on an order that is no longer pending only verifies the payment and shows a warning toast.
+58. After a rejected payment the admin can switch the order to cash on delivery: the total is recalculated without the discount, pay-now becomes 0, and a history entry is added.
+59. While a payment is waiting for review, Pending to Confirmed is blocked; only approving confirms. Cancel stays allowed.
+60. The delivery area can't be changed on an advance payment order.
+61. Transaction ID: 6 to 30 letters, digits or hyphens, stored uppercase with inner spaces removed for the duplicate check. One Transaction ID can be used on one order only.
+62. Bank transfer: the customer gives only the sender account number.
+63. Wallet account types are only personal (Send Money) and merchant (Payment). Agent is removed from Settings, validation and the shop, because Cash Out adds a fee the customer would have to pay on top. A wallet still saved as agent is hidden from the shop, and the Settings page asks the admin to choose Personal or Merchant before it can be saved again.

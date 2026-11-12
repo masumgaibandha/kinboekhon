@@ -19,10 +19,12 @@ interface CustomerEditFormProps {
   charges: DeliveryCharges;
   price: number;
   quantity: number;
+  // Advance payment orders keep their delivery area: the customer paid for it.
+  areaLocked: boolean;
   onClose: () => void;
 }
 
-export function CustomerEditForm({ orderNumber, initial, charges, price, quantity, onClose }: CustomerEditFormProps) {
+export function CustomerEditForm({ orderNumber, initial, charges, price, quantity, areaLocked, onClose }: CustomerEditFormProps) {
   const { submit, pending, errors } = useAdminAction("order-customer", onClose);
   const [area, setArea] = useState<DeliveryArea>(initial.deliveryArea);
   const [cityCorporation, setCityCorporation] = useState(initial.cityCorporation);
@@ -65,6 +67,7 @@ export function CustomerEditForm({ orderNumber, initial, charges, price, quantit
                 name="deliveryArea"
                 value={item}
                 checked={area === item}
+                disabled={areaLocked}
                 onChange={() => changeArea(item)}
                 className="h-4 w-4 accent-brand"
               />
@@ -72,6 +75,11 @@ export function CustomerEditForm({ orderNumber, initial, charges, price, quantit
             </label>
           ))}
         </div>
+        {(areaLocked || errors.deliveryArea) && (
+          <p className={`mt-1 text-sm ${errors.deliveryArea ? "text-brand-dark" : "text-muted"}`}>
+            {errors.deliveryArea ?? "The area can't be changed on an advance payment order."}
+          </p>
+        )}
       </fieldset>
 
       <AdminLocationFields

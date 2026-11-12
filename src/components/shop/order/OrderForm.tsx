@@ -7,27 +7,35 @@ import { CityCorporationPicker } from "@/components/shop/order/CityCorporationPi
 import { DeliveryAreaPicker } from "@/components/shop/order/DeliveryAreaPicker";
 import { LocationPicker } from "@/components/shop/order/LocationPicker";
 import { OrderField, fieldClass, labelClass } from "@/components/shop/order/OrderField";
+import { OrderSubmit } from "@/components/shop/order/OrderSubmit";
 import { OrderSummary } from "@/components/shop/order/OrderSummary";
+import { PaymentSection } from "@/components/shop/order/PaymentSection";
 import { QuantityStepper } from "@/components/shop/order/QuantityStepper";
 import { useOrderSubmit } from "@/components/shop/order/use-order-submit";
+import { usePaymentChoice } from "@/components/shop/order/use-payment-choice";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import { DELIVERY_AREA_LABELS, type DeliveryArea } from "@/lib/orders/limits";
-import type { DeliveryCharges } from "@/lib/orders/pricing";
+import type { PaymentAccount } from "@/lib/orders/payment-methods";
+import type { DeliveryCharges, DeliveryDiscounts } from "@/lib/orders/pricing";
 
 interface OrderFormProps {
   productId: string;
   price: number;
   deliveryCharges: DeliveryCharges;
+  discounts: DeliveryDiscounts;
+  accounts: PaymentAccount[];
 }
 
 const LOCATION_FIELDS = ["cityCorporation", "divisionId", "districtId", "upazilaId"];
 
-export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps) {
+export function OrderForm({ productId, price, deliveryCharges, discounts, accounts }: OrderFormProps) {
   const [quantity, setQuantity] = useState(1);
   const [area, setArea] = useState<DeliveryArea>("inside_dhaka");
   const [cityCorporation, setCityCorporation] = useState("");
   const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
+  const payment = usePaymentChoice({ price, quantity, deliveryCharge: deliveryCharges[area], discounts, accounts, clearError });
+  const activeOption = payment.option;
 
   // Switching between inside and outside Dhaka starts the location choice again.
   function changeArea(next: DeliveryArea) {
@@ -43,6 +51,7 @@ export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps)
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
     const inside = area === "inside_dhaka";
+    const advance = activeOption !== "cod";
     void submit({
       productId,
       quantity,
@@ -52,6 +61,10 @@ export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps)
       cityCorporation: inside ? cityCorporation : "",
       ...(inside ? EMPTY_LOCATION : location),
       address: text("address"),
+      paymentOption: activeOption,
+      paymentMethod: advance ? payment.method : "",
+      senderNumber: advance ? text("senderNumber") : "",
+      transactionId: advance ? text("transactionId") : "",
     });
   }
 
@@ -84,12 +97,7 @@ export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps)
 
         <DeliveryAreaPicker value={area} onChange={changeArea} charges={deliveryCharges} labelClass={labelClass} />
         {area === "inside_dhaka" ? (
-          <CityCorporationPicker
-            value={cityCorporation}
-            onChange={setCityCorporation}
-            error={errors.cityCorporation}
-            labelClass={labelClass}
-          />
+          <CityCorporationPicker value={cityCorporation} onChange={setCityCorporation} error={errors.cityCorporation} labelClass={labelClass} />
         ) : (
           <LocationPicker value={location} onChange={setLocation} errors={errors} />
         )}
@@ -110,26 +118,27 @@ export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps)
           <QuantityStepper value={quantity} onChange={setQuantity} />
         </div>
 
+        {accounts.length > 0 && (
+          <PaymentSection
+            option={activeOption}
+            onOption={payment.changeOption}
+            method={payment.method}
+            onMethod={payment.changeMethod}
+            accounts={accounts}
+            amounts={payment.amounts}
+            errors={errors}
+          />
+        )}
+
         <OrderSummary
           price={price}
           quantity={quantity}
-          deliveryCharge={deliveryCharges[area]}
+          amounts={payment.amounts[activeOption]}
           areaLabel={DELIVERY_AREA_LABELS[area]}
+          advance={activeOption !== "cod"}
         />
 
-        {message && (
-          <p role="alert" className="rounded-md bg-brand-light px-3 py-2 text-center text-sm font-medium text-brand-dark">
-            {message}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-md bg-brand py-4 text-xl font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
-        >
-          {pending ? "অর্ডার হচ্ছে..." : "অর্ডার কনফার্ম করুন"}
-        </button>
-        <p className="text-center text-[13px] text-desc">অর্ডারের পর আমরা ফোন করে কনফার্ম করব</p>
+        <OrderSubmit message={message} pending={pending} advance={activeOption !== "cod"} />
       </form>
     </LandingSection>
   );
