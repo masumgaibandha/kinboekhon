@@ -354,7 +354,7 @@ Server Actions (each calls `requireAdmin()` first):
 
 ### Create order flow (`POST /api/orders`)
 1. Check origin, content type, body size.
-2. Rate limit by IP (example: 5 orders per 10 minutes, 20 per day).
+2. Rate limits by hashed IP (decision 64): every request counts toward 30 per 10 minutes; the order limit (10 per 10 minutes, 50 per day) counts only placed orders and failed Turnstile checks.
 3. Verify Turnstile token with Cloudflare.
 4. Validate body with Zod. Normalize phone. Reject if invalid.
 5. Load product (must be active) and Settings. Price and delivery charge always come from the database, never from the browser.
@@ -376,7 +376,7 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 11. After the response (`after()` from `next/server`), send Purchase to CAPI and save the result in `capiPurchase`.
 
 ### Fake order protection (M10)
-- `/api/orders` order of checks: origin, content type, size (now 8 KB, room for the token), then the IP rate limit (429 "অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।"), then Turnstile (403 "নিরাপত্তা যাচাই সফল হয়নি। পেজটি আবার লোড করে চেষ্টা করুন।"), then Zod, product, the duplicate and phone checks, payment checks, create.
+- `/api/orders` order of checks: the request limit (every request, 30 per 10 minutes, 429 with the same message as below), origin, content type, size (now 8 KB, room for the token), then the order limit, checked without counting (429 "অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।"), then Turnstile (403 "নিরাপত্তা যাচাই সফল হয়নি। পেজটি আবার লোড করে চেষ্টা করুন।"), then Zod, product, the duplicate and phone checks, payment checks, create. A failed Turnstile check and a placed order each count one hit on the order limit; form errors, duplicate and phone blocks don't.
 - Turnstile widget: Cloudflare's script loads only when the order form comes within 800px of the screen, rendered with `appearance: "interaction-only"` (invisible unless Cloudflare needs a click), `size: "flexible"`, `language: "bn"`, `action: "order"`, `refresh-expired: "auto"`. The token is ready while the customer types; on submit the form waits up to 15 seconds for it. A token works once, so the widget resets after every refused submit. If the script can't load, the form shows "নিরাপত্তা যাচাই লোড হয়নি। পেজটি আবার লোড করে চেষ্টা করুন।" and sends nothing.
 - Server verify: `siteverify` with the secret and the customer's IP, 5 second timeout. No token or a refused token: the order is refused. Cloudflare unreachable (network error, timeout, non-2xx, `internal-error`): the order is accepted and saved with `tracking.turnstile: "unverified"`.
 - Duplicate: same phone + same product inside `duplicateWindowHours`, not cancelled: "আপনি গত 24 ঘণ্টায় এই পণ্যটি অর্ডার করেছেন। আপনার অর্ডার নম্বর KE10001।" plus "কিছু বদলাতে চাইলে কল করুন <support phone>।" when a support phone is set.
@@ -450,7 +450,7 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 | Phone check | Normalize (Bangla digits to English, strip spaces, `+880`/`880` prefix to `0`) then must match `^01[3-9]\d{8}$` |
 | Duplicate order | Same phone + product inside 24 hours (editable in Settings) is blocked; the customer sees the old order number |
 | Bot protection | Cloudflare Turnstile on the order form, verified on the server |
-| Rate limit | Per IP, stored in MongoDB with auto-expiry: every order attempt counts, 10 per 10 minutes and 50 per day (loose, because many customers share one address behind their mobile operator) |
+| Rate limit | Per hashed IP, stored in MongoDB with auto-expiry: every request to `/api/orders` counts toward 30 per 10 minutes; placed orders and failed Turnstile checks count toward 10 per 10 minutes and 50 per day (form errors don't count, because many customers share one address behind their mobile operator) |
 | Phone limit | At most 3 orders per phone in 24 hours, all products and statuses |
 | Server pricing | Price, delivery charge and total always recalculated on the server |
 | Unique TxID | One Transaction ID can be used on one order only |
@@ -596,7 +596,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 61. Transaction ID: 6 to 30 letters, digits or hyphens, stored uppercase with inner spaces removed for the duplicate check. One Transaction ID can be used on one order only.
 62. Bank transfer: the customer gives only the sender account number.
 63. Wallet account types are only personal (Send Money) and merchant (Payment). Agent is removed from Settings, validation and the shop, because Cash Out adds a fee the customer would have to pay on top. A wallet still saved as agent is hidden from the shop, and the Settings page asks the admin to choose Personal or Merchant before it can be saved again.
-64. Order rate limit per IP: every attempt counts, 10 per 10 minutes and 50 per day, loose because of carrier NAT.
+64. Rate limits per IP on `/api/orders`: every request counts toward 30 per 10 minutes (stops bots hammering the endpoint); only placed orders and failed Turnstile checks count toward the order limit of 10 per 10 minutes and 50 per day, so form errors from customers sharing a carrier address never use it up.
 65. At most 3 orders per phone in 24 hours across all products. The 24-hour same-product duplicate block stays.
 66. If our server can't reach Cloudflare, the order is accepted and marked unverified.
 67. Customer IPs are hashed with `IP_HASH_SECRET` for rate limits and the admin view; the raw IP is kept on the order only for the Conversions API.
