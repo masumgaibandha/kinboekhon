@@ -12,6 +12,9 @@ const MINUTE = 60 * 1000;
 // Every request to /api/orders, whatever its content, so bots can't hammer the endpoint.
 export const REQUEST_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 30, windowMs: 10 * MINUTE }];
 
+// Draft saves from the order form: one per field blur, so a customer makes several.
+export const DRAFT_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 60, windowMs: 10 * MINUTE }];
+
 // Only placed orders and failed Turnstile checks count, so customers sharing a carrier address aren't blocked by form mistakes.
 export const ORDER_IP_WINDOWS: RateWindow[] = [
   { name: "10m", max: 10, windowMs: 10 * MINUTE },

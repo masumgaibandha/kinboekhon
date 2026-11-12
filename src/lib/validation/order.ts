@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { DELIVERY_AREAS, MAX_QUANTITY } from "@/lib/orders/limits";
 import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
+import { DRAFT_KEY_PATTERN } from "@/lib/validation/draft";
 import { LOCATION_CHECK, addLocationIssues, resolveAreaLocation } from "@/lib/validation/location-fields";
 import { PAYMENT_CHECK, addPaymentIssues, checkPayment, paymentShape } from "@/lib/validation/order-payment";
 
@@ -34,6 +35,8 @@ export const orderSchema = z
     upazilaId: optionalId,
     address: z.string({ error: ADDRESS_MESSAGE }).trim().min(3, ADDRESS_MESSAGE).max(200, ADDRESS_MESSAGE),
     ...paymentShape,
+    // Links the order to its draft; a wrong key never stops the order.
+    draftKey: z.string().regex(DRAFT_KEY_PATTERN).optional().catch(undefined),
   })
   .superRefine((order, ctx) => addLocationIssues(order, ctx), LOCATION_CHECK)
   .superRefine((order, ctx) => addPaymentIssues(order, ctx), PAYMENT_CHECK)

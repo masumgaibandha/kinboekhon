@@ -4,6 +4,7 @@ import type { Types } from "mongoose";
 
 import { connectMongoose } from "@/lib/db";
 import { OrderModel, type OrderDocument, type OrderTracking } from "@/lib/models/Order";
+import { deleteDraftsForOrder } from "@/lib/drafts/save-draft";
 import { checkRepeatOrder } from "@/lib/orders/duplicate-check";
 import { ProductModel } from "@/lib/models/Product";
 import { nextOrderNumber } from "@/lib/orders/order-number";
@@ -111,6 +112,11 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
     if (isDuplicateTransaction(error)) return duplicateTransaction();
     throw error;
   }
+
+  // The order is saved; a failed draft cleanup must not turn it into an error.
+  try {
+    await deleteDraftsForOrder(input.draftKey, input.phone, product._id);
+  } catch {}
 
   return { ok: true, publicId };
 }

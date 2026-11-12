@@ -94,13 +94,13 @@ kinboekhon/
    │  │                          landing/HookSection ... CtaSection, order/OrderForm,
    │  │                          order/PaymentSection, PaymentOptionPicker, PaymentAccountBox, CopyButton,
    │  │                          order/OrderSummary, OrderSubmit, ContactFields, use-payment-choice.ts, use-turnstile.ts,
-   │  │                          StickyOrderBar
+   │  │                          use-draft.ts, StickyOrderBar
    │  ├─ admin/                  AdminNav, StatCard, ProductForm, payments/PaymentReviewCard, ReviewForm,
    │  │                          products/ImageUploader, ImageThumb, upload-image.ts,
    │  │                          orders/OrdersTable, OrderFilters, Pagination, StatusBadge, OrderCard,
    │  │                          OrderCustomer, CustomerEditor, CustomerEditForm, AdminLocationFields,
    │  │                          OrderAmounts, OrderPayment, OrderTracking, SwitchToCodForm, StatusForm, StatusHistory, AdminNoteForm,
-   │  │                          use-admin-action.ts
+   │  │                          use-admin-action.ts, incomplete/DraftCard, DraftActions
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
    │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage, Money (Taka icon + amount), TakaIcon
    └─ lib/
@@ -116,6 +116,7 @@ kinboekhon/
       │                          edit-customer.ts, payment-methods.ts (enabled accounts, labels), transaction-id.ts,
       │                          payment-queue.ts, payment-review.ts (approve, reject, switch to COD),
       │                          duplicate-check.ts, stats.ts, csv.ts
+      ├─ drafts/                 save-draft.ts (save, delete on order), draft-place.ts, admin-draft-list.ts
       ├─ admin-result.ts         result type and helpers for admin Server Actions
       ├─ phone.ts                normalize + validate BD mobile numbers
       ├─ locations/              types.ts (location types), dhaka.ts (city corporations), resolve.ts (server check + Bangla names),
@@ -209,13 +210,16 @@ Indexes:
 ### IncompleteOrder
 | Field | Type | Notes |
 |---|---|---|
-| draftKey | string, unique | random id kept in the visitor's localStorage |
-| productId, productName | | |
-| name, phone, address | string | whatever was typed (phone saved only when valid) |
-| quantity, deliveryArea, paymentMethod | | |
-| tracking | `{ ip, userAgent, fbp, fbc, sourceUrl }` | |
+| draftKey | string, unique | 16 random bytes as hex, one per product, kept in the visitor's localStorage |
+| productId, productName | | name read from the database |
+| name, phone, address | string | whatever was typed; phone is always a valid normalized number |
+| quantity, deliveryArea | | |
+| cityCorporation, divisionId, districtId, upazilaId | string | ids as chosen so far, "" when not chosen |
+| paymentOption, paymentMethod | | never the sender number or Transaction ID |
+| contactedAt | Date or null | set by "Mark contacted" |
+| tracking | `{ ipHash, userAgent, sourceUrl }` | hashed IP only (decision 72); `sourceUrl` from the Referer header |
 
-TTL index: removed 30 days after `updatedAt`. Deleted as soon as the matching order is placed.
+TTL index: removed 30 days after `updatedAt` (the same index sorts the admin list). Index `{ phone, productId }` for the delete on order. Deleted as soon as the matching order is placed.
 
 ### Settings (single document, `key: "main"`)
 | Field | Notes |
@@ -319,7 +323,7 @@ Order form fields:
 | `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9), 25 per page newest first, CSV export button using the same filters (added in M13) |
 | `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), customer edit while pending or confirmed |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
-| `/admin/incomplete` | Incomplete orders newest first, with call button and delete |
+| `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, area and place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
 | `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, images (upload, reorder, remove), landing sections, active |
 | `/admin/settings` | Delivery charges, advance payment discounts, payment accounts, support phone, duplicate window |
@@ -337,7 +341,7 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 | Route | Method | Purpose | Protection |
 |---|---|---|---|
 | `/api/orders` | POST | Create order | Same-origin check, Turnstile, rate limit, Zod, duplicate check |
-| `/api/drafts` | POST | Upsert incomplete order by `draftKey` | Same-origin check, rate limit, Zod, size limit |
+| `/api/drafts` | POST | Upsert incomplete order by `draftKey` | Rate limit (60 per 10 minutes per hashed IP, every request), same-origin check, Zod, 4 KB size limit |
 | `/api/track` | POST | Send ViewContent or InitiateCheckout to CAPI with the browser's event_id | Same-origin check, rate limit, allow-list of event names |
 | `/api/auth/[...all]` | GET/POST | Better Auth handler (sign in, sign out, session) | Sign-up disabled, login rate limited |
 | `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | `proxy.ts` + `requireAdmin()` |
@@ -349,7 +353,7 @@ Server Actions (each calls `requireAdmin()` first):
 - orders: `updateOrderStatus`, `saveAdminNote`, `updateOrderCustomer`
 - payments: `reviewPayment` (approve or reject); orders: `switchOrderToCod`
 - products: `createProduct`, `updateProduct`, `setProductActive` (no delete in v1, deactivate instead)
-- incomplete: `deleteIncompleteOrder`
+- incomplete: `markDraftContacted`, `deleteIncompleteOrder`
 - settings: `saveSettings`
 
 ### Create order flow (`POST /api/orders`)
@@ -383,6 +387,13 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Phone limit: a 4th order from one phone in 24 hours: "এই নম্বর থেকে গত 24 ঘণ্টায় 3টি অর্ডার হয়েছে। আরও অর্ডার করতে চাইলে পরে চেষ্টা করুন।" plus "জরুরি হলে কল করুন <support phone>।".
 - Local development uses Cloudflare's test keys (site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA` always pass; secret `2x0000000000000000000000000000000AA` always fails). Real keys: Cloudflare dashboard, Turnstile, Add widget, hostname kinboekhon.com, mode Managed; set them on Vercel in M16.
 - Admin order detail: a Tracking card with the Turnstile result, other orders from the same hashed address in the 24 hours before this order, the first 12 characters of the hash and the user agent.
+
+### Incomplete orders (M11)
+- The browser saves a draft on every field blur inside the order form and once when the page is hidden (`visibilitychange`, `fetch` with `keepalive`), so closing the tab still saves. Nothing is sent until the phone is a valid mobile number; an unchanged draft is not sent again.
+- `draftKey`: one per product in localStorage (`ke_draft_<productId>`); if storage is blocked, a key for this page only. The order request sends it too. After the order is placed the key is removed, so the next visit starts a new draft.
+- `/api/drafts` replies with an empty body (204, or 400, 403, 413, 415, 429, 500); the form never shows these. The product must be active. A draft is not saved when the same phone already ordered this product inside `duplicateWindowHours`, so a blur that arrives after the order cannot bring the draft back.
+- Placing an order deletes the draft with its `draftKey` and every draft with the same phone and product. A failed delete never fails the order.
+- Admin: "Mark contacted" sets `contactedAt` without changing `updatedAt`, so the list order and the 30 day expiry still follow the customer's last change. Delete removes the draft at once, without a confirm step.
 
 ### Admin orders (M8)
 - List: `/admin/orders`, 25 per page, newest first. Filters live in the URL (a `next/form` GET form), so a filtered list can be reloaded or bookmarked. A bad value in the URL drops only that filter.
@@ -602,3 +613,9 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 67. Customer IPs are hashed with `IP_HASH_SECRET` for rate limits and the admin view; the raw IP is kept on the order only for the Conversions API.
 68. The duplicate message shows only the old order number and the call line, never the old thank-you page.
 69. The admin order detail has a Tracking box: Turnstile result, other orders from the same hashed IP in the 24 hours before the order, the hashed IP and the user agent.
+70. Drafts are saved on field blur and once when the page is hidden (`fetch` with `keepalive`), only after the phone is valid.
+71. Draft rate limit: 60 saves per 10 minutes per hashed IP.
+72. Drafts store the hashed IP, never the raw IP.
+73. `/admin/incomplete` has Call, Mark contacted (time and badge) and Delete. No convert to order.
+74. Placing an order deletes the draft with the same `draftKey` and all drafts with the same phone and product.
+75. One `draftKey` per product in the visitor's browser.

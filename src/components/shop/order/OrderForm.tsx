@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { LandingSection } from "@/components/shop/landing/LandingSection";
 import { CityCorporationPicker } from "@/components/shop/order/CityCorporationPicker";
@@ -12,7 +12,8 @@ import { OrderSubmit } from "@/components/shop/order/OrderSubmit";
 import { OrderSummary } from "@/components/shop/order/OrderSummary";
 import { PaymentSection } from "@/components/shop/order/PaymentSection";
 import { QuantityStepper } from "@/components/shop/order/QuantityStepper";
-import { useOrderSubmit } from "@/components/shop/order/use-order-submit";
+import { useDraft } from "@/components/shop/order/use-draft";
+import { useOrderSubmit, type OrderFields } from "@/components/shop/order/use-order-submit";
 import { usePaymentChoice } from "@/components/shop/order/use-payment-choice";
 import { useTurnstile } from "@/components/shop/order/use-turnstile";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
@@ -39,6 +40,8 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
   const { ref: turnstileRef, failed: turnstileFailed, getToken, reset } = useTurnstile();
   const payment = usePaymentChoice({ price, quantity, deliveryCharge: deliveryCharges[area], discounts, accounts, clearError });
   const activeOption = payment.option;
+  const formRef = useRef<HTMLFormElement>(null);
+  const draft = useDraft(productId, () => (formRef.current ? collect(formRef.current) : null));
 
   // Switching between inside and outside Dhaka starts the location choice again.
   function changeArea(next: DeliveryArea) {
@@ -49,13 +52,12 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
     LOCATION_FIELDS.forEach(clearError);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
+  function collect(element: HTMLFormElement): OrderFields {
+    const form = new FormData(element);
     const text = (name: string) => String(form.get(name) ?? "");
     const inside = area === "inside_dhaka";
     const advance = activeOption !== "cod";
-    void submit({
+    return {
       productId,
       quantity,
       deliveryArea: area,
@@ -68,7 +70,13 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
       paymentMethod: advance ? payment.method : "",
       senderNumber: advance ? text("senderNumber") : "",
       transactionId: advance ? text("transactionId") : "",
-    }, { getToken, reset });
+      draftKey: draft.draftKey(),
+    };
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void submit(collect(event.currentTarget), { getToken, reset }, draft.finish);
   }
 
   const invalid = (field: string) =>
@@ -77,7 +85,9 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
   return (
     <LandingSection id="order" title="অর্ডার করতে ফর্মটি পূরণ করুন" className="scroll-mt-14 border-t-[3px] border-brand">
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
+        onBlur={draft.save}
         onInput={(event) => clearError((event.target as HTMLInputElement).name)}
         noValidate
         className="space-y-4"

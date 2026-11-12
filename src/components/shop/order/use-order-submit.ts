@@ -21,6 +21,7 @@ export interface OrderFields {
   paymentMethod: string;
   senderNumber: string;
   transactionId: string;
+  draftKey: string;
 }
 
 interface OrderResponse {
@@ -45,7 +46,7 @@ export function useOrderSubmit() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
 
-  async function send(fields: OrderFields, turnstileToken: string): Promise<boolean> {
+  async function send(fields: OrderFields, turnstileToken: string, onPlaced: () => void): Promise<boolean> {
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -54,6 +55,7 @@ export function useOrderSubmit() {
       });
       const data = (await response.json().catch(() => ({}))) as OrderResponse;
       if (response.ok && data.publicId) {
+        onPlaced();
         router.push(`/thank-you/${data.publicId}`);
         return true;
       }
@@ -65,7 +67,7 @@ export function useOrderSubmit() {
     return false;
   }
 
-  async function submit(fields: OrderFields, verification: Verification) {
+  async function submit(fields: OrderFields, verification: Verification, onPlaced: () => void) {
     // A ref, not state, so a fast double tap cannot send two orders.
     if (sending.current) return;
     sending.current = true;
@@ -74,7 +76,7 @@ export function useOrderSubmit() {
 
     const token = await verification.getToken();
     let placed = false;
-    if (token) placed = await send(fields, token);
+    if (token) placed = await send(fields, token, onPlaced);
     else setMessage(CHECK_NOT_LOADED);
     if (placed) return;
     verification.reset();
