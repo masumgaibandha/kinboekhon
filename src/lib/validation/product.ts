@@ -3,7 +3,7 @@ import { z } from "zod";
 import { productImageFolder } from "@/lib/cloudinary/folder";
 import { IMAGE_LIMITS } from "@/lib/product-images";
 
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const text = (max: number) => z.string().trim().max(max, `Keep it under ${max} characters.`);
 

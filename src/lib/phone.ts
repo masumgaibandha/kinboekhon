@@ -8,3 +8,8 @@ export function normalizePhone(raw: string): string {
     .replace(/[\s-]/g, "")
     .replace(/^\+?880/, "0");
 }
+
+// 01XXXXXXXXX to 8801XXXXXXXXX, for wa.me links.
+export function toInternationalPhone(phone: string): string {
+  return `88${phone}`;
+}

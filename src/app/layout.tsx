@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="bn" className={`${hindSiliguri.variable} h-full antialiased`}>
+    <html lang="bn" data-scroll-behavior="smooth" className={`${hindSiliguri.variable} h-full scroll-smooth antialiased`}>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );

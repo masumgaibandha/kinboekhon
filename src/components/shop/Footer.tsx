@@ -1,6 +1,13 @@
 import Image from "next/image";
 
-export function Footer() {
+import { PhoneIcon, WhatsAppIcon } from "@/components/shop/icons";
+import { toBanglaDigits } from "@/lib/money";
+import { toInternationalPhone } from "@/lib/phone";
+import { getSettings } from "@/lib/settings";
+
+export async function Footer() {
+  const { supportPhone, whatsappNumber } = await getSettings();
+
   return (
     <footer className="mt-8 bg-footer text-white">
       <div className="mx-auto max-w-5xl px-4 py-8">
@@ -11,6 +18,31 @@ export function Footer() {
             <p className="text-sm text-white/70">দরকার যখন, কিনবো এখন</p>
           </div>
         </div>
+        {(supportPhone || whatsappNumber) && (
+          <ul className="mt-5 space-y-2 text-sm">
+            {supportPhone && (
+              <li>
+                <a href={`tel:${supportPhone}`} className="inline-flex items-center gap-2 text-white/90 hover:text-white">
+                  <PhoneIcon className="h-4 w-4" />
+                  ফোন: {toBanglaDigits(supportPhone)}
+                </a>
+              </li>
+            )}
+            {whatsappNumber && (
+              <li>
+                <a
+                  href={`https://wa.me/${toInternationalPhone(whatsappNumber)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-white/90 hover:text-white"
+                >
+                  <WhatsAppIcon className="h-4 w-4" />
+                  WhatsApp: {toBanglaDigits(whatsappNumber)}
+                </a>
+              </li>
+            )}
+          </ul>
+        )}
         <p className="mt-6 border-t border-white/10 pt-4 text-xs text-white/60">
           © কিনবো এখন · kinboekhon.com
         </p>

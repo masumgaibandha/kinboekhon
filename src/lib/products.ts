@@ -5,7 +5,7 @@ import { ProductModel } from "@/lib/models/Product";
 import { pickImages, type ProductImage } from "@/lib/product-images";
 import type { ProductInput } from "@/lib/validation/product";
 
-type ProductDoc = ProductInput & { _id: Types.ObjectId; updatedAt?: Date };
+export type ProductDoc = ProductInput & { _id: Types.ObjectId; updatedAt?: Date };
 
 export interface AdminProduct {
   product: ProductInput;
@@ -29,7 +29,7 @@ export const EMPTY_PRODUCT: ProductInput = {
   cta: { title: "", text: "" },
 };
 
-function toProductInput(doc: ProductDoc): ProductInput {
+export function toProductInput(doc: ProductDoc): ProductInput {
   return {
     name: doc.name,
     slug: doc.slug,

@@ -65,7 +65,15 @@ export default async function ProductsPage() {
                       active={product.active}
                     />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <a
+                      href={`/p/${product.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mr-4 font-medium text-desc hover:text-brand hover:underline"
+                    >
+                      View
+                    </a>
                     <Link href={`/admin/products/${product.id}`} className="font-medium text-brand hover:underline">
                       Edit
                     </Link>

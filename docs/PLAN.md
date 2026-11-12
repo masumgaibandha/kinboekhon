@@ -235,15 +235,23 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 | `/thank-you/[publicId]` | Thank-you message, order number, product, total, discount, advance paid (with "payment under review" note) and amount due on delivery, support phone |
 | `/privacy`, `/terms`, `/return-policy` | Static Bangla text, linked in the footer |
 
-Landing page `/p/[slug]`, top to bottom:
+Landing page `/p/[slug]`, top to bottom. Visual reference: `docs/design/landing-design-d.html` (design D), rebuilt with Tailwind and brand tokens; its placeholder header is not used. Single column, `max-w-xl`, white sections with a 10px gap on the grey page:
 1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price, old price, discount badge, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ডেলিভারি, পণ্য দেখে টাকা দিন).
 2. **Problem**: title + list of pain points.
 3. **Story**: short paragraph.
 4. **Solution**: benefit list with check icons + images.
-5. **Proof**: review screenshots + short text reviews.
+5. **Proof**: review screenshots + short text reviews, then an "এখনই অর্ডার করুন" button that scrolls to the form (only when the proof section shows).
 6. **CTA**: final push text + price again.
 7. **Order form** (see below).
-8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen.
+8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen or scrolled past.
+
+Landing details:
+- Gallery: 1:1 slides, `object-contain` on white so nothing is cropped, CSS scroll-snap swipe with dots. The first image is preloaded.
+- Problem points use a small muted dot; solution benefits use an orange check.
+- Solution and proof images keep their own shape (no crop).
+- Order form in M6: name, phone, address, quantity 1 to 5, delivery area (ঢাকার ভিতরে / ঢাকার বাইরে) and a live summary from the Settings charges. The confirm button is visible but disabled until M7.
+- Unavailable page (inactive or unknown slug): Bangla message, home button, up to 4 other active products.
+- Header: white phone icon with `supportPhone` as a `tel:` link, hidden when empty. Footer: phone (`tel:`) and WhatsApp (`https://wa.me/880...`), each hidden when empty. Numbers shown in Bangla digits.
 
 Pages are statically generated. Their data comes from `"use cache"` functions with cache tags, and admin saves call `updateTag`, so pages stay fast and still show changes right away.
 
@@ -252,7 +260,9 @@ Pages are statically generated. Their data comes from `"use cache"` functions wi
 - `/` reads only cached data and no request data, so `next build` prerenders it as a static page (CDN on Vercel). Visits do not touch the database.
 - `createProduct`, `updateProduct` and `setProductActive` call `updateTag("products")` after a successful write. The next visit renders fresh (one database read), later visits are cached again.
 - The build reads Atlas, so the Vercel build needs `MONGODB_URI` and Atlas network access.
-- M6 adds `product-<slug>` tags for landing pages.
+- Landing pages: `getProductBySlug()` (`"use cache"`, `cacheTag("product-<slug>")`, `cacheLife("max")`) returns an active product or `null`. `generateStaticParams` lists active slugs (`getActiveSlugs()`, tag `products`), so `/p/<slug>` is prerendered. When no product is active it returns the placeholder slug `_none` (Cache Components needs at least one param), which renders the unavailable page.
+- `createProduct` refreshes `products` and `product-<new slug>`; `updateProduct` refreshes `products` plus the old and new slug tags (it reads the old slug in the same write); `setProductActive` refreshes `products` and `product-<slug>`. `saveSettings` refreshes `settings`, which also covers the header, footer and the delivery charges on landing pages.
+- An inactive or unknown slug renders `p/[slug]/not-found.tsx`. With Cache Components the first request after a change is streamed after the shell, so it returns `200` with `<meta name="robots" content="noindex">`; the result is cached and later requests return a real `404`.
 
 #### Home page
 - Slim one-line heading (আমাদের পণ্য), no banner. Bangla message when no product is active.
@@ -485,3 +495,10 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 26. Discount percent is rounded down.
 27. The whole product card is one link to `/p/[slug]`; the order "button" inside it is a styled `span`.
 28. Product grid: 2, 3 and 4 columns; the first 2 images load with high priority.
+29. Landing page design: design D (`docs/design/landing-design-d.html`), with our orange header.
+30. M6 order form: name, phone, address, quantity, delivery area and live summary; submitting starts in M7.
+31. Header phone and footer phone + WhatsApp links from Settings, each hidden when empty.
+32. Gallery images are 1:1 with `object-contain` on white.
+33. Unavailable product page shows a home button and up to 4 other active products.
+34. An extra order button follows the proof section.
+35. Unavailable product pages keep the Cache Components behaviour: the first request after a change returns 200 with noindex, later requests a cached 404. No slug check in proxy.ts, so landing pages stay on the CDN.

@@ -4,7 +4,7 @@ import { isValidObjectId } from "mongoose";
 import { updateTag } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin-session";
-import { PRODUCTS_TAG } from "@/lib/catalog";
+import { PRODUCTS_TAG, productTag } from "@/lib/catalog";
 import { connectMongoose } from "@/lib/db";
 import { activeWasChanged } from "@/lib/product-form";
 import { ProductModel } from "@/lib/models/Product";
@@ -54,7 +54,7 @@ function isDuplicateKey(error: unknown): boolean {
 
 async function saveProduct(
   formData: FormData,
-  write: (product: ProductInput) => Promise<boolean>,
+  write: (product: ProductInput) => Promise<string | null>,
 ): Promise<ProductActionResult> {
   const parsed = productSchema.safeParse(readForm(formData));
   if (!parsed.success) {
@@ -65,24 +65,32 @@ async function saveProduct(
     return { ok: false, message: FIX_FIELDS, fieldErrors };
   }
 
+  let previousSlug: string | null;
   try {
     await connectMongoose();
-    if (!(await write(parsed.data))) return NOT_FOUND;
+    previousSlug = await write(parsed.data);
+    if (previousSlug === null) return NOT_FOUND;
   } catch (error) {
     if (isDuplicateKey(error)) {
       return { ok: false, message: FIX_FIELDS, fieldErrors: { slug: "This slug is already used by another product." } };
     }
     return { ok: false, message: "Could not save the product. Try again.", fieldErrors: {} };
   }
-  updateTag(PRODUCTS_TAG);
+  refreshShop(previousSlug, parsed.data.slug);
   return { ok: true };
+}
+
+// Home grid plus the landing pages under the old and new slug.
+function refreshShop(...slugs: string[]) {
+  updateTag(PRODUCTS_TAG);
+  for (const slug of new Set(slugs)) updateTag(productTag(slug));
 }
 
 export async function createProduct(formData: FormData): Promise<ProductActionResult> {
   await requireAdmin();
   return saveProduct(formData, async (product) => {
     await ProductModel.create(product);
-    return true;
+    return product.slug;
   });
 }
 
@@ -93,8 +101,9 @@ export async function updateProduct(id: string, formData: FormData): Promise<Pro
   const writeActive = activeWasChanged(formData);
   return saveProduct(formData, async ({ active, ...rest }) => {
     const changes = writeActive ? { ...rest, active } : rest;
-    const result = await ProductModel.updateOne({ _id: id }, { $set: changes });
-    return result.matchedCount === 1;
+    const before = await ProductModel.findOneAndUpdate({ _id: id }, { $set: changes }, { projection: { slug: 1 } })
+      .lean<{ slug: string }>();
+    return before?.slug ?? null;
   });
 }
 
@@ -104,11 +113,12 @@ export async function setProductActive(id: string, active: boolean): Promise<Pro
 
   try {
     await connectMongoose();
-    const result = await ProductModel.updateOne({ _id: id }, { $set: { active } });
-    if (result.matchedCount !== 1) return NOT_FOUND;
+    const product = await ProductModel.findOneAndUpdate({ _id: id }, { $set: { active } }, { projection: { slug: 1 } })
+      .lean<{ slug: string }>();
+    if (!product) return NOT_FOUND;
+    refreshShop(product.slug);
   } catch {
     return { ok: false, message: "Could not update the product. Try again.", fieldErrors: {} };
   }
-  updateTag(PRODUCTS_TAG);
   return { ok: true };
 }
