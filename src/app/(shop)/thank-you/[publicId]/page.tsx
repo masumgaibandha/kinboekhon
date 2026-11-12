@@ -5,7 +5,6 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { ThankYouDetails } from "@/components/shop/order/ThankYouDetails";
-import { toBanglaDigits } from "@/lib/money";
 import { getThankYouOrder } from "@/lib/orders/thank-you";
 import { getSettings } from "@/lib/settings";
 
@@ -51,7 +50,7 @@ async function ThankYou({ params }: Pick<PageProps<"/thank-you/[publicId]">, "pa
         <p className="mt-2 text-center text-sm text-desc">
           কোনো প্রশ্ন থাকলে কল করুন:{" "}
           <a href={`tel:${supportPhone}`} className="font-semibold text-brand-dark underline">
-            {toBanglaDigits(supportPhone)}
+            {supportPhone}
           </a>
         </p>
       )}

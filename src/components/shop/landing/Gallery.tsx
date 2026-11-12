@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 
 import { CloudinaryImage } from "@/components/ui/CloudinaryImage";
-import { toBanglaDigits } from "@/lib/money";
 import type { ProductImage } from "@/lib/product-images";
 
 interface GalleryProps {
@@ -40,7 +39,7 @@ export function Gallery({ images, alt }: GalleryProps) {
           <div key={image.publicId} className="relative aspect-square w-full shrink-0 snap-center bg-card">
             <CloudinaryImage
               publicId={image.publicId}
-              alt={index === 0 ? alt : `${alt}, ছবি ${toBanglaDigits(index + 1)}`}
+              alt={index === 0 ? alt : `${alt}, ছবি ${index + 1}`}
               fill
               sizes={SIZES}
               preload={index === 0}
@@ -56,7 +55,7 @@ export function Gallery({ images, alt }: GalleryProps) {
               key={image.publicId}
               type="button"
               onClick={() => show(index)}
-              aria-label={`ছবি ${toBanglaDigits(index + 1)} দেখুন`}
+              aria-label={`ছবি ${index + 1} দেখুন`}
               aria-current={index === current}
               className={`h-2 rounded-full transition-all ${index === current ? "w-5 bg-brand" : "w-2 bg-line-strong"}`}
             />

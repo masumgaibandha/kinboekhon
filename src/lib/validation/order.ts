@@ -4,9 +4,9 @@ import { z } from "zod";
 import { DELIVERY_AREAS, MAX_QUANTITY } from "@/lib/orders/limits";
 import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
 
-const PHONE_MESSAGE = "সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন, যেমন ০১৭১২৩৪৫৬৭৮।";
-const NAME_MESSAGE = "আপনার নাম লিখুন (২ থেকে ৬০ অক্ষর)।";
-const ADDRESS_MESSAGE = "পূর্ণ ঠিকানা লিখুন (কমপক্ষে ৬ অক্ষর)।";
+const PHONE_MESSAGE = "সঠিক 11 সংখ্যার মোবাইল নম্বর দিন, যেমন 01712345678।";
+const NAME_MESSAGE = "আপনার নাম লিখুন (2 থেকে 60 অক্ষর)।";
+const ADDRESS_MESSAGE = "পূর্ণ ঠিকানা লিখুন (কমপক্ষে 6 অক্ষর)।";
 
 // Unknown keys such as a price sent by the browser are dropped; prices always come from the database.
 export const orderSchema = z.object({
@@ -15,7 +15,7 @@ export const orderSchema = z.object({
     .number({ error: "পরিমাণ সঠিক নয়।" })
     .int("পরিমাণ সঠিক নয়।")
     .min(1, "পরিমাণ সঠিক নয়।")
-    .max(MAX_QUANTITY, "একবারে সর্বোচ্চ ৫টি অর্ডার করা যায়।"),
+    .max(MAX_QUANTITY, "একবারে সর্বোচ্চ 5টি অর্ডার করা যায়।"),
   deliveryArea: z.enum(DELIVERY_AREAS, { error: "ডেলিভারি এলাকা বেছে নিন।" }),
   name: z.string({ error: NAME_MESSAGE }).trim().min(2, NAME_MESSAGE).max(60, NAME_MESSAGE),
   phone: z
@@ -26,7 +26,7 @@ export const orderSchema = z.object({
     .string({ error: ADDRESS_MESSAGE })
     .trim()
     .min(6, ADDRESS_MESSAGE)
-    .max(300, "ঠিকানা ৩০০ অক্ষরের মধ্যে লিখুন।"),
+    .max(300, "ঠিকানা 300 অক্ষরের মধ্যে লিখুন।"),
 });
 
 export type OrderInput = z.output<typeof orderSchema>;

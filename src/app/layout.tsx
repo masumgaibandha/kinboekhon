@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Hind_Siliguri } from "next/font/google";
 import "./globals.css";
-
-const hindSiliguri = Hind_Siliguri({
-  variable: "--font-hind-siliguri",
-  subsets: ["bengali", "latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
@@ -19,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="bn" data-scroll-behavior="smooth" className={`${hindSiliguri.variable} h-full scroll-smooth antialiased`}>
+    <html lang="bn" data-scroll-behavior="smooth" className="h-full scroll-smooth antialiased">
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );

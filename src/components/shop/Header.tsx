@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { PhoneIcon } from "@/components/shop/icons";
-import { toBanglaDigits } from "@/lib/money";
 import { getSettings } from "@/lib/settings";
 
 export async function Header() {
@@ -24,11 +23,11 @@ export async function Header() {
         {supportPhone && (
           <a
             href={`tel:${supportPhone}`}
-            aria-label={`ফোন করুন ${toBanglaDigits(supportPhone)}`}
+            aria-label={`ফোন করুন ${supportPhone}`}
             className="flex items-center gap-1.5 text-[15px] font-semibold text-white"
           >
             <PhoneIcon className="h-4 w-4" />
-            {toBanglaDigits(supportPhone)}
+            {supportPhone}
           </a>
         )}
       </div>

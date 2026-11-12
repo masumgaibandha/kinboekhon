@@ -1,7 +1,6 @@
 import Image from "next/image";
 
 import { PhoneIcon, WhatsAppIcon } from "@/components/shop/icons";
-import { toBanglaDigits } from "@/lib/money";
 import { toInternationalPhone } from "@/lib/phone";
 import { getSettings } from "@/lib/settings";
 
@@ -24,7 +23,7 @@ export async function Footer() {
               <li>
                 <a href={`tel:${supportPhone}`} className="inline-flex items-center gap-2 text-white/90 hover:text-white">
                   <PhoneIcon className="h-4 w-4" />
-                  ফোন: {toBanglaDigits(supportPhone)}
+                  ফোন: {supportPhone}
                 </a>
               </li>
             )}
@@ -37,7 +36,7 @@ export async function Footer() {
                   className="inline-flex items-center gap-2 text-white/90 hover:text-white"
                 >
                   <WhatsAppIcon className="h-4 w-4" />
-                  WhatsApp: {toBanglaDigits(whatsappNumber)}
+                  WhatsApp: {whatsappNumber}
                 </a>
               </li>
             )}

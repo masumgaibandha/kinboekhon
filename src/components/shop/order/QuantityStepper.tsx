@@ -1,4 +1,3 @@
-import { toBanglaDigits } from "@/lib/money";
 import { MAX_QUANTITY } from "@/lib/orders/limits";
 
 interface QuantityStepperProps {
@@ -16,7 +15,7 @@ export function QuantityStepper({ value, onChange }: QuantityStepperProps) {
         −
       </button>
       <span aria-live="polite" className="min-w-8 text-center text-lg font-bold text-body">
-        {toBanglaDigits(value)}
+        {value}
       </span>
       <button
         type="button"

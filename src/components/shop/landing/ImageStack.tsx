@@ -1,5 +1,4 @@
 import { CloudinaryImage } from "@/components/ui/CloudinaryImage";
-import { toBanglaDigits } from "@/lib/money";
 import type { ProductImage } from "@/lib/product-images";
 
 interface ImageStackProps {
@@ -19,7 +18,7 @@ export function ImageStack({ images, alt, columns }: ImageStackProps) {
         <CloudinaryImage
           key={image.publicId}
           publicId={image.publicId}
-          alt={`${alt} ${toBanglaDigits(index + 1)}`}
+          alt={`${alt} ${index + 1}`}
           width={image.width}
           height={image.height}
           sizes={sizes}
