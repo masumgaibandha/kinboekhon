@@ -3,11 +3,14 @@
 import { useState, type FormEvent } from "react";
 
 import { LandingSection } from "@/components/shop/landing/LandingSection";
+import { CityCorporationPicker } from "@/components/shop/order/CityCorporationPicker";
 import { DeliveryAreaPicker } from "@/components/shop/order/DeliveryAreaPicker";
+import { LocationPicker } from "@/components/shop/order/LocationPicker";
 import { OrderField, fieldClass, labelClass } from "@/components/shop/order/OrderField";
 import { OrderSummary } from "@/components/shop/order/OrderSummary";
 import { QuantityStepper } from "@/components/shop/order/QuantityStepper";
 import { useOrderSubmit } from "@/components/shop/order/use-order-submit";
+import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import { DELIVERY_AREA_LABELS, type DeliveryArea } from "@/lib/orders/limits";
 import type { DeliveryCharges } from "@/lib/orders/pricing";
 
@@ -17,16 +20,39 @@ interface OrderFormProps {
   deliveryCharges: DeliveryCharges;
 }
 
+const LOCATION_FIELDS = ["cityCorporation", "divisionId", "districtId", "upazilaId"];
+
 export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps) {
   const [quantity, setQuantity] = useState(1);
   const [area, setArea] = useState<DeliveryArea>("inside_dhaka");
+  const [cityCorporation, setCityCorporation] = useState("");
+  const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
+
+  // Switching between inside and outside Dhaka starts the location choice again.
+  function changeArea(next: DeliveryArea) {
+    if (next === area) return;
+    setArea(next);
+    setCityCorporation("");
+    setLocation(EMPTY_LOCATION);
+    LOCATION_FIELDS.forEach(clearError);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
-    void submit({ productId, quantity, deliveryArea: area, name: text("name"), phone: text("phone"), address: text("address") });
+    const inside = area === "inside_dhaka";
+    void submit({
+      productId,
+      quantity,
+      deliveryArea: area,
+      name: text("name"),
+      phone: text("phone"),
+      cityCorporation: inside ? cityCorporation : "",
+      ...(inside ? EMPTY_LOCATION : location),
+      address: text("address"),
+    });
   }
 
   const invalid = (field: string) =>
@@ -55,13 +81,26 @@ export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps)
             {...invalid("phone")}
           />
         </OrderField>
-        <OrderField id="order-address" label="পূর্ণ ঠিকানা" error={errors.address}>
+
+        <DeliveryAreaPicker value={area} onChange={changeArea} charges={deliveryCharges} labelClass={labelClass} />
+        {area === "inside_dhaka" ? (
+          <CityCorporationPicker
+            value={cityCorporation}
+            onChange={setCityCorporation}
+            error={errors.cityCorporation}
+            labelClass={labelClass}
+          />
+        ) : (
+          <LocationPicker value={location} onChange={setLocation} errors={errors} />
+        )}
+
+        <OrderField id="order-address" label="ঠিকানা (বাড়ি, রাস্তা, এলাকা)" error={errors.address}>
           <textarea
             id="order-address"
             name="address"
             rows={2}
             autoComplete="street-address"
-            placeholder="বাড়ি, রাস্তা, থানা, জেলা"
+            placeholder="যেমন: বাড়ি নম্বর, রাস্তা, এলাকার নাম"
             className={`${fieldClass} resize-none`}
             {...invalid("address")}
           />
@@ -70,7 +109,6 @@ export function OrderForm({ productId, price, deliveryCharges }: OrderFormProps)
           <p className={labelClass}>পরিমাণ</p>
           <QuantityStepper value={quantity} onChange={setQuantity} />
         </div>
-        <DeliveryAreaPicker value={area} onChange={setArea} charges={deliveryCharges} labelClass={labelClass} />
 
         <OrderSummary
           price={price}

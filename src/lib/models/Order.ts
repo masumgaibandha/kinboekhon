@@ -12,6 +12,8 @@ import {
   type PaymentOption,
   type PaymentStatus,
 } from "@/lib/orders/enums";
+import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
+import type { OrderLocation } from "@/lib/locations/types";
 import { DELIVERY_AREAS, type DeliveryArea } from "@/lib/orders/limits";
 
 export interface OrderDocument {
@@ -24,7 +26,7 @@ export interface OrderDocument {
   deliveryCharge: number;
   deliveryDiscount: number;
   total: number;
-  customer: { name: string; phone: string; address: string };
+  customer: { name: string; phone: string; address: string; location: OrderLocation };
   status: OrderStatus;
   statusHistory: { status: OrderStatus; at: Date; note: string }[];
   payment: {
@@ -75,6 +77,18 @@ const orderSchema = new Schema<OrderDocument>(
       name: { type: String, required: true },
       phone: { type: String, required: true },
       address: { type: String, required: true },
+      location: {
+        kind: { type: String, enum: ["dhaka_city", "outside_dhaka"], required: true },
+        cityCorporation: { type: String, enum: CITY_CORPORATIONS.map((item) => item.id) },
+        cityCorporationName: String,
+        divisionId: { type: String, required: true },
+        division: { type: String, required: true },
+        districtId: { type: String, required: true },
+        district: { type: String, required: true },
+        upazilaId: String,
+        upazila: String,
+        upazilaType: { type: String, enum: ["upazila", "city_thana"] },
+      },
     },
     status: { type: String, enum: ORDER_STATUSES, required: true, default: "pending" },
     statusHistory: [{ _id: false, status: { type: String, enum: ORDER_STATUSES }, at: Date, note: String }],

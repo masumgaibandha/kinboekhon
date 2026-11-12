@@ -11,6 +11,10 @@ export interface OrderFields {
   deliveryArea: DeliveryArea;
   name: string;
   phone: string;
+  cityCorporation: string;
+  divisionId: string;
+  districtId: string;
+  upazilaId: string;
   address: string;
 }
 

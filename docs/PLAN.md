@@ -45,7 +45,9 @@ kinboekhon/
 ├─ public/
 │  └─ brand/                     logo-horizontal-white.svg (shop header), logo-horizontal.svg (admin), icon-circle.svg (footer), copied from logos/
 ├─ scripts/
-│  └─ seed-admin.ts              creates or updates the one admin from ADMIN_EMAIL and ADMIN_PASSWORD
+│  ├─ seed-admin.ts              creates or updates the one admin from ADMIN_EMAIL and ADMIN_PASSWORD
+│  ├─ build-locations.ts         builds src/data/bd-locations.json from the bangladesh-geocode JSON files
+│  └─ location-thanas.ts         CMP (Chattogram) city thana list used by build-locations.ts
 └─ src/
    ├─ proxy.ts                   first gate for /admin/* and /api/admin/* (Next.js 16 name for middleware)
    ├─ app/
@@ -105,6 +107,7 @@ kinboekhon/
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY, delivery areas), pricing.ts, create-order.ts,
       │                          order-number.ts, thank-you.ts, duplicate-check.ts, stats.ts, csv.ts
       ├─ phone.ts                normalize + validate BD mobile numbers
+      ├─ locations/              types.ts (location types), dhaka.ts (city corporations), resolve.ts (server check + Bangla names)
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
       ├─ dates.ts                Asia/Dhaka day/week/month ranges
       ├─ turnstile.ts            server verify
@@ -164,7 +167,7 @@ Any landing section left empty is simply not rendered.
 | deliveryCharge | number | from Settings at order time, before discount |
 | deliveryDiscount | number | from Settings, depends on payment option, never more than deliveryCharge |
 | total | number | subtotal + deliveryCharge - deliveryDiscount |
-| customer | `{ name, phone, address }` | phone as `01XXXXXXXXX` |
+| customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` has `kind: dhaka_city | outside_dhaka`. Inside Dhaka: `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`, plus division and district ঢাকা. Outside Dhaka: `divisionId, division, districtId, district, upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
 | statusHistory | `{ status, at, note }[]` | every change, for audit |
 | payment.option | `cod` \| `advance_delivery` \| `advance_full` | see section 6, "Payment options" |
@@ -243,6 +246,16 @@ Landing page `/p/[slug]`, top to bottom. Visual reference: `docs/design/landing-
 7. **Order form** (see below).
 8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen or scrolled past.
 
+Address location data:
+- `src/data/bd-locations.json` (8 divisions, 64 districts, 500 upazilas, 16 Chattogram city thanas; about 30 KB, 10 KB compressed) is built by `scripts/build-locations.ts` from github.com/nuhil/bangladesh-geocode (MIT, Copyright (c) 2014 Nuhil Mehdy; notice in `src/data/NOTICE-bangladesh-geocode.txt`). Names are stored in Unicode NFC.
+- Checked against bangladesh.gov.bd/views/upazila-list (November 2026, the portal states 500 upazilas): added চন্দ্রগঞ্জ, মোকামতলা, ভূল্লী, রুহিয়া, শায়েস্তাগঞ্জ, দক্ষিণ গফরগাঁও; renamed দক্ষিণ সুনামগঞ্জ to শান্তিগঞ্জ; official spellings for 12 more.
+- Chattogram city thanas: the 16 CMP thanas on cmp.gov.bd (Bangla as on the site), ids `cmp-01` ... When Chattogram district is chosen they show first as a group ("চট্টগ্রাম সিটির থানা"), then "উপজেলা". Dhaka district shows only its upazilas (সাভার, কেরাণীগঞ্জ, ধামরাই, দোহার, নবাবগঞ্জ); Dhaka city is chosen by city corporation instead.
+- Everything is sorted in Bangla alphabetical order; city thana groups stay first.
+- The file is a separate chunk, loaded with `import()` when the order form comes within 800px of the screen; the selects show "লোড হচ্ছে..." until then.
+- The ঢাকার ভিতরে / ঢাকার বাইরে picker comes first and alone sets the delivery charge. Switching it clears the location choices.
+- ঢাকার ভিতরে: division and district are ঢাকা and not shown. The customer picks ঢাকা উত্তর সিটি কর্পোরেশন or ঢাকা দক্ষিণ সিটি কর্পোরেশন on two cards (a native dropdown cannot show the areas line), each with well-known areas underneath: North উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর; South ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও (`src/lib/locations/dhaka.ts`). Checked against Wikipedia's DNCC ward list and DSCC thana list, because dncc.gov.bd and dscc.gov.bd failed with TLS certificate errors: all match, except that খিলগাঁও is split (also DNCC ward 23) and পুরান ঢাকা is a common name, not an official one.
+- ঢাকার বাইরে: বিভাগ, জেলা, উপজেলা / থানা as three selects.
+
 Landing details:
 - Gallery: 1:1 slides, `object-contain` on white so nothing is cropped, CSS scroll-snap swipe with dots. The first image is preloaded.
 - Problem points use a small muted dot; solution benefits use an orange check.
@@ -271,7 +284,7 @@ Pages are statically generated. Their data comes from `"use cache"` functions wi
 Order form fields:
 - নাম (required)
 - মোবাইল নম্বর (required, Bangladeshi mobile check, accepts Bangla digits and +880)
-- পূর্ণ ঠিকানা (required, textarea)
+- ঠিকানা (বাড়ি, রাস্তা, এলাকা) (required, textarea, 3 to 200 characters)
 - পরিমাণ (stepper, 1 to MAX_QUANTITY)
 - ডেলিভারি এলাকা: ঢাকার ভিতরে / ঢাকার বাইরে (charges from Settings)
 - পেমেন্ট অপশন, three cards, each showing its saving:
@@ -338,7 +351,7 @@ Server Actions (each calls `requireAdmin()` first):
 
 Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Request checks: `Origin` must equal the site origin (`src/lib/request.ts`), `Content-Type: application/json`, body at most 4 KB. Every response is `no-store`. Errors: 403, 415, 413, 400 (with Bangla `fieldErrors`), 409 (product not active), 500.
-- `src/lib/validation/order.ts` (Bangla messages): name 2 to 60 characters, phone normalized then `^01[3-9]d{8}$`, address 6 to 300 characters, quantity 1 to `MAX_QUANTITY`, delivery area enum, `productId` an ObjectId. Unknown keys (for example a price) are dropped. An error on a field without its own message on the form (quantity, area, product) becomes the main message.
+- `src/lib/validation/order.ts` (Bangla messages): name 2 to 60 characters, phone normalized then `^01[3-9]\d{8}$`, typed address 3 to 200 characters, quantity 1 to `MAX_QUANTITY`, delivery area enum, `productId` an ObjectId. Location: inside Dhaka needs a valid `cityCorporation`; outside Dhaka needs division, district and upazila ids that exist and belong together; anything else is refused with a Bangla field error. Unknown keys (for example a price) are dropped. An error on a field without its own message on the form (quantity, area, product) becomes the main message.
 - The product is read fresh from the database (must be active), delivery charges come from `getSettings()`, and `calculateOrder()` in `pricing.ts` computes the amounts; the landing page summary uses the same function.
 - Order number: atomic `$inc` on Counter `{ _id: "order" }`, `KE` + (10000 + seq). Deleting the counter document restarts at KE10001.
 - `publicId`: 12 random bytes as base64url (16 characters).
@@ -510,10 +523,17 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 34. An extra order button follows the proof section.
 35. Unavailable product pages keep the Cache Components behaviour: the first request after a change returns 200 with noindex, later requests a cached 404. No slug check in proxy.ts, so landing pages stay on the CDN.
 36. The duplicate block, rate limit and Turnstile stay in M10.
-37. Order form limits: name 2 to 60 characters, address 6 to 300 characters (short real addresses like "মিরপুর ১০" pass).
+37. Order form limits: name 2 to 60 characters. The typed address is 3 to 200 characters (decision 44).
 38. The thank-you page shows the delivery area next to the charge and links to more products.
 39. Order `tracking` is filled in M10 (IP, user agent) and M14 (fbp, fbc, UTM).
 40. Font follows Daraz: no web font (Hind Siliguri removed). Shop and admin use the system font stack system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", "Nirmala UI", sans-serif. The logo SVGs are paths only, so they do not depend on the site font.
 41. Numbers use English digits, like Daraz: prices (৳ 850, ৳ 1,290), quantities, phone numbers, order numbers (KE10001) and percentages, also inside Bangla error messages. All other customer text stays Bangla. The phone field keeps accepting Bangla digits.
 42. Money is shown with a Taka icon instead of the "৳" character, which looks weak in system fonts. `TakaIcon` (`src/components/ui/TakaIcon.tsx`) is the taka stroke of Heroicons `currency-bangladeshi` (MIT) without the circle, with the viewBox cropped to the stroke (outline 8.25, 7.214, 7.5 × 10.037 plus half the stroke on each side). It is 0.71em tall, the measured digit height of the system font, sits on the text baseline, and takes the text color. `Money` (`src/components/ui/Money.tsx`) puts a 0.15em gap before the amount (English digits, lakh grouping: 850, 1,290). Stroke 1.3 for regular text and 2.8 for bold prices, matching the digit stems at weight 400 and 700. The icon is `aria-hidden` with a visually hidden "টাকা". Every on-screen amount in the shop and admin uses `Money`; plain text that cannot show an icon (page title, meta description, Zod messages) writes "৳".
 43. No old price anywhere: no struck-through price, no discount badge, no "% ছাড়". The field is removed from the admin form and list, the Zod schema and the Mongoose schema, and the stored `oldPrice` values were unset in the database. The delivery discount for advance payment (M9) is a different thing and stays.
+44. Address: the customer picks বিভাগ, জেলা and উপজেলা / থানা from dropdowns and types the rest (3 to 200 characters). The order saves the location with Bangla names and ids.
+45. Replaced by decision 48: Dhaka city thanas are not used in the shop; Chattogram (CMP, 16) city thanas appear first as a group when Chattogram district is chosen.
+46. Replaced by decision 49: there is no mismatch hint.
+47. Divisions, districts and upazilas are in Bangla alphabetical order.
+48. The delivery area picker comes first. ঢাকার ভিতরে: the customer picks only ঢাকা উত্তর or ঢাকা দক্ষিণ সিটি কর্পোরেশন (with well-known areas under each); division and district are ঢাকা. ঢাকার বাইরে: বিভাগ, জেলা, উপজেলা; Dhaka district shows only its upazilas. The DMP thana list is removed from the shop.
+49. Switching the delivery area clears the location choices. No mismatch hint.
+50. Orders save the city corporation inside Dhaka, and division, district and upazila outside. The server refuses anything else with a Bangla error.
