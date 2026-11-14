@@ -34,3 +34,18 @@ export function dhakaDayEnd(day: string): Date | null {
 export function dhakaDay(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(date);
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Start of the Dhaka week that holds the date; the week starts on Saturday.
+export function dhakaWeekStart(date: Date): Date {
+  const day = dhakaDay(date);
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+  const daysSinceSaturday = (weekday + 1) % 7;
+  return new Date(new Date(`${day}T00:00:00${DHAKA_OFFSET}`).getTime() - daysSinceSaturday * DAY_MS);
+}
+
+// Start of the Dhaka calendar month that holds the date.
+export function dhakaMonthStart(date: Date): Date {
+  return new Date(`${dhakaDay(date).slice(0, 8)}01T00:00:00${DHAKA_OFFSET}`);
+}

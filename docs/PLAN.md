@@ -67,7 +67,7 @@ kinboekhon/
    │  │  ├─ login/page.tsx
    │  │  └─ (panel)/
    │  │     ├─ layout.tsx        sidebar/top nav, session check
-   │  │     ├─ page.tsx          dashboard
+   │  │     ├─ page.tsx          dashboard (`?period=today|week|month|all`)
    │  │     ├─ orders/page.tsx                 list, search, filters, pagination
    │  │     ├─ orders/[orderNumber]/page.tsx   detail: /admin/orders/KE10001
    │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
@@ -95,7 +95,7 @@ kinboekhon/
    │  │                          order/PaymentSection, PaymentOptionPicker, PaymentAccountBox, CopyButton,
    │  │                          order/OrderSummary, OrderSubmit, ContactFields, use-payment-choice.ts, use-turnstile.ts,
    │  │                          use-draft.ts, StickyOrderBar
-   │  ├─ admin/                  AdminNav, StatCard, ProductForm, payments/PaymentReviewCard, ReviewForm,
+   │  ├─ admin/                  AdminNav, dashboard/StatCard, PeriodSwitch, ProductStatsTable, ProductForm, payments/PaymentReviewCard, ReviewForm,
    │  │                          products/ImageUploader, ImageThumb, upload-image.ts,
    │  │                          orders/OrdersTable, OrderFilters, Pagination, StatusBadge, OrderCard,
    │  │                          OrderCustomer, CustomerEditor, CustomerEditForm, AdminLocationFields,
@@ -109,20 +109,20 @@ kinboekhon/
       ├─ models/                 Product.ts, Order.ts, IncompleteOrder.ts,
       │                          Settings.ts, Counter.ts, RateLimit.ts, order-document.ts (Order types)
       ├─ validation/             order.ts, location-fields.ts (shared location check), admin-order.ts,
-      │                          order-payment.ts, order-filters.ts, draft.ts, product.ts, settings.ts (Zod schemas)
+      │                          order-payment.ts, order-filters.ts, dashboard-period.ts, draft.ts, product.ts, settings.ts (Zod schemas)
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY), pricing.ts, create-order.ts,
       │                          order-number.ts, thank-you.ts, status.ts (labels, allowed moves),
       │                          admin-order-list.ts, admin-order-detail.ts, change-status.ts (status + admin note),
       │                          edit-customer.ts, payment-methods.ts (enabled accounts, labels), transaction-id.ts,
       │                          payment-queue.ts, payment-review.ts (approve, reject, switch to COD),
-      │                          duplicate-check.ts, stats.ts, csv.ts
+      │                          duplicate-check.ts, stats.ts (dashboard numbers), csv.ts
       ├─ drafts/                 save-draft.ts (save, delete on order), draft-place.ts, admin-draft-list.ts
       ├─ admin-result.ts         result type and helpers for admin Server Actions
       ├─ phone.ts                normalize + validate BD mobile numbers
       ├─ locations/              types.ts (location types), dhaka.ts (city corporations, city group of a district), resolve.ts (server check + Bangla names),
       │                          format.ts (location as admin text)
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
-      ├─ dates.ts                Asia/Dhaka date format and day ranges (week/month ranges added in M12)
+      ├─ dates.ts                Asia/Dhaka date format, day ranges, week start (Saturday) and month start
       ├─ turnstile.ts            server verify (passed, failed, unverified)
       ├─ rate-limit.ts           fixed-window counters in MongoDB
       ├─ rate-limit.ts
@@ -320,11 +320,14 @@ Order form fields:
 | `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, images (upload, reorder, remove), landing sections, active |
 | `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window (no delivery charges) |
 
-Dashboard definitions (dates in Asia/Dhaka):
-- Total sales = sum of `total` for orders not `cancelled`.
+Dashboard definitions (dates in Asia/Dhaka, decision 80):
+- Period: today (from 00:00 today), this week (from 00:00 on the latest Saturday, today when it is Saturday), this month (from 00:00 on the 1st), all time. The period is in the URL (`?period=`); a missing or bad value shows today. Every count and amount on the page covers orders placed in the period, except the two live counts below.
+- Total sales = sum of `total` for orders not `cancelled` and not `returned`.
 - Delivered value = sum of `total` for `delivered` orders.
 - Return % = returned / (delivered + returned).
-- Cancel % = cancelled / all orders in the period.
+- Cancel % = cancelled / all orders in the period. A percent with nothing to divide by shows "-".
+- Orders per product: orders count and sales (same rule as total sales) per product, grouped by `product.productId` with the newest snapshot name, most orders first.
+- Incomplete orders and advance payments waiting (`payment.status: submitted`) are live counts, not filtered by period. Each card links to `/admin/incomplete` or `/admin/payments`.
 
 ## 6. API routes and Server Actions
 
@@ -615,3 +618,4 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 77. Advance payment: the "delivery charge in advance" option is removed. Options are cash on delivery and full advance. Full advance gets a fixed discount off the total, `fullAdvanceDiscount` in Settings (default ৳50).
 78. Old orders keep their saved amounts unchanged; no order is recalculated. When decisions 76 and 77 were made the database held 0 orders, so no order needed a migration.
 79. No ঢাকার ভিতরে / ঢাকার বাইরে picker (November 2026). Every customer picks বিভাগ, জেলা, উপজেলা / থানা. When জেলা is ঢাকা, the third list shows ঢাকা উত্তর and ঢাকা দক্ষিণ সিটি কর্পোরেশন first, then Dhaka's upazilas; Chattogram city thanas stay as before. The order still saves the city corporation when one is chosen (`kind: dhaka_city`), so courier booking works. Orders and drafts no longer store `deliveryArea`, and drafts no longer store `cityCorporation` (it is the `upazilaId`). When জেলা is ঢাকা a hint line under the list names well-known areas: "উত্তর সিটি: উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর। দক্ষিণ সিটি: ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও।" (`CITY_CORPORATION_HINT`). In November 2026 dncc.gov.bd and dscc.gov.bd were reachable but publish no usable ward or area list (DNCC ward pages are empty and its linked PDF is an unrelated 2016 tax gazette; DSCC has no ward pages), so the earlier Wikipedia check stands: খিলগাঁও is mostly DSCC (DNCC ward 23 also covers part), পুরান ঢাকা is a common name. The admin customer edit form and the server check follow the same rules.
+80. Dashboard (M12, November 2026): the week starts on Saturday. Total sales leave out cancelled and returned orders; delivered value is the sum for delivered orders. Incomplete orders and advance payments waiting are live counts, each linking to its admin page. Orders per product shows count and sales, most orders first.
