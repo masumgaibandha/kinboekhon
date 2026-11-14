@@ -32,6 +32,18 @@ export function OrderSubmit({ message, checkFailed, turnstileRef, pending, advan
       <p className="text-center text-[13px] text-desc">
         {advance ? "পেমেন্ট যাচাই করে আমরা অর্ডার কনফার্ম করব" : "অর্ডারের পর আমরা ফোন করে কনফার্ম করব"}
       </p>
+      {/* New tab, so the half-filled form stays open. */}
+      <p className="text-center text-xs text-muted">
+        অর্ডার করে আপনি আমাদের{" "}
+        <a href="/terms" target="_blank" rel="noopener" className="text-desc underline">
+          শর্তাবলী
+        </a>{" "}
+        ও{" "}
+        <a href="/return-policy" target="_blank" rel="noopener" className="text-desc underline">
+          রিটার্ন নীতি
+        </a>{" "}
+        মেনে নিচ্ছেন
+      </p>
     </>
   );
 }

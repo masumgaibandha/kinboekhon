@@ -1,8 +1,15 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { PhoneIcon, WhatsAppIcon } from "@/components/shop/icons";
 import { toInternationalPhone } from "@/lib/phone";
 import { getSettings } from "@/lib/settings";
+
+const POLICY_LINKS = [
+  { href: "/terms", label: "শর্তাবলী" },
+  { href: "/return-policy", label: "রিটার্ন নীতি" },
+  { href: "/privacy", label: "প্রাইভেসি পলিসি" },
+];
 
 export async function Footer() {
   const { supportPhone, whatsappNumber } = await getSettings();
@@ -42,6 +49,13 @@ export async function Footer() {
             )}
           </ul>
         )}
+        <nav aria-label="নীতিমালা" className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          {POLICY_LINKS.map((link) => (
+            <Link key={link.href} href={link.href} className="text-white/90 underline-offset-4 hover:text-white hover:underline">
+              {link.label}
+            </Link>
+          ))}
+        </nav>
         <p className="mt-6 border-t border-white/10 pt-4 text-xs text-white/60">
           © কিনবো এখন · kinboekhon.com
         </p>

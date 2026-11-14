@@ -252,7 +252,7 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 | `/` | Logo header, notice strip (সারা দেশে ফ্রি ডেলিভারি, ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
 | `/p/[slug]` | Landing page, see below |
 | `/thank-you/[publicId]` | Thank-you message, order number, product, delivery free, total, discount, advance paid (with "payment under review" note) and amount due on delivery, support phone |
-| `/privacy`, `/terms`, `/return-policy` | Static Bangla text, linked in the footer |
+| `/privacy`, `/terms`, `/return-policy` | Static Bangla text (P1e), linked in the footer and from a line under the order button; contact phone and WhatsApp from Settings, each hidden when empty |
 
 Landing page `/p/[slug]`, top to bottom. Visual reference: `docs/design/landing-design-d.html` (design D), rebuilt with Tailwind and brand tokens; its placeholder header is not used. Single column, `max-w-xl`, white sections with a 10px gap on the grey page:
 1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price with a "সারা দেশে ফ্রি ডেলিভারি" tag next to it, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি ডেলিভারি, পণ্য দেখে টাকা দিন).
@@ -560,7 +560,7 @@ Modules M0 to M12 are done. The rest is built in three phases (decision 81), one
 | P1b | **Call outcome** on each order: agreed to wait, declined, no answer, call later, each saved with a note and the time. Agreed to wait confirms, declined cancels (not once shipped). Orders list filter by call outcome | Save "No answer" with a note on an order, see it with the time on the order page; filter the list by it and see only that order |
 | P1c | **Meta Pixel + CAPI** (was M14): base pixel, ViewContent, InitiateCheckout, Purchase, `/api/track` | Meta Pixel Helper shows events with event IDs; Events Manager Test events shows browser and server events deduplicated |
 | P1d | **Launch** (was M16): Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain kinboekhon.com, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
-| P1e | **Policy pages** (moved from P3d, decision 82): Bangla `/privacy`, `/terms` and `/return-policy`, linked in the footer. Return policy: return within 3 days, only for damaged, wrong or defective products. Drafts go to the owner for review | Owner approves the text; the three footer links open each page on mobile |
+| P1e | **Policy pages** (moved from P3d, decision 82): Bangla `/privacy`, `/terms` and `/return-policy`, linked in the footer. Return policy: report within 3 days of delivery with photo or video, only for damaged, wrong or defective products; replace or refund by bKash or Nagad within 7 days, we pay the return courier; change of mind is not accepted; refusing a COD parcel at the door is not a return. Privacy: name, phone and address only to deliver orders, never sold, Meta Pixel for ads. Under the order button: "অর্ডার করে আপনি আমাদের শর্তাবলী ও রিটার্ন নীতি মেনে নিচ্ছেন" with links (new tab, so the form stays). Drafts go to the owner for review | Owner approves the text; the three footer links open each page on mobile |
 
 ### Phase 2: while the stock ships (about 20 days)
 
@@ -586,6 +586,7 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 | P3c | **Editable notices and offers** | Change the notice strip text in the admin and see it on the shop |
 | P3d | **SEO and share previews** (was M15): 404, metadata, favicon, Open Graph image. The policy pages moved to P1e | Sharing a product link on Facebook shows image and title |
 | P3e | **Staff logins**: changes the one-admin rule in CLAUDE.md when built | A staff user logs in and sees only what their role allows |
+| P3f | **Click-to-call button** on the admin order page: `tel:` link to the customer phone. Do after the site is complete | Tap the button on a phone and the dialer opens with the customer number |
 
 ## 12. Not planned
 
@@ -678,3 +679,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 83. Price calculator (P1a, November 2026): landed cost = China price + weight x air shipping rate + agent fee; profit per order = (1 - return rate) x (price - price x COD % - landed cost) - courier - packaging - ad cost; the suggested price reaches the target profit, rounded up to end in 90. Defaults in Settings: air shipping ৳710/kg, agent fee ৳0, packaging ৳10, courier ৳120, COD 1%, return rate 15%, ad cost ৳250 per order, target profit ৳150. The inputs are saved per product, admin only, never shown in the shop.
 84. Call outcome sets the status (P1b, November 2026): Agreed to wait confirms a pending order, Declined cancels a pending or confirmed order; No answer and Call later keep it pending with a badge in the list. Shipped or later orders keep their status.
 85. Dashboard Calls card (P1b, November 2026): to-do counts for pending orders (not called, No answer, Call later) linking to the filtered list, call results with their own period switch and confirm rate (orders agreed out of orders called), and the 5 oldest pending orders still needing a call.
+86. Policy pages (P1e, November 2026): return within 3 days of delivery with photo or video, only damaged, wrong or defective; replace or refund by bKash or Nagad within 7 days; we pay the return courier; no change of mind; a refused COD parcel is not a return. Privacy also states the saved unfinished order form, the IP and browser kept against fake orders, and Meta Pixel. Click-to-call on the admin order page is P3f, after the site is complete.
