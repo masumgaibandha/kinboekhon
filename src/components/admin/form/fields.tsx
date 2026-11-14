@@ -25,7 +25,7 @@ interface TextFieldProps {
   defaultValue: string;
   error?: string;
   hint?: string;
-  numeric?: boolean;
+  numeric?: boolean | "decimal";
   placeholder?: string;
   onChange?: (value: string) => void;
 }
@@ -40,6 +40,7 @@ export function TextField({
   placeholder,
   onChange,
 }: TextFieldProps) {
+  const inputMode = numeric === "decimal" ? "decimal" : numeric ? "numeric" : undefined;
   const id = name.replace(".", "-");
   const note = error ?? hint;
 
@@ -52,7 +53,7 @@ export function TextField({
         id={id}
         name={name}
         defaultValue={defaultValue}
-        inputMode={numeric ? "numeric" : undefined}
+        inputMode={inputMode}
         placeholder={placeholder}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
         aria-invalid={error ? true : undefined}

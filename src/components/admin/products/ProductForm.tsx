@@ -8,15 +8,18 @@ import { createProduct, updateProduct } from "@/app/admin/(panel)/products/actio
 import { Section, TextArea, TextField, Toggle } from "@/components/admin/form/fields";
 import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
+import { PriceCalculator } from "@/components/admin/products/PriceCalculator";
 import { ACTIVE_INITIAL_FIELD } from "@/lib/product-form";
+import type { ProductCosts } from "@/lib/validation/costs";
 import type { ProductInput } from "@/lib/validation/product";
 
 interface ProductFormProps {
   productId?: string;
   product: ProductInput;
+  costs: ProductCosts;
 }
 
-export function ProductForm({ productId, product }: ProductFormProps) {
+export function ProductForm({ productId, product, costs }: ProductFormProps) {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -24,6 +27,7 @@ export function ProductForm({ productId, product }: ProductFormProps) {
   const [savedSlug, setSavedSlug] = useState(product.slug);
   const [savedActive, setSavedActive] = useState(product.active);
   const [slug, setSlug] = useState(product.slug);
+  const [price, setPrice] = useState(product.price ? String(product.price) : "");
   const isEdit = Boolean(productId);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -86,6 +90,7 @@ export function ProductForm({ productId, product }: ProductFormProps) {
           defaultValue={product.price ? String(product.price) : ""}
           error={errors.price}
           numeric
+          onChange={setPrice}
         />
         <TextArea
           name="shortDescription"
@@ -106,6 +111,8 @@ export function ProductForm({ productId, product }: ProductFormProps) {
           <Toggle name="active" label="Active (shown in the shop)" defaultChecked={product.active} />
         </div>
       </Section>
+
+      <PriceCalculator costs={costs} price={price} errors={errors} />
 
       <Section title="Images">
         <ImageUploader

@@ -3,13 +3,21 @@ import { isValidObjectId, type Types } from "mongoose";
 import { connectMongoose } from "@/lib/db";
 import { ProductModel } from "@/lib/models/Product";
 import { pickImages, type ProductImage } from "@/lib/product-images";
+import { getCostDefaults } from "@/lib/settings";
+import type { CostDefaults, ProductCosts } from "@/lib/validation/costs";
 import type { ProductInput } from "@/lib/validation/product";
 
-export type ProductDoc = ProductInput & { _id: Types.ObjectId; updatedAt?: Date };
+export type ProductDoc = ProductInput & { _id: Types.ObjectId; costs?: Partial<ProductCosts>; updatedAt?: Date };
 
 export interface AdminProduct {
   product: ProductInput;
+  costs: ProductCosts;
   version: string;
+}
+
+// Calculator inputs for the form: the product's saved values over the Settings defaults.
+export function startingCosts(defaults: CostDefaults, saved?: Partial<ProductCosts>): ProductCosts {
+  return { chinaPrice: 0, weightGrams: 0, ...defaults, ...saved };
 }
 
 export const EMPTY_PRODUCT: ProductInput = {
@@ -94,5 +102,9 @@ export async function getProductForAdmin(id: string): Promise<AdminProduct | nul
   await connectMongoose();
   const doc = await ProductModel.findById(id).lean<ProductDoc>();
   if (!doc) return null;
-  return { product: toProductInput(doc), version: doc.updatedAt?.toISOString() ?? "" };
+  return {
+    product: toProductInput(doc),
+    costs: startingCosts(await getCostDefaults(), doc.costs),
+    version: doc.updatedAt?.toISOString() ?? "",
+  };
 }

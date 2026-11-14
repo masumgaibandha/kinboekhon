@@ -7,7 +7,8 @@ import { changedFields, INITIAL_VALUES_FIELD, readJsonField } from "@/lib/change
 import { connectMongoose } from "@/lib/db";
 import { SettingsModel } from "@/lib/models/Settings";
 import { SETTINGS_KEY, SETTINGS_TAG } from "@/lib/settings";
-import { settingsSchema } from "@/lib/validation/settings";
+import { COST_DEFAULT_KEYS, readCostFields } from "@/lib/validation/costs";
+import { adminSettingsSchema } from "@/lib/validation/settings";
 
 export type SaveSettingsResult =
   | { ok: true }
@@ -38,13 +39,14 @@ function readForm(formData: FormData) {
     supportPhone: text("supportPhone"),
     whatsappNumber: text("whatsappNumber"),
     duplicateWindowHours: text("duplicateWindowHours"),
+    costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
   };
 }
 
 export async function saveSettings(formData: FormData): Promise<SaveSettingsResult> {
   await requireAdmin();
 
-  const parsed = settingsSchema.safeParse(readForm(formData));
+  const parsed = adminSettingsSchema.safeParse(readForm(formData));
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) {

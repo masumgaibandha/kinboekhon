@@ -156,6 +156,7 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | cta | `{ title, text }` | final push above the form |
 | active | boolean | only active products are shown or orderable; new products start inactive (the create form's Active box starts unchecked). Saving the edit form writes `active` only when the admin changed the box: the form sends the value it was loaded with (`activeInitial`), and the edit form is keyed on the product's `updatedAt`, so a page restored from navigation history always shows fresh values |
 | sortOrder | number | home page order |
+| costs | `{ chinaPrice, weightGrams, shippingPerKg, agentFee, packaging, courier, codPercent, returnPercent, adCost, targetProfit }` | price calculator inputs (P1a), admin only. `toProductInput()` leaves them out, so the shop never reads them. A product without `costs` starts the form with China price and weight empty and the rates from Settings `costDefaults` |
 
 Index: `slug` unique, `{ active, sortOrder }`.
 Any landing section left empty is simply not rendered.
@@ -228,6 +229,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | supportPhone | shown in header and thank-you page |
 | whatsappNumber | shown to customers |
 | duplicateWindowHours | default 24 |
+| costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, courier: 120, codPercent: 1, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
 
 Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
 
@@ -317,8 +319,14 @@ Order form fields:
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
-| `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, images (upload, reorder, remove), landing sections, active |
-| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window (no delivery charges) |
+| `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, price calculator, images (upload, reorder, remove), landing sections, active |
+| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window, price calculator defaults (no delivery charges) |
+
+Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight (grams), air shipping (taka per kg), agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Money inputs are whole taka; percents allow one decimal (COD 0 to 20, return 0 to 90); China price and weight may be empty (0). Results update live as the admin types, including the Price field:
+- Landed cost = China price + weight / 1000 x shipping per kg + agent fee.
+- Profit per order = (1 - return %) x (price - price x COD % - landed cost) - courier - packaging - ad cost. Returned orders earn nothing but still pay courier, packaging and ads.
+- Suggested price = the lowest price ending in 90 at or above ((target profit + courier + packaging + ad cost) / (1 - return %) + landed cost) / (1 - COD %).
+- Results show rounded to whole taka (`price-calculator.ts` keeps exact values). Inputs are saved with the product (`costs`) and validated by Zod on the server. The suggested price is never written to Price on its own.
 
 Dashboard definitions (dates in Asia/Dhaka, decision 80):
 - Period: today (from 00:00 today), this week (from 00:00 on the latest Saturday, today when it is Saturday), this month (from 00:00 on the 1st), all time. The period is in the URL (`?period=`); a missing or bad value shows today. Every count and amount on the page covers orders placed in the period, except the two live counts below.
@@ -539,6 +547,7 @@ Modules M0 to M12 are done. The rest is built in three phases (decision 81), one
 | P1b | **Call outcome** on each order: agreed to wait, declined, no answer, call later, each saved with a note and the time. Orders list filter by call outcome | Save "No answer" with a note on an order, see it with the time on the order page; filter the list by it and see only that order |
 | P1c | **Meta Pixel + CAPI** (was M14): base pixel, ViewContent, InitiateCheckout, Purchase, `/api/track` | Meta Pixel Helper shows events with event IDs; Events Manager Test events shows browser and server events deduplicated |
 | P1d | **Launch** (was M16): Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain kinboekhon.com, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
+| P1e | **Policy pages** (moved from P3d, decision 82): Bangla `/privacy`, `/terms` and `/return-policy`, linked in the footer. Return policy: return within 3 days, only for damaged, wrong or defective products. Drafts go to the owner for review | Owner approves the text; the three footer links open each page on mobile |
 
 ### Phase 2: while the stock ships (about 20 days)
 
@@ -562,7 +571,7 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 | P3a | **Repeat-customer promo codes** | A code works once for a returning phone and is refused for a new one |
 | P3b | **Blog and info pages** | Publish a post and an info page, open both on mobile |
 | P3c | **Editable notices and offers** | Change the notice strip text in the admin and see it on the shop |
-| P3d | **SEO and share previews** (was M15): Bangla drafts of privacy, terms and return policy for owner review (return within 3 days, only for damaged, wrong or defective products), 404, metadata, favicon, Open Graph image | Owner approves the policy text; footer links work; sharing a product link on Facebook shows image and title |
+| P3d | **SEO and share previews** (was M15): 404, metadata, favicon, Open Graph image. The policy pages moved to P1e | Sharing a product link on Facebook shows image and title |
 | P3e | **Staff logins**: changes the one-admin rule in CLAUDE.md when built | A staff user logs in and sees only what their role allows |
 
 ## 12. Not planned
@@ -652,3 +661,5 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 79. No ঢাকার ভিতরে / ঢাকার বাইরে picker (November 2026). Every customer picks বিভাগ, জেলা, উপজেলা / থানা. When জেলা is ঢাকা, the third list shows ঢাকা উত্তর and ঢাকা দক্ষিণ সিটি কর্পোরেশন first, then Dhaka's upazilas; Chattogram city thanas stay as before. The order still saves the city corporation when one is chosen (`kind: dhaka_city`), so courier booking works. Orders and drafts no longer store `deliveryArea`, and drafts no longer store `cityCorporation` (it is the `upazilaId`). When জেলা is ঢাকা a hint line under the list names well-known areas: "উত্তর সিটি: উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর। দক্ষিণ সিটি: ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও।" (`CITY_CORPORATION_HINT`). In November 2026 dncc.gov.bd and dscc.gov.bd were reachable but publish no usable ward or area list (DNCC ward pages are empty and its linked PDF is an unrelated 2016 tax gazette; DSCC has no ward pages), so the earlier Wikipedia check stands: খিলগাঁও is mostly DSCC (DNCC ward 23 also covers part), পুরান ঢাকা is a common name. The admin customer edit form and the server check follow the same rules.
 80. Dashboard (M12, November 2026): the week starts on Saturday. Total sales leave out cancelled and returned orders; delivered value is the sum for delivered orders. Incomplete orders and advance payments waiting are live counts, each linking to its admin page. Orders per product shows count and sales, most orders first.
 81. Build order after M12 (November 2026): three phases. Phase 1 before the test campaign: price calculator, call outcome, Meta Pixel + CAPI, launch. Phase 2 while the stock ships (about 20 days): customer CRM, Steadfast API, fraud check, profit report with ad spend, stock count, COD payout reconciliation, order SMS, print and CSV exports. Phase 3 after launch: repeat-customer promo codes, blog and info pages, editable notices and offers, SEO and share previews with the policy pages, staff logins. Steadfast, SMS, stock tracking, coupons, blog and more than one admin are no longer "not planned".
+82. Policy pages move to Phase 1 as P1e (November 2026): Bangla privacy, terms and return policy, linked in the footer. Return policy: 3 days, only for damaged, wrong or defective products.
+83. Price calculator (P1a, November 2026): landed cost = China price + weight x air shipping rate + agent fee; profit per order = (1 - return rate) x (price - price x COD % - landed cost) - courier - packaging - ad cost; the suggested price reaches the target profit, rounded up to end in 90. Defaults in Settings: air shipping ৳710/kg, agent fee ৳0, packaging ৳10, courier ৳120, COD 1%, return rate 15%, ad cost ৳250 per order, target profit ৳150. The inputs are saved per product, admin only, never shown in the shop.

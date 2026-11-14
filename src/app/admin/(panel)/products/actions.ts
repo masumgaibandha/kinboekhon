@@ -8,7 +8,8 @@ import { PRODUCTS_TAG, productTag } from "@/lib/catalog";
 import { connectMongoose } from "@/lib/db";
 import { activeWasChanged } from "@/lib/product-form";
 import { ProductModel } from "@/lib/models/Product";
-import { productSchema, type ProductInput } from "@/lib/validation/product";
+import { PRODUCT_COST_KEYS, readCostFields } from "@/lib/validation/costs";
+import { productFormSchema, type ProductFormValues } from "@/lib/validation/product";
 
 export type ProductActionResult =
   | { ok: true }
@@ -44,6 +45,7 @@ function readForm(formData: FormData) {
       reviews: reviewNames.map((name, index) => ({ name, text: reviewTexts[index] ?? "" })),
     },
     cta: { title: text("cta.title"), text: text("cta.text") },
+    costs: readCostFields(formData, "costs", PRODUCT_COST_KEYS),
   };
 }
 
@@ -53,9 +55,9 @@ function isDuplicateKey(error: unknown): boolean {
 
 async function saveProduct(
   formData: FormData,
-  write: (product: ProductInput) => Promise<string | null>,
+  write: (product: ProductFormValues) => Promise<string | null>,
 ): Promise<ProductActionResult> {
-  const parsed = productSchema.safeParse(readForm(formData));
+  const parsed = productFormSchema.safeParse(readForm(formData));
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) {

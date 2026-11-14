@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { productImageFolder } from "@/lib/cloudinary/folder";
 import { IMAGE_LIMITS } from "@/lib/product-images";
+import { productCostsSchema } from "@/lib/validation/costs";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -93,4 +94,8 @@ export const productSchema = z
     cta: z.object({ title: text(150), text: text(300) }),
   });
 
+// Admin form: the product plus its price calculator inputs, which never reach the shop.
+export const productFormSchema = productSchema.extend({ costs: productCostsSchema });
+
 export type ProductInput = z.output<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productFormSchema>;

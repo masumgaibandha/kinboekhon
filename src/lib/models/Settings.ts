@@ -2,9 +2,10 @@ import { Schema } from "mongoose";
 
 import { ACCOUNT_TYPES } from "@/lib/account-types";
 import { appDb } from "@/lib/db";
-import type { Settings } from "@/lib/validation/settings";
+import { costsSchema } from "@/lib/models/costs-schema";
+import type { AdminSettingsValues } from "@/lib/validation/settings";
 
-type SettingsDocument = Settings & { key: string };
+type SettingsDocument = AdminSettingsValues & { key: string };
 
 const walletSchema = new Schema(
   {
@@ -38,6 +39,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     supportPhone: String,
     whatsappNumber: String,
     duplicateWindowHours: { type: Number, min: 1 },
+    costDefaults: costsSchema,
   },
   { timestamps: true },
 );

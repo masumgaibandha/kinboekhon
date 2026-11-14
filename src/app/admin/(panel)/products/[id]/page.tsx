@@ -19,7 +19,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-heading">Edit product</h1>
       {/* Keyed on the saved version, so a page restored from navigation history shows fresh values. */}
-      <ProductForm key={`${id}-${found.version}`} productId={id} product={found.product} />
+      <ProductForm key={`${id}-${found.version}`} productId={id} product={found.product} costs={found.costs} />
     </div>
   );
 }

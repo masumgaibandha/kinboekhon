@@ -5,17 +5,19 @@ import { useState, useTransition, type FormEvent } from "react";
 import toast from "react-hot-toast";
 
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
+import { CostFields } from "@/components/admin/costs/CostFields";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
 import type { WalletKey } from "@/lib/settings";
-import type { Settings } from "@/lib/validation/settings";
+import { COST_DEFAULT_KEYS } from "@/lib/validation/costs";
+import type { AdminSettingsValues } from "@/lib/validation/settings";
 
 type NumberKey = "fullAdvanceDiscount" | "duplicateWindowHours";
 
 interface SettingsFormProps {
-  settings: Settings;
-  saved: Settings;
+  settings: AdminSettingsValues;
+  saved: AdminSettingsValues;
   reviewWallets: WalletKey[];
 }
 
@@ -53,6 +55,9 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
   );
 
   const walletHint = "Shown to customers who pay in advance.";
+  const costDefaultStrings = Object.fromEntries(
+    COST_DEFAULT_KEYS.map((key) => [key, String(settings.costDefaults[key])]),
+  );
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -95,6 +100,13 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
 
       <Section title="Order protection">
         {amount("duplicateWindowHours", "Duplicate order window (hours)", "Same phone and product inside this window is blocked. 1 to 168.")}
+      </Section>
+
+      <Section
+        title="Price calculator defaults"
+        description="Admin only. A new product's price calculator starts with these values, and so does any product saved before the calculator existed."
+      >
+        <CostFields prefix="costDefaults" keys={COST_DEFAULT_KEYS} values={costDefaultStrings} errors={errors} />
       </Section>
 
       <div className="sticky bottom-0 -mx-4 border-t border-line bg-page/95 px-4 py-3">
