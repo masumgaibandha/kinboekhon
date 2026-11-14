@@ -6,7 +6,7 @@ import { PIXEL_READY_EVENT } from "@/components/tracking/pixel";
 
 const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? "";
 
-// Meta's base snippet, for shop pages only; it sends the first PageView.
+// Meta's base snippet, for shop pages only; it sends the first PageView. Its own pushState tracking is off, PixelPageViews sends the rest.
 export function MetaPixel() {
   if (!/^\d+$/.test(PIXEL_ID)) return null;
   return (
@@ -20,6 +20,8 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
+fbq.disablePushState = true;
+fbq.allowDuplicatePageViews = true;
 fbq('init', '${PIXEL_ID}');
 fbq('track', 'PageView');
 window.dispatchEvent(new Event('${PIXEL_READY_EVENT}'));`}
