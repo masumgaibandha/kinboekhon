@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin-session";
 import { TRY_AGAIN, adminFail, zodFail, type AdminActionResult } from "@/lib/admin-result";
@@ -22,11 +22,12 @@ const RELOAD = "Reload the page and try again.";
 
 const reader = (formData: FormData) => (name: string) => String(formData.get(name) ?? "");
 
-// Runs a write, turns a database error into a message and refreshes the page after a change.
+// Runs a write and turns a database error into a message. After a change it re-renders this page and
+// drops every admin page the browser kept, so the orders list and dashboard show fresh data too.
 async function run(write: () => Promise<AdminActionResult>): Promise<AdminActionResult> {
   try {
     const result = await write();
-    if (result.ok) refresh();
+    if (result.ok) revalidatePath("/admin", "layout");
     return result;
   } catch {
     return adminFail(TRY_AGAIN);

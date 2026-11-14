@@ -34,6 +34,9 @@ export function CallOutcomeForm({ orderNumber }: { orderNumber: string }) {
           ))}
         </div>
         {errors.outcome && <p className="mt-1 text-sm text-brand-dark">{errors.outcome}</p>}
+        <p className="mt-1 text-xs text-muted">
+          Agreed to wait confirms the order, Declined cancels it. Shipped or finished orders keep their status.
+        </p>
       </fieldset>
       <div>
         <label htmlFor="call-note" className="block text-sm font-medium text-body">
