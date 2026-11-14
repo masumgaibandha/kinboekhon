@@ -29,6 +29,7 @@ Next.js (App Router) + TypeScript, Tailwind CSS, MongoDB Atlas + Mongoose, Zod, 
 - Build only what is asked. No extra features, options or abstractions "for later".
 - Ask before adding any new npm package. The approved list is in `docs/PLAN.md`.
 - Build one module at a time, in the order of `docs/PLAN.md`. Each module must work in the browser before the next starts.
+- Do not start sub-agents unless the owner asks. Work in the main session to save tokens.
 
 ### Reference folder
 - Never edit, move, delete, import from or commit anything in `_reference/`.
