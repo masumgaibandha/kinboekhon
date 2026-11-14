@@ -1,10 +1,11 @@
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 
-import { DELIVERY_AREAS, MAX_QUANTITY } from "@/lib/orders/limits";
+import { resolveLocation } from "@/lib/locations/resolve";
+import { MAX_QUANTITY } from "@/lib/orders/limits";
 import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
 import { DRAFT_KEY_PATTERN } from "@/lib/validation/draft";
-import { LOCATION_CHECK, addLocationIssues, resolveAreaLocation } from "@/lib/validation/location-fields";
+import { LOCATION_CHECK, addLocationIssues } from "@/lib/validation/location-fields";
 import { PAYMENT_CHECK, addPaymentIssues, checkPayment, paymentShape } from "@/lib/validation/order-payment";
 
 const PHONE_MESSAGE = "সঠিক 11 সংখ্যার মোবাইল নম্বর দিন, যেমন 01712345678।";
@@ -23,13 +24,11 @@ export const orderSchema = z
       .int("পরিমাণ সঠিক নয়।")
       .min(1, "পরিমাণ সঠিক নয়।")
       .max(MAX_QUANTITY, "একবারে সর্বোচ্চ 5টি অর্ডার করা যায়।"),
-    deliveryArea: z.enum(DELIVERY_AREAS, { error: "ডেলিভারি এলাকা বেছে নিন।" }),
     name: z.string({ error: NAME_MESSAGE }).trim().min(2, NAME_MESSAGE).max(60, NAME_MESSAGE),
     phone: z
       .string({ error: PHONE_MESSAGE })
       .transform(normalizePhone)
       .refine((phone) => BD_MOBILE_PATTERN.test(phone), PHONE_MESSAGE),
-    cityCorporation: optionalId,
     divisionId: optionalId,
     districtId: optionalId,
     upazilaId: optionalId,
@@ -41,12 +40,11 @@ export const orderSchema = z
   .superRefine((order, ctx) => addLocationIssues(order, ctx), LOCATION_CHECK)
   .superRefine((order, ctx) => addPaymentIssues(order, ctx), PAYMENT_CHECK)
   .transform((fields, ctx) => {
-    const { cityCorporation, divisionId, districtId, upazilaId, paymentOption, paymentMethod, senderNumber, transactionId, ...order } =
-      fields;
-    const location = resolveAreaLocation({ deliveryArea: order.deliveryArea, cityCorporation, divisionId, districtId, upazilaId });
+    const { divisionId, districtId, upazilaId, paymentOption, paymentMethod, senderNumber, transactionId, ...order } = fields;
+    const location = resolveLocation({ divisionId, districtId, upazilaId });
     const payment = checkPayment({ paymentOption, paymentMethod, senderNumber, transactionId });
     if (!location.ok || !payment.ok) {
-      ctx.addIssue({ code: "custom", path: ["deliveryArea"], message: LOCATION_MESSAGE });
+      ctx.addIssue({ code: "custom", path: ["location"], message: LOCATION_MESSAGE });
       return z.NEVER;
     }
     return { ...order, location: location.location, payment: payment.payment };

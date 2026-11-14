@@ -2,7 +2,6 @@ import type { Types } from "mongoose";
 
 import type { OrderLocation } from "@/lib/locations/types";
 import type { CAPI_STATUSES, OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
-import type { DeliveryArea } from "@/lib/orders/limits";
 import type { TurnstileResult } from "@/lib/turnstile";
 
 export const HISTORY_KINDS = ["status", "edit", "payment"] as const;
@@ -34,9 +33,7 @@ export interface OrderDocument {
   product: { productId: Types.ObjectId; name: string; slug: string; image: string | null; price: number };
   quantity: number;
   subtotal: number;
-  deliveryArea: DeliveryArea;
-  deliveryCharge: number;
-  deliveryDiscount: number;
+  discount: number;
   total: number;
   customer: { name: string; phone: string; address: string; location: OrderLocation };
   status: OrderStatus;

@@ -68,8 +68,6 @@ export async function updateOrderCustomer(formData: FormData): Promise<AdminActi
     name: text("name"),
     phone: text("phone"),
     address: text("address"),
-    deliveryArea: text("deliveryArea"),
-    cityCorporation: text("cityCorporation"),
     divisionId: text("divisionId"),
     districtId: text("districtId"),
     upazilaId: text("upazilaId"),

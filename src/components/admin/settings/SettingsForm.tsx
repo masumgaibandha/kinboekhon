@@ -11,12 +11,7 @@ import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
 import type { WalletKey } from "@/lib/settings";
 import type { Settings } from "@/lib/validation/settings";
 
-type NumberKey =
-  | "deliveryChargeInsideDhaka"
-  | "deliveryChargeOutsideDhaka"
-  | "advanceDeliveryDiscount"
-  | "fullAdvanceDiscount"
-  | "duplicateWindowHours";
+type NumberKey = "fullAdvanceDiscount" | "duplicateWindowHours";
 
 interface SettingsFormProps {
   settings: Settings;
@@ -62,16 +57,10 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <input type="hidden" name={INITIAL_VALUES_FIELD} value={JSON.stringify(saved)} />
-      <Section title="Delivery charges" description="Whole taka.">
-        {amount("deliveryChargeInsideDhaka", "Inside Dhaka")}
-        {amount("deliveryChargeOutsideDhaka", "Outside Dhaka")}
-      </Section>
-
       <Section
-        title="Advance payment discounts"
-        description="Taken off the delivery charge. Can't be more than the lowest delivery charge."
+        title="Advance payment discount"
+        description="Delivery is free everywhere. This whole taka amount is taken off the order total when the customer pays the full amount in advance."
       >
-        {amount("advanceDeliveryDiscount", "Delivery charge paid in advance")}
         {amount("fullAdvanceDiscount", "Full amount paid in advance")}
       </Section>
 

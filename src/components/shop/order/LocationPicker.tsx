@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LocationSelect as Select } from "@/components/shop/order/LocationSelect";
-import type { LocationData, LocationSelection } from "@/lib/locations/types";
+import { cityGroupOf } from "@/lib/locations/dhaka";
+import type { LocationData, LocationSelection, Place } from "@/lib/locations/types";
 
 interface LocationPickerProps {
   value: LocationSelection;
@@ -12,6 +13,13 @@ interface LocationPickerProps {
 }
 
 const LOADING = "লোড হচ্ছে...";
+
+const options = (places: readonly Place[]) =>
+  places.map((item) => (
+    <option key={item.id} value={item.id}>
+      {item.bn}
+    </option>
+  ));
 
 export function LocationPicker({ value, onChange, errors }: LocationPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -42,6 +50,9 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
 
   const division = data?.divisions.find((item) => item.id === value.divisionId);
   const district = division?.districts.find((item) => item.id === value.districtId);
+  // Dhaka lists its city corporations first, Chattogram its city thanas.
+  const group = district ? cityGroupOf(district) : null;
+  const groupLabel = group?.kind === "city_corporation" ? "সিটি কর্পোরেশন" : district?.cityLabel;
   const placeholder = (text: string) => (data ? text : LOADING);
 
   return (
@@ -56,11 +67,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         onChange={(divisionId) => onChange({ divisionId, districtId: "", upazilaId: "" })}
       >
         <option value="">{placeholder("বিভাগ বেছে নিন")}</option>
-        {data?.divisions.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.bn}
-          </option>
-        ))}
+        {data && options(data.divisions)}
       </Select>
 
       <Select
@@ -73,11 +80,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         onChange={(districtId) => onChange({ ...value, districtId, upazilaId: "" })}
       >
         <option value="">{placeholder(division ? "জেলা বেছে নিন" : "আগে বিভাগ বেছে নিন")}</option>
-        {division?.districts.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.bn}
-          </option>
-        ))}
+        {division && options(division.districts)}
       </Select>
 
       <Select
@@ -90,31 +93,8 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         onChange={(upazilaId) => onChange({ ...value, upazilaId })}
       >
         <option value="">{placeholder(district ? "উপজেলা বা থানা বেছে নিন" : "আগে জেলা বেছে নিন")}</option>
-        {district?.cityThanas && (
-          <optgroup label={district.cityLabel}>
-            {district.cityThanas.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.bn}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {district &&
-          (district.cityThanas ? (
-            <optgroup label="উপজেলা">
-              {district.upazilas.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.bn}
-                </option>
-              ))}
-            </optgroup>
-          ) : (
-            district.upazilas.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.bn}
-              </option>
-            ))
-          ))}
+        {group && <optgroup label={groupLabel}>{options(group.places)}</optgroup>}
+        {district && (group ? <optgroup label="উপজেলা">{options(district.upazilas)}</optgroup> : options(district.upazilas))}
       </Select>
 
       {failed && (

@@ -11,7 +11,7 @@ export function CtaSection({ product }: { product: ProductInput }) {
     <LandingSection title={cta.title}>
       {cta.text && <p className="text-[17px] leading-relaxed text-desc">{cta.text}</p>}
       <div className="mt-4 space-y-3.5">
-        <PriceTag price={product.price} size="lg" />
+        <PriceTag price={product.price} size="lg" freeDelivery />
         <OrderButton />
       </div>
     </LandingSection>

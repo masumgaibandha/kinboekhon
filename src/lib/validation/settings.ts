@@ -50,43 +50,22 @@ const bankSchema = z
   });
 
 const MOBILE_MESSAGE = "Enter a valid 11 digit mobile number.";
-const DISCOUNTS = ["advanceDeliveryDiscount", "fullAdvanceDiscount"] as const;
 
-export const settingsSchema = z
-  .object({
-    deliveryChargeInsideDhaka: amount,
-    deliveryChargeOutsideDhaka: amount,
-    advanceDeliveryDiscount: amount,
-    fullAdvanceDiscount: amount,
-    bkash: walletSchema(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
-    nagad: walletSchema(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
-    rocket: walletSchema(ROCKET_PATTERN, "Enter a valid 11 or 12 digit Rocket number."),
-    bank: bankSchema,
-    supportPhone: phone(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
-    whatsappNumber: phone(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
-    duplicateWindowHours: z
-      .string()
-      .trim()
-      .regex(/^\d{1,3}$/, "Enter whole hours.")
-      .transform(Number)
-      .refine((hours) => hours >= 1 && hours <= 168, "Use 1 to 168 hours."),
-  })
-  .superRefine((settings, ctx) => {
-    const { deliveryChargeInsideDhaka: inside, deliveryChargeOutsideDhaka: outside } = settings;
-    const amounts = [inside, outside, ...DISCOUNTS.map((field) => settings[field])];
-    if (!amounts.every(Number.isInteger)) return;
-
-    const maxDiscount = Math.min(inside, outside);
-    for (const field of DISCOUNTS) {
-      if (settings[field] > maxDiscount) {
-        ctx.addIssue({
-          code: "custom",
-          path: [field],
-          message: `Can't be more than the lowest delivery charge (${maxDiscount} taka).`,
-        });
-      }
-    }
-  });
+export const settingsSchema = z.object({
+  fullAdvanceDiscount: amount,
+  bkash: walletSchema(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
+  nagad: walletSchema(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
+  rocket: walletSchema(ROCKET_PATTERN, "Enter a valid 11 or 12 digit Rocket number."),
+  bank: bankSchema,
+  supportPhone: phone(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
+  whatsappNumber: phone(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
+  duplicateWindowHours: z
+    .string()
+    .trim()
+    .regex(/^\d{1,3}$/, "Enter whole hours.")
+    .transform(Number)
+    .refine((hours) => hours >= 1 && hours <= 168, "Use 1 to 168 hours."),
+});
 
 export type Settings = z.output<typeof settingsSchema>;
 export type WalletSettings = Settings["bkash"];

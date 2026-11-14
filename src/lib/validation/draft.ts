@@ -2,7 +2,7 @@ import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 
 import { PAYMENT_OPTIONS } from "@/lib/orders/enums";
-import { DELIVERY_AREAS, MAX_QUANTITY } from "@/lib/orders/limits";
+import { MAX_QUANTITY } from "@/lib/orders/limits";
 import { ADVANCE_METHODS } from "@/lib/orders/payment-methods";
 import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
 
@@ -19,8 +19,6 @@ export const draftSchema = z.object({
   phone: z.string().transform(normalizePhone).refine((phone) => BD_MOBILE_PATTERN.test(phone)),
   address: z.string().trim().max(200).default(""),
   quantity: z.number().int().min(1).max(MAX_QUANTITY),
-  deliveryArea: z.enum(DELIVERY_AREAS),
-  cityCorporation: id,
   divisionId: id,
   districtId: id,
   upazilaId: id,

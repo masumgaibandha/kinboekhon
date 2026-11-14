@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 
 import { Money } from "@/components/ui/Money";
 import type { AdminOrder } from "@/lib/orders/admin-order-detail";
-import { DELIVERY_AREA_ADMIN_LABELS } from "@/lib/orders/limits";
-import { OPTION_LABELS } from "@/lib/orders/payment-methods";
 
 function Row({ label, children, strong }: { label: string; children: ReactNode; strong?: boolean }) {
   return (
@@ -30,12 +28,10 @@ export function OrderAmounts({ order }: { order: AdminOrder }) {
         <Row label="Subtotal">
           <Money amount={order.subtotal} />
         </Row>
-        <Row label={`Delivery (${DELIVERY_AREA_ADMIN_LABELS[order.deliveryArea]})`}>
-          <Money amount={order.deliveryCharge} />
-        </Row>
-        {order.deliveryDiscount > 0 && (
-          <Row label={`Delivery discount (${OPTION_LABELS[order.payment.option].toLowerCase()})`}>
-            - <Money amount={order.deliveryDiscount} />
+        <Row label="Delivery">Free</Row>
+        {order.discount > 0 && (
+          <Row label="Full advance discount">
+            - <Money amount={order.discount} />
           </Row>
         )}
         <Row label="Total" strong>

@@ -30,9 +30,6 @@ const bankSchema = new Schema(
 const settingsSchema = new Schema<SettingsDocument>(
   {
     key: { type: String, required: true, unique: true },
-    deliveryChargeInsideDhaka: { type: Number, min: 0 },
-    deliveryChargeOutsideDhaka: { type: Number, min: 0 },
-    advanceDeliveryDiscount: { type: Number, min: 0 },
     fullAdvanceDiscount: { type: Number, min: 0 },
     bkash: walletSchema,
     nagad: walletSchema,

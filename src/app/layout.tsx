@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     default: "কিনবো এখন | দরকার যখন, কিনবো এখন",
     template: "%s | কিনবো এখন",
   },
-  description: "দরকার যখন, কিনবো এখন। সারা বাংলাদেশে ক্যাশ অন ডেলিভারি।",
+  description: "দরকার যখন, কিনবো এখন। সারা দেশে ফ্রি ডেলিভারি, ক্যাশ অন ডেলিভারি।",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

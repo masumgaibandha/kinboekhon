@@ -1,7 +1,6 @@
 import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import type { PaymentStatus } from "@/lib/orders/enums";
-import type { DeliveryArea } from "@/lib/orders/limits";
 
 const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
 
@@ -12,9 +11,7 @@ export interface ThankYouOrder {
   price: number;
   quantity: number;
   subtotal: number;
-  deliveryArea: DeliveryArea;
-  deliveryCharge: number;
-  deliveryDiscount: number;
+  discount: number;
   total: number;
   advanceAmount: number;
   dueOnDelivery: number;
@@ -26,9 +23,7 @@ interface ThankYouDoc {
   product: { name: string; price: number };
   quantity: number;
   subtotal: number;
-  deliveryArea: DeliveryArea;
-  deliveryCharge: number;
-  deliveryDiscount: number;
+  discount: number;
   total: number;
   payment: { advanceAmount: number; dueOnDelivery: number; status: PaymentStatus };
 }
@@ -44,9 +39,7 @@ export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder 
       "product.price": 1,
       quantity: 1,
       subtotal: 1,
-      deliveryArea: 1,
-      deliveryCharge: 1,
-      deliveryDiscount: 1,
+      discount: 1,
       total: 1,
       "payment.advanceAmount": 1,
       "payment.dueOnDelivery": 1,
@@ -61,9 +54,7 @@ export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder 
     price: doc.product.price,
     quantity: doc.quantity,
     subtotal: doc.subtotal,
-    deliveryArea: doc.deliveryArea,
-    deliveryCharge: doc.deliveryCharge,
-    deliveryDiscount: doc.deliveryDiscount,
+    discount: doc.discount,
     total: doc.total,
     advanceAmount: doc.payment.advanceAmount,
     dueOnDelivery: doc.payment.dueOnDelivery,

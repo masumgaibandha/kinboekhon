@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { Money } from "@/components/ui/Money";
-import { DELIVERY_AREA_LABELS } from "@/lib/orders/limits";
 import type { ThankYouOrder } from "@/lib/orders/thank-you";
 
 interface RowProps {
@@ -32,16 +31,13 @@ export function ThankYouDetails({ order }: { order: ThankYouOrder }) {
         }
         value={<Money amount={order.subtotal} />}
       />
-      <Row
-        label={`ডেলিভারি চার্জ (${DELIVERY_AREA_LABELS[order.deliveryArea]})`}
-        value={<Money amount={order.deliveryCharge} />}
-      />
-      {order.deliveryDiscount > 0 && (
+      <Row label="ডেলিভারি চার্জ" value="ফ্রি" />
+      {order.discount > 0 && (
         <Row
-          label="ডেলিভারি ছাড়"
+          label="অগ্রিম পেমেন্ট ছাড়"
           value={
             <>
-              -<Money amount={order.deliveryDiscount} />
+              -<Money amount={order.discount} />
             </>
           }
         />

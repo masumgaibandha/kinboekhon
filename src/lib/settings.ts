@@ -26,9 +26,6 @@ function withReviewedWallets(settings: Settings, keys: WalletKey[], hide: boolea
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  deliveryChargeInsideDhaka: 80,
-  deliveryChargeOutsideDhaka: 150,
-  advanceDeliveryDiscount: 20,
   fullAdvanceDiscount: 50,
   bkash: emptyWallet,
   nagad: emptyWallet,

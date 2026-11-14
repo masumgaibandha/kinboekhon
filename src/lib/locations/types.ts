@@ -28,7 +28,7 @@ export interface LocationSelection {
 
 export const EMPTY_LOCATION: LocationSelection = { divisionId: "", districtId: "", upazilaId: "" };
 
-// What an order stores: the city corporation inside Dhaka, or division, district and upazila outside.
+// What an order stores: division and district, then a Dhaka city corporation or an upazila / city thana.
 export interface OrderLocation {
   kind: "dhaka_city" | "outside_dhaka";
   cityCorporation?: CityCorporationId;

@@ -1,43 +1,28 @@
-import { FIX_FIELDS, adminFail, type AdminActionResult } from "@/lib/admin-result";
+import { adminFail, type AdminActionResult } from "@/lib/admin-result";
 import { connectMongoose } from "@/lib/db";
+import { cityCorporationOf } from "@/lib/locations/dhaka";
 import { formatLocation } from "@/lib/locations/format";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel } from "@/lib/models/Order";
 import { missOrStale, ORDER_NOT_FOUND } from "@/lib/orders/change-status";
-import type { OrderStatus, PaymentOption } from "@/lib/orders/enums";
-import { DELIVERY_AREA_ADMIN_LABELS, type DeliveryArea } from "@/lib/orders/limits";
-import { calculateOrder, deliveryChargesFrom } from "@/lib/orders/pricing";
+import type { OrderStatus } from "@/lib/orders/enums";
 import { CUSTOMER_EDITABLE_STATUSES, canEditCustomer } from "@/lib/orders/status";
-import { getSettings } from "@/lib/settings";
 import type { CustomerEdit, CustomerFields } from "@/lib/validation/admin-order";
 
 interface EditDoc {
   status: OrderStatus;
-  quantity: number;
-  product: { price: number };
-  deliveryArea: DeliveryArea;
-  deliveryCharge: number;
-  total: number;
   customer: { name: string; phone: string; address: string; location: OrderLocation };
-  payment: { option: PaymentOption };
 }
 
-export const AREA_LOCKED =
-  "The delivery area can't be changed on an advance payment order, because the customer paid for this area. Cancel the order and place a new one instead.";
-
-const LOCATION_KEYS = ["deliveryArea", "cityCorporation", "divisionId", "districtId", "upazilaId"] as const;
-const money = (amount: number) => amount.toLocaleString("en-IN");
+const LOCATION_KEYS = ["divisionId", "districtId", "upazilaId"] as const;
 
 // The stored location ids the form was loaded with, so a stale form cannot overwrite a newer location.
 function locationGuard(initial: CustomerFields): Record<string, string> {
-  if (initial.deliveryArea === "inside_dhaka") {
-    return { deliveryArea: initial.deliveryArea, "customer.location.cityCorporation": initial.cityCorporation };
-  }
+  const last = cityCorporationOf(initial.upazilaId) ? "cityCorporation" : "upazilaId";
   return {
-    deliveryArea: initial.deliveryArea,
     "customer.location.divisionId": initial.divisionId,
     "customer.location.districtId": initial.districtId,
-    "customer.location.upazilaId": initial.upazilaId,
+    [`customer.location.${last}`]: initial.upazilaId,
   };
 }
 
@@ -48,7 +33,6 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
     phone: edit.phone !== initial.phone,
     address: edit.address !== initial.address,
     location: LOCATION_KEYS.some((key) => edit[key] !== initial[key]),
-    area: edit.deliveryArea !== initial.deliveryArea,
   };
   if (!Object.values(changed).some(Boolean)) return adminFail("Nothing changed.");
 
@@ -58,13 +42,7 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
   if (!canEditCustomer(order.status)) {
     return adminFail("Customer details can be edited only while the order is pending or confirmed.");
   }
-  if (changed.area && order.payment.option !== "cod") {
-    return adminFail(FIX_FIELDS, { deliveryArea: AREA_LOCKED });
-  }
-
   const guard: Record<string, unknown> = { orderNumber: edit.orderNumber, status: { $in: CUSTOMER_EDITABLE_STATUSES } };
-  // The amounts are recalculated as cash on delivery, so the option must not have changed meanwhile.
-  if (changed.area) guard["payment.option"] = "cod";
   const set: Record<string, unknown> = {};
   const notes: string[] = [];
 
@@ -78,27 +56,7 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
   if (changed.location) {
     Object.assign(guard, locationGuard(initial));
     set["customer.location"] = edit.location;
-    set.deliveryArea = edit.deliveryArea;
     notes.push(`Location: ${formatLocation(order.customer.location)} to ${formatLocation(edit.location)}`);
-  }
-
-  if (changed.area) {
-    // The new charge comes from the current Settings, like a new order.
-    const charge = deliveryChargesFrom(await getSettings())[edit.deliveryArea];
-    const amounts = calculateOrder(order.product.price, order.quantity, charge);
-    Object.assign(set, {
-      subtotal: amounts.subtotal,
-      deliveryCharge: amounts.deliveryCharge,
-      deliveryDiscount: amounts.deliveryDiscount,
-      total: amounts.total,
-      "payment.advanceAmount": amounts.advanceAmount,
-      "payment.dueOnDelivery": amounts.dueOnDelivery,
-    });
-    notes.push(
-      `Delivery: ${DELIVERY_AREA_ADMIN_LABELS[order.deliveryArea]} to ${DELIVERY_AREA_ADMIN_LABELS[edit.deliveryArea]}, ` +
-        `charge ${money(order.deliveryCharge)} to ${money(amounts.deliveryCharge)}, ` +
-        `total ${money(order.total)} to ${money(amounts.total)}`,
-    );
   }
 
   const updated = await OrderModel.findOneAndUpdate(

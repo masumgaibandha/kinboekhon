@@ -13,7 +13,6 @@ interface PaymentOptionPickerProps {
 
 const TITLES: Record<PaymentOption, string> = {
   cod: "ক্যাশ অন ডেলিভারি",
-  advance_delivery: "ডেলিভারি চার্জ অগ্রিম",
   advance_full: "পুরো টাকা অগ্রিম",
 };
 
@@ -21,7 +20,7 @@ function detail(option: PaymentOption, amounts: OrderAmounts): ReactNode {
   if (option === "cod") return "পণ্য হাতে পেয়ে টাকা দিন";
   return (
     <>
-      ডেলিভারিতে <Money amount={amounts.deliveryDiscount} /> ছাড়
+      <Money amount={amounts.discount} /> ছাড়
     </>
   );
 }

@@ -2,7 +2,6 @@ import { connectMongoose } from "@/lib/db";
 import { draftPlace } from "@/lib/drafts/draft-place";
 import { IncompleteOrderModel, type IncompleteOrderDocument } from "@/lib/models/IncompleteOrder";
 import type { PaymentOption } from "@/lib/orders/enums";
-import type { DeliveryArea } from "@/lib/orders/limits";
 
 export interface AdminDraft {
   id: string;
@@ -12,7 +11,6 @@ export interface AdminDraft {
   phone: string;
   productName: string;
   quantity: number;
-  deliveryArea: DeliveryArea;
   place: string;
   address: string;
   paymentOption: PaymentOption;
@@ -39,7 +37,6 @@ export async function listDraftsForAdmin(): Promise<{ items: AdminDraft[]; total
     phone: doc.phone,
     productName: doc.productName,
     quantity: doc.quantity,
-    deliveryArea: doc.deliveryArea,
     place: draftPlace(doc),
     address: doc.address,
     paymentOption: doc.paymentOption,

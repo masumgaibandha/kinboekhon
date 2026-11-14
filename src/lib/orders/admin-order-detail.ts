@@ -2,7 +2,6 @@ import { connectMongoose } from "@/lib/db";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel, type OrderDocument, type OrderHistoryEntry } from "@/lib/models/Order";
 import type { OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
-import type { DeliveryArea } from "@/lib/orders/limits";
 import type { TurnstileResult } from "@/lib/turnstile";
 
 export const ORDER_NUMBER_PATTERN = /^KE\d{5,9}$/;
@@ -28,9 +27,7 @@ export interface AdminOrder {
   product: { name: string; slug: string; price: number };
   quantity: number;
   subtotal: number;
-  deliveryArea: DeliveryArea;
-  deliveryCharge: number;
-  deliveryDiscount: number;
+  discount: number;
   total: number;
   payment: AdminPayment;
   customer: { name: string; phone: string; address: string; location: OrderLocation };
@@ -70,9 +67,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     product: { name: doc.product.name, slug: doc.product.slug, price: doc.product.price },
     quantity: doc.quantity,
     subtotal: doc.subtotal,
-    deliveryArea: doc.deliveryArea,
-    deliveryCharge: doc.deliveryCharge,
-    deliveryDiscount: doc.deliveryDiscount,
+    discount: doc.discount,
     total: doc.total,
     payment: {
       option: doc.payment.option,

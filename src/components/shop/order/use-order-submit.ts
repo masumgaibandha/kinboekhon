@@ -4,15 +4,12 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import type { PaymentOption } from "@/lib/orders/enums";
-import type { DeliveryArea } from "@/lib/orders/limits";
 
 export interface OrderFields {
   productId: string;
   quantity: number;
-  deliveryArea: DeliveryArea;
   name: string;
   phone: string;
-  cityCorporation: string;
   divisionId: string;
   districtId: string;
   upazilaId: string;

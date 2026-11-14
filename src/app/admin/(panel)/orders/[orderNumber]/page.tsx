@@ -14,8 +14,6 @@ import { StatusHistory } from "@/components/admin/orders/StatusHistory";
 import { requireAdmin } from "@/lib/admin-session";
 import { formatDhakaDateTime } from "@/lib/dates";
 import { getOrderForAdmin } from "@/lib/orders/admin-order-detail";
-import { deliveryChargesFrom } from "@/lib/orders/pricing";
-import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -24,7 +22,7 @@ export const instant = false;
 export default async function OrderPage({ params }: PageProps<"/admin/orders/[orderNumber]">) {
   await requireAdmin();
   const { orderNumber } = await params;
-  const [order, settings] = await Promise.all([getOrderForAdmin(orderNumber), getSettings()]);
+  const order = await getOrderForAdmin(orderNumber);
   if (!order) notFound();
   // Every form is keyed on the saved version, so it always starts from fresh values.
   const key = `${order.orderNumber}-${order.version}`;
@@ -43,7 +41,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-4">
           <OrderCard title="Customer">
-            <OrderCustomer key={key} order={order} charges={deliveryChargesFrom(settings)} />
+            <OrderCustomer key={key} order={order} />
           </OrderCard>
           <OrderCard title="Product and amounts">
             <OrderAmounts order={order} />

@@ -11,7 +11,6 @@ export const ALREADY_REVIEWED = "Already reviewed.";
 interface ReviewDoc {
   status: OrderStatus;
   quantity: number;
-  deliveryCharge: number;
   total: number;
   product: { price: number };
   payment: { option: PaymentOption; status: PaymentStatus };
@@ -24,7 +23,7 @@ async function loadForReview(orderNumber: string) {
   await connectMongoose();
   return OrderModel.findOne(
     { orderNumber },
-    { status: 1, quantity: 1, deliveryCharge: 1, total: 1, "product.price": 1, "payment.option": 1, "payment.status": 1 },
+    { status: 1, quantity: 1, total: 1, "product.price": 1, "payment.option": 1, "payment.status": 1 },
   ).lean<ReviewDoc>();
 }
 
@@ -95,14 +94,14 @@ export async function switchToCashOnDelivery(orderNumber: string, note: string):
     return adminFail("Only an order with a rejected advance payment can be switched to cash on delivery.");
   }
 
-  // The delivery charge stays as it was at order time; only the advance discount is removed.
-  const amounts = calculateOrder(order.product.price, order.quantity, order.deliveryCharge, "cod");
+  // Only the advance discount is removed.
+  const amounts = calculateOrder(order.product.price, order.quantity);
   const text = `Switched to cash on delivery, total ${money(order.total)} to ${money(amounts.total)}`;
   const updated = await OrderModel.findOneAndUpdate(
     { orderNumber, "payment.status": "rejected", "payment.option": order.payment.option },
     {
       $set: {
-        deliveryDiscount: amounts.deliveryDiscount,
+        discount: amounts.discount,
         total: amounts.total,
         "payment.option": "cod",
         "payment.method": "cod",

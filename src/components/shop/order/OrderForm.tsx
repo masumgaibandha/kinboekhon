@@ -3,9 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 
 import { LandingSection } from "@/components/shop/landing/LandingSection";
-import { CityCorporationPicker } from "@/components/shop/order/CityCorporationPicker";
 import { ContactFields } from "@/components/shop/order/ContactFields";
-import { DeliveryAreaPicker } from "@/components/shop/order/DeliveryAreaPicker";
 import { LocationPicker } from "@/components/shop/order/LocationPicker";
 import { OrderField, fieldClass, labelClass } from "@/components/shop/order/OrderField";
 import { OrderSubmit } from "@/components/shop/order/OrderSubmit";
@@ -17,54 +15,35 @@ import { useOrderSubmit, type OrderFields } from "@/components/shop/order/use-or
 import { usePaymentChoice } from "@/components/shop/order/use-payment-choice";
 import { useTurnstile } from "@/components/shop/order/use-turnstile";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
-import { DELIVERY_AREA_LABELS, type DeliveryArea } from "@/lib/orders/limits";
 import type { PaymentAccount } from "@/lib/orders/payment-methods";
-import type { DeliveryCharges, DeliveryDiscounts } from "@/lib/orders/pricing";
 
 interface OrderFormProps {
   productId: string;
   price: number;
-  deliveryCharges: DeliveryCharges;
-  discounts: DeliveryDiscounts;
+  fullAdvanceDiscount: number;
   accounts: PaymentAccount[];
 }
 
-const LOCATION_FIELDS = ["cityCorporation", "divisionId", "districtId", "upazilaId"];
-
-export function OrderForm({ productId, price, deliveryCharges, discounts, accounts }: OrderFormProps) {
+export function OrderForm({ productId, price, fullAdvanceDiscount, accounts }: OrderFormProps) {
   const [quantity, setQuantity] = useState(1);
-  const [area, setArea] = useState<DeliveryArea>("inside_dhaka");
-  const [cityCorporation, setCityCorporation] = useState("");
   const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
   const { ref: turnstileRef, failed: turnstileFailed, getToken, reset } = useTurnstile();
-  const payment = usePaymentChoice({ price, quantity, deliveryCharge: deliveryCharges[area], discounts, accounts, clearError });
+  const payment = usePaymentChoice({ price, quantity, fullAdvanceDiscount, accounts, clearError });
   const activeOption = payment.option;
   const formRef = useRef<HTMLFormElement>(null);
   const draft = useDraft(productId, () => (formRef.current ? collect(formRef.current) : null));
 
-  // Switching between inside and outside Dhaka starts the location choice again.
-  function changeArea(next: DeliveryArea) {
-    if (next === area) return;
-    setArea(next);
-    setCityCorporation("");
-    setLocation(EMPTY_LOCATION);
-    LOCATION_FIELDS.forEach(clearError);
-  }
-
   function collect(element: HTMLFormElement): OrderFields {
     const form = new FormData(element);
     const text = (name: string) => String(form.get(name) ?? "");
-    const inside = area === "inside_dhaka";
     const advance = activeOption !== "cod";
     return {
       productId,
       quantity,
-      deliveryArea: area,
       name: text("name"),
       phone: text("phone"),
-      cityCorporation: inside ? cityCorporation : "",
-      ...(inside ? EMPTY_LOCATION : location),
+      ...location,
       address: text("address"),
       paymentOption: activeOption,
       paymentMethod: advance ? payment.method : "",
@@ -94,12 +73,7 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
       >
         <ContactFields errors={errors} />
 
-        <DeliveryAreaPicker value={area} onChange={changeArea} charges={deliveryCharges} labelClass={labelClass} />
-        {area === "inside_dhaka" ? (
-          <CityCorporationPicker value={cityCorporation} onChange={setCityCorporation} error={errors.cityCorporation} labelClass={labelClass} />
-        ) : (
-          <LocationPicker value={location} onChange={setLocation} errors={errors} />
-        )}
+        <LocationPicker value={location} onChange={setLocation} errors={errors} />
 
         <OrderField id="order-address" label="ঠিকানা (বাড়ি, রাস্তা, এলাকা)" error={errors.address}>
           <textarea
@@ -133,7 +107,6 @@ export function OrderForm({ productId, price, deliveryCharges, discounts, accoun
           price={price}
           quantity={quantity}
           amounts={payment.amounts[activeOption]}
-          areaLabel={DELIVERY_AREA_LABELS[area]}
           advance={activeOption !== "cod"}
         />
 

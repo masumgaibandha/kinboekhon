@@ -110,7 +110,7 @@ kinboekhon/
       │                          Settings.ts, Counter.ts, RateLimit.ts, order-document.ts (Order types)
       ├─ validation/             order.ts, location-fields.ts (shared location check), admin-order.ts,
       │                          order-payment.ts, order-filters.ts, draft.ts, product.ts, settings.ts (Zod schemas)
-      ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY, delivery areas), pricing.ts, create-order.ts,
+      ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY), pricing.ts, create-order.ts,
       │                          order-number.ts, thank-you.ts, status.ts (labels, allowed moves),
       │                          admin-order-list.ts, admin-order-detail.ts, change-status.ts (status + admin note),
       │                          edit-customer.ts, payment-methods.ts (enabled accounts, labels), transaction-id.ts,
@@ -119,7 +119,7 @@ kinboekhon/
       ├─ drafts/                 save-draft.ts (save, delete on order), draft-place.ts, admin-draft-list.ts
       ├─ admin-result.ts         result type and helpers for admin Server Actions
       ├─ phone.ts                normalize + validate BD mobile numbers
-      ├─ locations/              types.ts (location types), dhaka.ts (city corporations), resolve.ts (server check + Bangla names),
+      ├─ locations/              types.ts (location types), dhaka.ts (city corporations, city group of a district), resolve.ts (server check + Bangla names),
       │                          format.ts (location as admin text)
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
       ├─ dates.ts                Asia/Dhaka date format and day ranges (week/month ranges added in M12)
@@ -177,14 +177,12 @@ Any landing section left empty is simply not rendered.
 | product | `{ productId, name, slug, image, price }` | snapshot at order time |
 | quantity | number | 1 to 5 (`MAX_QUANTITY`) |
 | subtotal | number | price x quantity |
-| deliveryArea | `inside_dhaka` \| `outside_dhaka` | |
-| deliveryCharge | number | from Settings at order time, before discount |
-| deliveryDiscount | number | from Settings, depends on payment option, never more than deliveryCharge |
-| total | number | subtotal + deliveryCharge - deliveryDiscount |
-| customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` has `kind: dhaka_city | outside_dhaka`. Inside Dhaka: `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`, plus division and district ঢাকা. Outside Dhaka: `divisionId, division, districtId, district, upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
+| discount | number | `fullAdvanceDiscount` from Settings for a full advance payment, 0 for COD, never more than subtotal |
+| total | number | subtotal - discount |
+| customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` always has `divisionId, division, districtId, district`, plus `kind`. `kind: dhaka_city` (a Dhaka city corporation was chosen): `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`. `kind: outside_dhaka` (any upazila or city thana, also Dhaka district's upazilas): `upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
 | statusHistory | `{ kind, status, at, note }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit and `kind: payment` for a payment review or a switch to cash on delivery (for both, `status` is the status at that moment and `note` says what happened) |
-| payment.option | `cod` \| `advance_delivery` \| `advance_full` | see section 6, "Payment options" |
+| payment.option | `cod` \| `advance_full` | see section 6, "Payment options" |
 | payment.method | `cod` \| `bkash` \| `nagad` \| `rocket` \| `bank` | `cod` only with option `cod` |
 | payment.status | `cod` \| `submitted` \| `verified` \| `rejected` | `cod` for cash on delivery |
 | payment.advanceAmount | number | amount the customer sends now (0 for COD) |
@@ -213,8 +211,8 @@ Indexes:
 | draftKey | string, unique | 16 random bytes as hex, one per product, kept in the visitor's localStorage |
 | productId, productName | | name read from the database |
 | name, phone, address | string | whatever was typed; phone is always a valid normalized number |
-| quantity, deliveryArea | | |
-| cityCorporation, divisionId, districtId, upazilaId | string | ids as chosen so far, "" when not chosen |
+| quantity | | |
+| divisionId, districtId, upazilaId | string | ids as chosen so far, "" when not chosen; `upazilaId` may be `dncc` or `dscc` |
 | paymentOption, paymentMethod | | never the sender number or Transaction ID |
 | contactedAt | Date or null | set by "Mark contacted" |
 | tracking | `{ ipHash, userAgent, sourceUrl }` | hashed IP only (decision 72); `sourceUrl` from the Referer header |
@@ -224,10 +222,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 ### Settings (single document, `key: "main"`)
 | Field | Notes |
 |---|---|
-| deliveryChargeInsideDhaka | number, default 80 |
-| deliveryChargeOutsideDhaka | number, default 150 |
-| advanceDeliveryDiscount | number, default 20: delivery discount when the delivery charge is paid in advance |
-| fullAdvanceDiscount | number, default 50: delivery discount when the full amount is paid in advance |
+| fullAdvanceDiscount | number, default 50: taken off the order total when the full amount is paid in advance |
 | bkash, nagad, rocket | `{ enabled, number, accountType: personal\|merchant }`; agent accounts are not offered (decision 63) |
 | bank | `{ enabled, bankName, accountName, accountNumber, branch, routingNumber }` |
 | supportPhone | shown in header and thank-you page |
@@ -250,30 +245,28 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 ### Customer site (Bangla)
 | Route | What it shows |
 |---|---|
-| `/` | Logo header, notice strip (সারা বাংলাদেশে ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
+| `/` | Logo header, notice strip (সারা দেশে ফ্রি ডেলিভারি, ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
 | `/p/[slug]` | Landing page, see below |
-| `/thank-you/[publicId]` | Thank-you message, order number, product, total, discount, advance paid (with "payment under review" note) and amount due on delivery, support phone |
+| `/thank-you/[publicId]` | Thank-you message, order number, product, delivery free, total, discount, advance paid (with "payment under review" note) and amount due on delivery, support phone |
 | `/privacy`, `/terms`, `/return-policy` | Static Bangla text, linked in the footer |
 
 Landing page `/p/[slug]`, top to bottom. Visual reference: `docs/design/landing-design-d.html` (design D), rebuilt with Tailwind and brand tokens; its placeholder header is not used. Single column, `max-w-xl`, white sections with a 10px gap on the grey page:
-1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ডেলিভারি, পণ্য দেখে টাকা দিন).
+1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price with a "সারা দেশে ফ্রি ডেলিভারি" tag next to it, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি ডেলিভারি, পণ্য দেখে টাকা দিন).
 2. **Problem**: title + list of pain points.
 3. **Story**: short paragraph.
 4. **Solution**: benefit list with check icons + images.
 5. **Proof**: review screenshots + short text reviews, then an "এখনই অর্ডার করুন" button that scrolls to the form (only when the proof section shows).
-6. **CTA**: final push text + price again.
+6. **CTA**: final push text + price again (with the free delivery tag).
 7. **Order form** (see below).
 8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen or scrolled past.
 
 Address location data:
 - `src/data/bd-locations.json` (8 divisions, 64 districts, 500 upazilas, 16 Chattogram city thanas; about 30 KB, 10 KB compressed) is built by `scripts/build-locations.ts` from github.com/nuhil/bangladesh-geocode (MIT, Copyright (c) 2014 Nuhil Mehdy; notice in `src/data/NOTICE-bangladesh-geocode.txt`). Names are stored in Unicode NFC.
 - Checked against bangladesh.gov.bd/views/upazila-list (November 2026, the portal states 500 upazilas): added চন্দ্রগঞ্জ, মোকামতলা, ভূল্লী, রুহিয়া, শায়েস্তাগঞ্জ, দক্ষিণ গফরগাঁও; renamed দক্ষিণ সুনামগঞ্জ to শান্তিগঞ্জ; official spellings for 12 more.
-- Chattogram city thanas: the 16 CMP thanas on cmp.gov.bd (Bangla as on the site), ids `cmp-01` ... When Chattogram district is chosen they show first as a group ("চট্টগ্রাম সিটির থানা"), then "উপজেলা". Dhaka district shows only its upazilas (সাভার, কেরাণীগঞ্জ, ধামরাই, দোহার, নবাবগঞ্জ); Dhaka city is chosen by city corporation instead.
+- Chattogram city thanas: the 16 CMP thanas on cmp.gov.bd (Bangla as on the site), ids `cmp-01` ... When Chattogram district is chosen they show first as a group ("চট্টগ্রাম সিটির থানা"), then "উপজেলা". When Dhaka district is chosen the third list shows "সিটি কর্পোরেশন" first (ঢাকা উত্তর সিটি কর্পোরেশন, ঢাকা দক্ষিণ সিটি কর্পোরেশন, values `dncc` and `dscc`), then "উপজেলা" (সাভার, কেরাণীগঞ্জ, ধামরাই, দোহার, নবাবগঞ্জ). `cityGroupOf()` in `src/lib/locations/dhaka.ts` gives the shop and admin forms this first group.
 - Everything is sorted in Bangla alphabetical order; city thana groups stay first.
 - The file is a separate chunk, loaded with `import()` when the order form comes within 800px of the screen; the selects show "লোড হচ্ছে..." until then.
-- The ঢাকার ভিতরে / ঢাকার বাইরে picker comes first and alone sets the delivery charge. Switching it clears the location choices.
-- ঢাকার ভিতরে: division and district are ঢাকা and not shown. The customer picks ঢাকা উত্তর সিটি কর্পোরেশন or ঢাকা দক্ষিণ সিটি কর্পোরেশন on two cards (a native dropdown cannot show the areas line), each with well-known areas underneath: North উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর; South ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও (`src/lib/locations/dhaka.ts`). Checked against Wikipedia's DNCC ward list and DSCC thana list, because dncc.gov.bd and dscc.gov.bd failed with TLS certificate errors: all match, except that খিলগাঁও is split (also DNCC ward 23) and পুরান ঢাকা is a common name, not an official one.
-- ঢাকার বাইরে: বিভাগ, জেলা, উপজেলা / থানা as three selects.
+- Every customer picks বিভাগ, জেলা, উপজেলা / থানা as three selects (decision 79). There is no ঢাকার ভিতরে / ঢাকার বাইরে picker. Changing the division clears the district and the third list; changing the district clears the third list.
 
 Landing details:
 - Gallery: 1:1 slides, `object-contain` on white so nothing is cropped, CSS scroll-snap swipe with dots. The first image is preloaded.
@@ -291,7 +284,7 @@ Pages are statically generated. Their data comes from `"use cache"` functions wi
 - `createProduct`, `updateProduct` and `setProductActive` call `updateTag("products")` after a successful write. The next visit renders fresh (one database read), later visits are cached again.
 - The build reads Atlas, so the Vercel build needs `MONGODB_URI` and Atlas network access.
 - Landing pages: `getProductBySlug()` (`"use cache"`, `cacheTag("product-<slug>")`, `cacheLife("max")`) returns an active product or `null`. `generateStaticParams` lists active slugs (`getActiveSlugs()`, tag `products`), so `/p/<slug>` is prerendered. When no product is active it returns the placeholder slug `_none` (Cache Components needs at least one param), which renders the unavailable page.
-- `createProduct` refreshes `products` and `product-<new slug>`; `updateProduct` refreshes `products` plus the old and new slug tags (it reads the old slug in the same write); `setProductActive` refreshes `products` and `product-<slug>`. `saveSettings` refreshes `settings`, which also covers the header, footer and the delivery charges on landing pages.
+- `createProduct` refreshes `products` and `product-<new slug>`; `updateProduct` refreshes `products` plus the old and new slug tags (it reads the old slug in the same write); `setProductActive` refreshes `products` and `product-<slug>`. `saveSettings` refreshes `settings`, which also covers the header, footer and the payment accounts and discount on landing pages.
 - An inactive or unknown slug renders `p/[slug]/not-found.tsx`. With Cache Components the first request after a change is streamed after the shell, so it returns `200` with `<meta name="robots" content="noindex">`; the result is cached and later requests return a real `404`.
 
 #### Home page
@@ -305,13 +298,12 @@ Order form fields:
 - মোবাইল নম্বর (required, Bangladeshi mobile check, accepts Bangla digits and +880)
 - ঠিকানা (বাড়ি, রাস্তা, এলাকা) (required, textarea, 3 to 200 characters)
 - পরিমাণ (stepper, 1 to MAX_QUANTITY)
-- ডেলিভারি এলাকা: ঢাকার ভিতরে / ঢাকার বাইরে (charges from Settings)
-- পেমেন্ট অপশন, three cards, each showing its saving:
+- বিভাগ, জেলা, উপজেলা / থানা (Dhaka: city corporations first)
+- পেমেন্ট অপশন, two cards, each showing its total:
   - ক্যাশ অন ডেলিভারি (default, no discount)
-  - ডেলিভারি চার্জ অগ্রিম দিন (৳20 ছাড় on delivery)
-  - পুরো টাকা অগ্রিম দিন (৳50 ছাড় on delivery)
+  - পুরো টাকা অগ্রিম (৳50 ছাড় off the total)
 - For an advance option: choose বিকাশ / নগদ / রকেট / ব্যাংক (only enabled ones), see our account number with a copy button and the exact amount to send, then fill sender number and Transaction ID.
-- Live summary: product price x quantity, delivery charge, delivery discount (shown in brand-dark as a minus line), total, "এখন পরিশোধ করবেন" (advance amount) and "ডেলিভারির সময় দেবেন" (due on delivery). Updates instantly when quantity, area or payment option changes.
+- Live summary: product price x quantity, "ডেলিভারি চার্জ: ফ্রি", "অগ্রিম পেমেন্ট ছাড়" (brand-dark minus line, full advance only), total, "এখন অগ্রিম পাঠাবেন" (advance amount) and "ডেলিভারির সময় দেবেন" (due on delivery). Updates instantly when quantity or payment option changes.
 - Turnstile widget (invisible or managed mode).
 - Button: অর্ডার কনফার্ম করুন.
 
@@ -323,10 +315,10 @@ Order form fields:
 | `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9), 25 per page newest first, CSV export button using the same filters (added in M13) |
 | `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), customer edit while pending or confirmed |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
-| `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, area and place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
+| `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
 | `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, images (upload, reorder, remove), landing sections, active |
-| `/admin/settings` | Delivery charges, advance payment discounts, payment accounts, support phone, duplicate window |
+| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window (no delivery charges) |
 
 Dashboard definitions (dates in Asia/Dhaka):
 - Total sales = sum of `total` for orders not `cancelled`.
@@ -361,22 +353,22 @@ Server Actions (each calls `requireAdmin()` first):
 2. Rate limits by hashed IP (decision 64): every request counts toward 30 per 10 minutes; the order limit (10 per 10 minutes, 50 per day) counts only placed orders and failed Turnstile checks.
 3. Verify Turnstile token with Cloudflare.
 4. Validate body with Zod. Normalize phone. Reject if invalid.
-5. Load product (must be active) and Settings. Price and delivery charge always come from the database, never from the browser.
+5. Load product (must be active) and Settings. Price and discount always come from the database, never from the browser.
 6. Duplicate check: same phone + same product within `duplicateWindowHours` and status not `cancelled`. If found, return the existing order number with a Bangla message instead of creating a new one.
 7. If advance payment: method must be enabled, TxID required, TxID must not already exist.
-8. Calculate delivery discount, total, advance amount and due on delivery on the server (see "Payment options").
+8. Calculate discount, total, advance amount and due on delivery on the server (see "Payment options").
 9. Get next order number, create order, delete the matching incomplete order.
 10. Respond with `publicId`. Browser goes to `/thank-you/[publicId]`.
 
 Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Request checks: `Origin` must equal the site origin (`src/lib/request.ts`), `Content-Type: application/json`, body at most 4 KB. Every response is `no-store`. Errors: 403, 415, 413, 400 (with Bangla `fieldErrors`), 409 (product not active), 500.
-- `src/lib/validation/order.ts` (Bangla messages): name 2 to 60 characters, phone normalized then `^01[3-9]\d{8}$`, typed address 3 to 200 characters, quantity 1 to `MAX_QUANTITY`, delivery area enum, `productId` an ObjectId. Location: inside Dhaka needs a valid `cityCorporation`; outside Dhaka needs division, district and upazila ids that exist and belong together; anything else is refused with a Bangla field error. Unknown keys (for example a price) are dropped. An error on a field without its own message on the form (quantity, area, product) becomes the main message.
-- The product is read fresh from the database (must be active), delivery charges come from `getSettings()`, and `calculateOrder()` in `pricing.ts` computes the amounts; the landing page summary uses the same function.
+- `src/lib/validation/order.ts` (Bangla messages): name 2 to 60 characters, phone normalized then `^01[3-9]\d{8}$`, typed address 3 to 200 characters, quantity 1 to `MAX_QUANTITY`, `productId` an ObjectId. Location (`src/lib/locations/resolve.ts`): division, district and the third id must exist and belong together; the third id may be `dncc` or `dscc` only when the district is ঢাকা; anything else is refused with a Bangla field error. Unknown keys (for example a price) are dropped. An error on a field without its own message on the form (quantity, product) becomes the main message.
+- The product is read fresh from the database (must be active), the discount comes from `getSettings()`, and `calculateOrder()` in `pricing.ts` computes the amounts; the landing page summary uses the same function.
 - Order number: atomic `$inc` on Counter `{ _id: "order" }`, `KE` + (10000 + seq). Deleting the counter document restarts at KE10001.
 - `publicId`: 12 random bytes as base64url (16 characters).
 - The order saves a product snapshot (id, name, slug, main image `publicId`, price). `tracking` stays empty until M10 and M14.
 - The form blocks a second submit while one is running (a ref, so a double tap sends one request), keeps typed values on errors, and clears a field's error when it is edited.
-- Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, delivery charge with the area, discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
+- Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, "ডেলিভারি চার্জ: ফ্রি", discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
 11. After the response (`after()` from `next/server`), send Purchase to CAPI and save the result in `capiPurchase`.
 
 ### Fake order protection (M10)
@@ -399,27 +391,27 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - List: `/admin/orders`, 25 per page, newest first. Filters live in the URL (a `next/form` GET form), so a filtered list can be reloaded or bookmarked. A bad value in the URL drops only that filter.
 - Search, one box: `KE10001` or `10001` finds the order number; digits starting with 0 find phones by prefix (Bangla digits and `+880` work, via `normalizePhone`); anything else finds names (contains, ignoring case).
 - Date range: `from` and `to` are Dhaka calendar days, both included (`src/lib/dates.ts`, Dhaka is always UTC+6).
-- Area column: Dhaka North or Dhaka South inside Dhaka, "upazila, district" outside.
+- Area column: Dhaka North or Dhaka South for a city corporation, otherwise "upazila, district".
 - Detail: `/admin/orders/KE10001`. Customer (with a Call button `tel:`), product and amounts, status, admin note, history (newest first).
 - Status moves (`src/lib/orders/status.ts`): pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned; cancelled can be reopened to pending; delivered and returned are final. The form lists only allowed moves; Zod refuses any other move. Every change pushes a history entry with the optional note.
 - Stale protection: the status form sends the status it was loaded with and the update matches on it (`findOneAndUpdate({ orderNumber, status: from })`). The note form sends the note it was loaded with. The customer form sends all loaded values (`initialValues`) and writes only changed fields, each matched against its loaded value. Any miss shows "This order was changed since you opened it. Reload the page." Every form is keyed on the order's `updatedAt`, and each action calls `refresh()` from `next/cache`.
-- Customer edit: name, phone, typed address and location, with the same rules as the shop form (area first, city corporation or division, district, upazila, switching the area clears the choices) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. Changing the delivery area takes the charge from the current Settings and recalculates subtotal, total and due on delivery with `calculateOrder()`. Each save pushes a `kind: edit` history entry listing old and new values. On an advance payment order the delivery area is locked (decision 60); name, phone, address and the location inside the same area stay editable.
+- Customer edit: name, phone, typed address and location, with the same rules as the shop form (division, district, then city corporation, upazila or thana) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. A location change changes no amount (decision 76). Each save pushes a `kind: edit` history entry listing old and new values.
 
 ### Payment options
 One function in `src/lib/orders/pricing.ts` does this math. The order form uses it for the live summary and the server uses it again to save the order.
 
-| Option | Delivery discount | Paid now (advance) | Due on delivery |
+Delivery is free everywhere; its cost is built into the product price (decision 76).
+
+| Option | Discount | Paid now (advance) | Due on delivery |
 |---|---|---|---|
 | `cod` | 0 | 0 | total |
-| `advance_delivery` | `advanceDeliveryDiscount` (default 20) | deliveryCharge - discount | subtotal |
 | `advance_full` | `fullAdvanceDiscount` (default 50) | total | 0 |
 
-- total = subtotal + deliveryCharge - discount.
-- The discount is capped at the delivery charge, so it is never negative.
-- Example inside Dhaka, product ৳890, quantity 1, delivery ৳80:
-  - COD: total ৳970, pay now ৳0, due ৳970.
-  - Delivery advance: total ৳950, pay now ৳60, due ৳890.
-  - Full advance: total ৳920, pay now ৳920, due ৳0.
+- subtotal = price x quantity; total = subtotal - discount.
+- The discount is capped at the subtotal, so the total is never negative. When the total would be 0 the full advance option is hidden.
+- Example, product ৳850, quantity 2:
+  - COD: total ৳1,700, pay now ৳0, due ৳1,700.
+  - Full advance: total ৳1,650, pay now ৳1,650, due ৳0.
 
 ### Payment verification
 - Approve: atomic update only when `payment.status` is `submitted`. Sets `verified`, note, time, and moves order `pending` to `confirmed`.
@@ -427,12 +419,12 @@ One function in `src/lib/orders/pricing.ts` does this math. The order form uses 
 - A second click on an already reviewed payment changes nothing and shows "Already reviewed".
 
 ### Advance payment (M9)
-- `calculateOrder(price, quantity, deliveryCharge, option, discounts)` in `pricing.ts` does all money math for the form summary, the saved order, the customer edit and the switch to cash on delivery. The discounts come from Settings (`deliveryDiscountsFrom`).
-- Shop form: after the quantity, a "পেমেন্ট" picker with three cards (ক্যাশ অন ডেলিভারি, ডেলিভারি চার্জ অগ্রিম, পুরো টাকা অগ্রিম), each with its discount and total. An advance option whose pay-now amount is 0 is hidden. Choosing an advance option picks the first enabled method; the customer can pick another. The account box shows the number and account type (wallets: পার্সোনাল means সেন্ড মানি, মার্চেন্ট means পেমেন্ট) or the bank details, then "পাঠাবেন" with the exact pay-now amount. The number, bank account number and amount each have a copy button (`navigator.clipboard`). Then the sender number (bank: sender account number, 6 to 20 digits; Rocket may have 12 digits) and the Transaction ID. The summary adds the discount, "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন".
+- `calculateOrder(price, quantity, option, fullAdvanceDiscount)` in `pricing.ts` does all money math for the form summary, the saved order and the switch to cash on delivery. The discount comes from Settings (`fullAdvanceDiscount`).
+- Shop form: after the quantity, a "পেমেন্ট" picker with two cards (ক্যাশ অন ডেলিভারি, পুরো টাকা অগ্রিম), each with its discount and total. An advance option whose pay-now amount is 0 is hidden. Choosing an advance option picks the first enabled method; the customer can pick another. The account box shows the number and account type (wallets: পার্সোনাল means সেন্ড মানি, মার্চেন্ট means পেমেন্ট) or the bank details, then "পাঠাবেন" with the exact pay-now amount. The number, bank account number and amount each have a copy button (`navigator.clipboard`). Then the sender number (bank: sender account number, 6 to 20 digits; Rocket may have 12 digits) and the Transaction ID. The summary adds the discount, "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন".
 - Only methods enabled in Settings with a number (bank: with an account number) are shown (`enabledAccounts()`). With none, the form shows no payment picker: cash on delivery only, as before.
 - Server (`/api/orders`): Zod checks the option, method, sender number and Transaction ID (`src/lib/validation/order-payment.ts`, Bangla messages). `createOrder()` then refuses a method that is no longer enabled (error on the method field) and a Transaction ID already used (checked first; the unique partial index on `payment.transactionIdNormalized` catches a race). The order saves `payment.status: submitted` with the sender and both Transaction ID forms. The thank-you page says the advance will be checked before the order is confirmed.
 - `/admin/payments`: one card per `submitted` payment, oldest first, with expected advance, method, option, sender, Transaction ID, order total, customer and product, an optional note, and Approve and Reject. Approve on a pending order also confirms it in the same guarded update and adds a `payment` and a `status` history entry. Approve on an order that is no longer pending only verifies the payment and shows a warning toast. Reject keeps the status and adds a `payment` history entry.
-- Order detail: a Payment card (option, payment status, method, advance, sender, Transaction ID, review time and note). While a payment waits, the status form hides Confirmed and the server refuses Pending to Confirmed ("Approve or reject the advance payment first."); Cancel stays allowed. After a rejected advance payment, "Switch to cash on delivery" sets the option, method and payment status to `cod`, removes the discount (the delivery charge stays as at order time), sets pay-now to 0 and due to the new total, and adds a `payment` history entry.
+- Order detail: a Payment card (option, payment status, method, advance, sender, Transaction ID, review time and note). While a payment waits, the status form hides Confirmed and the server refuses Pending to Confirmed ("Approve or reject the advance payment first."); Cancel stays allowed. After a rejected advance payment, "Switch to cash on delivery" sets the option, method and payment status to `cod`, removes the discount, sets pay-now to 0 and due to the new total, and adds a `payment` history entry.
 - Orders list: payment method and payment status filters.
 
 ## 7. Facebook tracking
@@ -463,7 +455,7 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 | Bot protection | Cloudflare Turnstile on the order form, verified on the server |
 | Rate limit | Per hashed IP, stored in MongoDB with auto-expiry: every request to `/api/orders` counts toward 30 per 10 minutes; placed orders and failed Turnstile checks count toward 10 per 10 minutes and 50 per day (form errors don't count, because many customers share one address behind their mobile operator) |
 | Phone limit | At most 3 orders per phone in 24 hours, all products and statuses |
-| Server pricing | Price, delivery charge and total always recalculated on the server |
+| Server pricing | Price, discount and total always recalculated on the server |
 | Unique TxID | One Transaction ID can be used on one order only |
 
 ## 9. Security
@@ -544,7 +536,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 
 ## 13. Owner decisions
 
-1. Payment options: Cash on Delivery (no discount), delivery charge in advance (৳20 off delivery), full amount in advance (৳50 off delivery). Discount and final amount shown clearly before submit. Both discounts editable in Settings.
+1. Replaced by decision 77: payment options are cash on delivery and full advance.
 2. Purchase event fires when the order is placed.
 3. Duplicate order is blocked and the old order number is shown. Window: 24 hours.
 4. Landing URL: `/p/product-slug`.
@@ -554,7 +546,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 8. Policy pages: drafted in Bangla for owner review. Return window: 3 days, only for damaged, wrong or defective products.
 9. No cookie consent banner.
 10. Admin login email: set in `ADMIN_EMAIL` in `.env.local` (kept out of the repo).
-11. Default delivery charges: inside Dhaka ৳80, outside Dhaka ৳150. Both editable in Settings.
+11. Replaced by decision 76: delivery is free, there are no delivery charges.
 12. Admin login uses Better Auth (not Auth.js): email and password, MongoDB adapter, public sign-up disabled, one admin created by a seed script from `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 13. Products are never deleted, only deactivated.
 14. Product slug is typed by hand (lowercase English letters, numbers, hyphens, unique). The edit page warns when the slug is changed, because it breaks old links and ads.
@@ -581,7 +573,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 35. Unavailable product pages keep the Cache Components behaviour: the first request after a change returns 200 with noindex, later requests a cached 404. No slug check in proxy.ts, so landing pages stay on the CDN.
 36. The duplicate block, rate limit and Turnstile stay in M10.
 37. Order form limits: name 2 to 60 characters. The typed address is 3 to 200 characters (decision 44).
-38. The thank-you page shows the delivery area next to the charge and links to more products.
+38. The thank-you page links to more products. (Its delivery area and charge line was removed by decision 76.)
 39. Order `tracking` is filled in M10 (IP, user agent) and M14 (fbp, fbc, UTM).
 40. Font follows Daraz: no web font (Hind Siliguri removed). Shop and admin use the system font stack system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", "Nirmala UI", sans-serif. The logo SVGs are paths only, so they do not depend on the site font.
 41. Numbers use English digits, like Daraz: prices (৳ 850, ৳ 1,290), quantities, phone numbers, order numbers (KE10001) and percentages, also inside Bangla error messages. All other customer text stays Bangla. The phone field keeps accepting Bangla digits.
@@ -591,19 +583,19 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 45. Replaced by decision 48: Dhaka city thanas are not used in the shop; Chattogram (CMP, 16) city thanas appear first as a group when Chattogram district is chosen.
 46. Replaced by decision 49: there is no mismatch hint.
 47. Divisions, districts and upazilas are in Bangla alphabetical order.
-48. The delivery area picker comes first. ঢাকার ভিতরে: the customer picks only ঢাকা উত্তর or ঢাকা দক্ষিণ সিটি কর্পোরেশন (with well-known areas under each); division and district are ঢাকা. ঢাকার বাইরে: বিভাগ, জেলা, উপজেলা; Dhaka district shows only its upazilas. The DMP thana list is removed from the shop.
-49. Switching the delivery area clears the location choices. No mismatch hint.
-50. Orders save the city corporation inside Dhaka, and division, district and upazila outside. The server refuses anything else with a Bangla error.
+48. Replaced by decision 79. The delivery area picker comes first. ঢাকার ভিতরে: the customer picks only ঢাকা উত্তর or ঢাকা দক্ষিণ সিটি কর্পোরেশন (with well-known areas under each); division and district are ঢাকা. ঢাকার বাইরে: বিভাগ, জেলা, উপজেলা; Dhaka district shows only its upazilas. The DMP thana list is removed from the shop.
+49. Replaced by decision 79 (no delivery area picker). No mismatch hint.
+50. Orders save the city corporation when one is chosen, otherwise division, district and upazila. The server refuses anything else with a Bangla error.
 51. Order status flow: pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned. Delivered and returned are final. Cancelled can be reopened to pending. Every change is added to the history with an optional note.
 52. The payment method and payment status filters are hidden until M9. The CSV export button is hidden until M13.
 53. The order detail URL uses the order number: `/admin/orders/KE10001`.
 54. Orders list: 25 per page, newest first. Search finds the order number (KE10001 or 10001), phone by prefix, or name (contains, ignoring case).
-55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the delivery area recalculates the delivery charge and total from Settings. Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
+55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the location changes no amount (decision 76). Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
 56. Hosting region (replaces decision 18): MongoDB Atlas runs in AWS ap-south-1 (Mumbai), in its own Atlas project, and the Vercel function region is `bom1` (Mumbai), set in `vercel.json`, so the server sits next to the database and close to Bangladeshi customers. Moved in November 2026 by copying the whole `kinboekhon` database (all collections, documents and indexes; counts and indexes checked on both sides). The old Virginia cluster is kept untouched as a backup; its connection string stays only in the local `.env.local` as `MONGODB_URI_OLD_VIRGINIA` and is never set on Vercel.
 57. Approving a payment on an order that is no longer pending only verifies the payment and shows a warning toast.
-58. After a rejected payment the admin can switch the order to cash on delivery: the total is recalculated without the discount, pay-now becomes 0, and a history entry is added.
+58. After a rejected payment the admin can switch the order to cash on delivery: the total becomes the subtotal without the discount, pay-now becomes 0, and a history entry is added.
 59. While a payment is waiting for review, Pending to Confirmed is blocked; only approving confirms. Cancel stays allowed.
-60. The delivery area can't be changed on an advance payment order.
+60. Replaced by decision 76: the location no longer affects the price, so it can be changed on any order the admin may edit.
 61. Transaction ID: 6 to 30 letters, digits or hyphens, stored uppercase with inner spaces removed for the duplicate check. One Transaction ID can be used on one order only.
 62. Bank transfer: the customer gives only the sender account number.
 63. Wallet account types are only personal (Send Money) and merchant (Payment). Agent is removed from Settings, validation and the shop, because Cash Out adds a fee the customer would have to pay on top. A wallet still saved as agent is hidden from the shop, and the Settings page asks the admin to choose Personal or Merchant before it can be saved again.
@@ -619,3 +611,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 73. `/admin/incomplete` has Call, Mark contacted (time and badge) and Delete. No convert to order.
 74. Placing an order deletes the draft with the same `draftKey` and all drafts with the same phone and product.
 75. One `draftKey` per product in the visitor's browser.
+76. Free delivery everywhere in Bangladesh (November 2026). The delivery cost is built into the product price, so the customer sees one price and "সারা দেশে ফ্রি ডেলিভারি" (price tag, trust badge, notice strip; the summary and thank-you page show "ডেলিভারি চার্জ: ফ্রি"). Delivery charges are removed from Settings, `pricing.ts`, the order summary, the thank-you page and the admin order pages. The ঢাকার ভিতরে / ঢাকার বাইরে picker was later removed (decision 79). Orders no longer store `deliveryCharge`; `deliveryDiscount` became `discount`. The old Settings fields were unset in the database.
+77. Advance payment: the "delivery charge in advance" option is removed. Options are cash on delivery and full advance. Full advance gets a fixed discount off the total, `fullAdvanceDiscount` in Settings (default ৳50).
+78. Old orders keep their saved amounts unchanged; no order is recalculated. When decisions 76 and 77 were made the database held 0 orders, so no order needed a migration.
+79. No ঢাকার ভিতরে / ঢাকার বাইরে picker (November 2026). Every customer picks বিভাগ, জেলা, উপজেলা / থানা. When জেলা is ঢাকা, the third list shows ঢাকা উত্তর and ঢাকা দক্ষিণ সিটি কর্পোরেশন first, then Dhaka's upazilas; Chattogram city thanas stay as before. The order still saves the city corporation when one is chosen (`kind: dhaka_city`), so courier booking works. Orders and drafts no longer store `deliveryArea`, and drafts no longer store `cityCorporation` (it is the `upazilaId`). The well-known areas line under each city corporation is gone, because a native dropdown cannot show it. The admin customer edit form and the server check follow the same rules.

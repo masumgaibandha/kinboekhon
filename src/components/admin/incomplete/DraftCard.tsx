@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { DraftActions } from "@/components/admin/incomplete/DraftActions";
 import { formatDhakaDateTime } from "@/lib/dates";
 import type { AdminDraft } from "@/lib/drafts/admin-draft-list";
-import { DELIVERY_AREA_ADMIN_LABELS } from "@/lib/orders/limits";
 import { OPTION_LABELS } from "@/lib/orders/payment-methods";
 
 function Item({ label, children }: { label: string; children: ReactNode }) {
@@ -16,8 +15,6 @@ function Item({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function DraftCard({ draft }: { draft: AdminDraft }) {
-  const area = DELIVERY_AREA_ADMIN_LABELS[draft.deliveryArea];
-
   return (
     <article className="rounded-xl border border-line bg-card p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -38,7 +35,7 @@ export function DraftCard({ draft }: { draft: AdminDraft }) {
           {draft.productName} x {draft.quantity}
         </Item>
         <Item label="Payment">{OPTION_LABELS[draft.paymentOption]}</Item>
-        <Item label="Area">{draft.place ? `${area}: ${draft.place}` : area}</Item>
+        <Item label="Area">{draft.place}</Item>
         <Item label="Address">{draft.address}</Item>
       </dl>
 

@@ -12,7 +12,6 @@ import { StorySection } from "@/components/shop/landing/StorySection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
 import { getActiveSlugs, getProductBySlug } from "@/lib/catalog";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
-import { deliveryChargesFrom, deliveryDiscountsFrom } from "@/lib/orders/pricing";
 import { getSettings } from "@/lib/settings";
 
 // The page awaits params outside Suspense, so unlisted slugs may block on their first render; the route is still prerendered.
@@ -56,8 +55,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
       <OrderForm
         productId={product.id}
         price={product.price}
-        deliveryCharges={deliveryChargesFrom(settings)}
-        discounts={deliveryDiscountsFrom(settings)}
+        fullAdvanceDiscount={settings.fullAdvanceDiscount}
         accounts={enabledAccounts(settings)}
       />
       <StickyOrderBar price={product.price} />

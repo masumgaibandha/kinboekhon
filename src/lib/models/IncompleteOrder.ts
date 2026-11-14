@@ -2,7 +2,6 @@ import { Schema, type Types } from "mongoose";
 
 import { appDb } from "@/lib/db";
 import { PAYMENT_OPTIONS, type PaymentOption } from "@/lib/orders/enums";
-import { DELIVERY_AREAS, type DeliveryArea } from "@/lib/orders/limits";
 
 export interface IncompleteOrderDocument {
   draftKey: string;
@@ -12,8 +11,6 @@ export interface IncompleteOrderDocument {
   phone: string;
   address: string;
   quantity: number;
-  deliveryArea: DeliveryArea;
-  cityCorporation: string;
   divisionId: string;
   districtId: string;
   upazilaId: string;
@@ -36,8 +33,6 @@ const incompleteOrderSchema = new Schema<IncompleteOrderDocument>(
     phone: { type: String, required: true },
     address: { type: String, default: "" },
     quantity: { type: Number, required: true, min: 1 },
-    deliveryArea: { type: String, enum: DELIVERY_AREAS, required: true },
-    cityCorporation: { type: String, default: "" },
     divisionId: { type: String, default: "" },
     districtId: { type: String, default: "" },
     upazilaId: { type: String, default: "" },

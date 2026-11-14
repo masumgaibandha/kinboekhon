@@ -23,9 +23,6 @@ function readForm(formData: FormData) {
   });
 
   return {
-    deliveryChargeInsideDhaka: text("deliveryChargeInsideDhaka"),
-    deliveryChargeOutsideDhaka: text("deliveryChargeOutsideDhaka"),
-    advanceDeliveryDiscount: text("advanceDeliveryDiscount"),
     fullAdvanceDiscount: text("fullAdvanceDiscount"),
     bkash: wallet("bkash"),
     nagad: wallet("nagad"),

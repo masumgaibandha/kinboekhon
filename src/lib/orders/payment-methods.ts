@@ -28,7 +28,6 @@ export const METHOD_LABELS: Record<PaymentMethod, string> = {
 
 export const OPTION_LABELS: Record<PaymentOption, string> = {
   cod: "Cash on delivery",
-  advance_delivery: "Delivery charge in advance",
   advance_full: "Full amount in advance",
 };
 

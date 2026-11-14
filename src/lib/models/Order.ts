@@ -4,7 +4,6 @@ import { appDb } from "@/lib/db";
 import { HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
 import { CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES } from "@/lib/orders/enums";
 import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
-import { DELIVERY_AREAS } from "@/lib/orders/limits";
 import { TURNSTILE_RESULTS } from "@/lib/turnstile";
 
 export { HISTORY_KINDS } from "@/lib/models/order-document";
@@ -23,9 +22,7 @@ const orderSchema = new Schema<OrderDocument>(
     },
     quantity: { type: Number, required: true, min: 1 },
     subtotal: { type: Number, required: true },
-    deliveryArea: { type: String, enum: DELIVERY_AREAS, required: true },
-    deliveryCharge: { type: Number, required: true },
-    deliveryDiscount: { type: Number, required: true, default: 0 },
+    discount: { type: Number, required: true, default: 0 },
     total: { type: Number, required: true },
     customer: {
       name: { type: String, required: true },

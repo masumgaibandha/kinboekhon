@@ -11,7 +11,6 @@ const MAX_BODY_BYTES = 8192;
 const SHOWN_FIELDS = new Set([
   "name",
   "phone",
-  "cityCorporation",
   "divisionId",
   "districtId",
   "upazilaId",
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) fieldErrors[issue.path.join(".")] ??= issue.message;
-    // Quantity, area and product have no message of their own on the form, so their error becomes the main message.
+    // Quantity and product have no message of their own on the form, so their error becomes the main message.
     const unshown = Object.entries(fieldErrors).find(([field]) => !SHOWN_FIELDS.has(field));
     return reply({ message: unshown ? unshown[1] : "চিহ্নিত ঘরগুলো ঠিক করুন।", fieldErrors }, 400);
   }

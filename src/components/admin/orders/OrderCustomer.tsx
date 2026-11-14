@@ -1,11 +1,10 @@
 import { CustomerEditor } from "@/components/admin/orders/CustomerEditor";
 import { formatLocation } from "@/lib/locations/format";
 import type { AdminOrder } from "@/lib/orders/admin-order-detail";
-import type { DeliveryCharges } from "@/lib/orders/pricing";
 import { canEditCustomer } from "@/lib/orders/status";
 import { customerFieldsOf } from "@/lib/validation/admin-order";
 
-export function OrderCustomer({ order, charges }: { order: AdminOrder; charges: DeliveryCharges }) {
+export function OrderCustomer({ order }: { order: AdminOrder }) {
   const { customer } = order;
 
   return (
@@ -13,10 +12,6 @@ export function OrderCustomer({ order, charges }: { order: AdminOrder; charges: 
       editable={canEditCustomer(order.status)}
       orderNumber={order.orderNumber}
       initial={customerFieldsOf(order)}
-      charges={charges}
-      price={order.product.price}
-      quantity={order.quantity}
-      areaLocked={order.payment.option !== "cod"}
     >
       <div className="space-y-1 text-sm">
         <p className="text-base font-semibold text-heading">{customer.name}</p>
