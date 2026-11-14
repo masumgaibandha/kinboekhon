@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { ThankYouDetails } from "@/components/shop/order/ThankYouDetails";
+import { PurchasePixel } from "@/components/tracking/PurchasePixel";
 import { getThankYouOrder } from "@/lib/orders/thank-you";
 import { getSettings } from "@/lib/settings";
 
@@ -58,6 +59,15 @@ async function ThankYou({ params }: Pick<PageProps<"/thank-you/[publicId]">, "pa
           </a>
         </p>
       )}
+
+      <PurchasePixel
+        publicId={publicId}
+        orderNumber={order.orderNumber}
+        productId={order.productId}
+        productName={order.productName}
+        total={order.total}
+        quantity={order.quantity}
+      />
 
       <Link
         href="/"

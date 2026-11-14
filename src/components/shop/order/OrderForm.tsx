@@ -14,6 +14,7 @@ import { useDraft } from "@/components/shop/order/use-draft";
 import { useOrderSubmit, type OrderFields } from "@/components/shop/order/use-order-submit";
 import { usePaymentChoice } from "@/components/shop/order/use-payment-choice";
 import { useTurnstile } from "@/components/shop/order/use-turnstile";
+import { useInitiateCheckout } from "@/components/tracking/use-initiate-checkout";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import type { PaymentAccount } from "@/lib/orders/payment-methods";
 
@@ -33,6 +34,7 @@ export function OrderForm({ productId, price, fullAdvanceDiscount, accounts }: O
   const activeOption = payment.option;
   const formRef = useRef<HTMLFormElement>(null);
   const draft = useDraft(productId, () => (formRef.current ? collect(formRef.current) : null));
+  const startCheckout = useInitiateCheckout(productId, price, draft.draftKey);
 
   function collect(element: HTMLFormElement): OrderFields {
     const form = new FormData(element);
@@ -67,7 +69,10 @@ export function OrderForm({ productId, price, fullAdvanceDiscount, accounts }: O
         ref={formRef}
         onSubmit={handleSubmit}
         onBlur={draft.save}
-        onInput={(event) => clearError((event.target as HTMLInputElement).name)}
+        onInput={(event) => {
+          startCheckout(quantity);
+          clearError((event.target as HTMLInputElement).name);
+        }}
         noValidate
         className="space-y-4"
       >

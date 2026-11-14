@@ -15,6 +15,9 @@ export const REQUEST_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 30, windowM
 // Draft saves from the order form: one per field blur, so a customer makes several.
 export const DRAFT_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 60, windowMs: 10 * MINUTE }];
 
+// Tracking events from the shop pages: one InitiateCheckout per product page visit.
+export const TRACK_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 30, windowMs: 10 * MINUTE }];
+
 // Only placed orders and failed Turnstile checks count, so customers sharing a carrier address aren't blocked by form mistakes.
 export const ORDER_IP_WINDOWS: RateWindow[] = [
   { name: "10m", max: 10, windowMs: 10 * MINUTE },

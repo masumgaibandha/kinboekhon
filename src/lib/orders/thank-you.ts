@@ -1,3 +1,5 @@
+import type { Types } from "mongoose";
+
 import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import type { PaymentStatus } from "@/lib/orders/enums";
@@ -7,6 +9,7 @@ const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
 // Only what the thank-you page shows: no address or phone number.
 export interface ThankYouOrder {
   orderNumber: string;
+  productId: string;
   productName: string;
   price: number;
   quantity: number;
@@ -20,7 +23,7 @@ export interface ThankYouOrder {
 
 interface ThankYouDoc {
   orderNumber: string;
-  product: { name: string; price: number };
+  product: { productId: Types.ObjectId; name: string; price: number };
   quantity: number;
   subtotal: number;
   discount: number;
@@ -35,6 +38,7 @@ export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder 
     { publicId },
     {
       orderNumber: 1,
+      "product.productId": 1,
       "product.name": 1,
       "product.price": 1,
       quantity: 1,
@@ -50,6 +54,7 @@ export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder 
 
   return {
     orderNumber: doc.orderNumber,
+    productId: String(doc.product.productId),
     productName: doc.product.name,
     price: doc.product.price,
     quantity: doc.quantity,

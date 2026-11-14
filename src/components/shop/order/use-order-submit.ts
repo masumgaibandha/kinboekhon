@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { markNewOrder } from "@/components/tracking/new-order";
 import type { PaymentOption } from "@/lib/orders/enums";
 
 export interface OrderFields {
@@ -53,6 +54,7 @@ export function useOrderSubmit() {
       const data = (await response.json().catch(() => ({}))) as OrderResponse;
       if (response.ok && data.publicId) {
         onPlaced();
+        markNewOrder(data.publicId);
         router.push(`/thank-you/${data.publicId}`);
         return true;
       }

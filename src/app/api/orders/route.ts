@@ -1,5 +1,7 @@
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 
+import { adTracking } from "@/lib/meta/ad-tracking";
+import { sendPurchaseEvent } from "@/lib/meta/purchase";
 import { createOrder } from "@/lib/orders/create-order";
 import { countRateLimit, isRateLimited, ORDER_IP_WINDOWS, REQUEST_IP_WINDOWS, takeRateLimit } from "@/lib/rate-limit";
 import { clientIp, hashIp, isSameOrigin, userAgent } from "@/lib/request";
@@ -84,9 +86,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await createOrder(parsed.data, { ip, ipHash, userAgent: userAgent(request), turnstile });
+    const info = { ip, ipHash, userAgent: userAgent(request), turnstile, ...adTracking(request) };
+    const result = await createOrder(parsed.data, info);
     if (!result.ok) return reply({ message: result.message, fieldErrors: result.fieldErrors ?? {} }, 409);
     await countOrderAttempt(ipHash);
+    // A failed Purchase event is recorded on the order and never reaches the customer.
+    after(() => sendPurchaseEvent(result.publicId).catch(() => {}));
     return reply({ publicId: result.publicId }, 201);
   } catch {
     return reply({ message: TRY_AGAIN }, 500);

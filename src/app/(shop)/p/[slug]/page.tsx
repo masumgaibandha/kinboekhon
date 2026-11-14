@@ -10,6 +10,7 @@ import { ProofSection, hasProof } from "@/components/shop/landing/ProofSection";
 import { SolutionSection } from "@/components/shop/landing/SolutionSection";
 import { StorySection } from "@/components/shop/landing/StorySection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
+import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getActiveSlugs, getProductBySlug } from "@/lib/catalog";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
 import { getSettings } from "@/lib/settings";
@@ -59,6 +60,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
         accounts={enabledAccounts(settings)}
       />
       <StickyOrderBar price={product.price} />
+      <ViewContentPixel productId={product.id} name={product.name} price={product.price} />
     </div>
   );
 }

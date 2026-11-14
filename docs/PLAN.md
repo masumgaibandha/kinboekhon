@@ -85,7 +85,7 @@ kinboekhon/
    │     ├─ auth/[...all]/route.ts         Better Auth handler
    │     ├─ orders/route.ts               POST create order
    │     ├─ drafts/route.ts               POST save incomplete order
-   │     ├─ track/route.ts                POST CAPI for ViewContent, InitiateCheckout
+   │     ├─ track/route.ts                POST CAPI for InitiateCheckout
    │     └─ admin/
    │        ├─ upload-signature/route.ts  POST Cloudinary signature
    │        └─ orders-export/route.ts     GET CSV
@@ -347,7 +347,7 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 |---|---|---|---|
 | `/api/orders` | POST | Create order | Same-origin check, Turnstile, rate limit, Zod, duplicate check |
 | `/api/drafts` | POST | Upsert incomplete order by `draftKey` | Rate limit (60 per 10 minutes per hashed IP, every request), same-origin check, Zod, 4 KB size limit |
-| `/api/track` | POST | Send ViewContent or InitiateCheckout to CAPI with the browser's event_id | Same-origin check, rate limit, allow-list of event names |
+| `/api/track` | POST | Send InitiateCheckout to CAPI with the browser's event_id | Rate limit (30 per 10 minutes per hashed IP), same-origin check, 1 KB size limit, Zod with an allow-list of event names |
 | `/api/auth/[...all]` | GET/POST | Better Auth handler (sign in, sign out, session) | Sign-up disabled, login rate limited |
 | `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | `proxy.ts` + `requireAdmin()` |
 | `/api/admin/orders-export` | GET | CSV of filtered orders (UTF-8 with BOM so Excel shows Bangla) | `proxy.ts` + `requireAdmin()` |
@@ -457,16 +457,17 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 
 | Event | Browser (Pixel) | Server (CAPI) | event_id |
 |---|---|---|---|
-| PageView | every page load | no | none |
-| ViewContent | landing page load | `/api/track` | `vc_<random>` made in the browser |
+| PageView | every page load and client navigation | no | none |
+| ViewContent | landing page load | no (owner decision, P1c) | `vc_<random>` made in the browser |
 | InitiateCheckout | first time the visitor types in the order form | `/api/track` | `ic_<draftKey>` |
-| Purchase | thank-you page load | from the order route, after the order is saved | `purchase_<orderNumber>` |
+| Purchase | thank-you page, only right after the order form placed it | from the order route, after the order is saved | `purchase_<orderNumber>` |
 
 - Pixel base snippet is rendered once in the shop layout with `next/script`. Admin pages never load it.
 - `custom_data`: `content_ids` (product id), `content_name`, `content_type: product`, `currency: BDT`, `value`, `num_items`.
-- `user_data` on the server: hashed phone (`880` + 10 digits), hashed first name, hashed `external_id` (phone), `country: bd` hashed, client IP, user agent, `_fbp` and `_fbc` cookies as they are (not hashed). If `_fbc` is missing but the URL had `fbclid`, build `fb.1.<time>.<fbclid>`.
-- CAPI request has an 8 second timeout. Errors are recorded by code only; response bodies are never logged.
-- `META_TEST_EVENT_CODE` env var sends events to Events Manager "Test events" while testing.
+- `user_data` on the server: hashed phone (`880` + 10 digits), hashed first name and last name (Purchase only), hashed `external_id` (phone), hashed `ct` (district in English, lowercase, letters only), `country: bd` hashed, client IP, user agent, `_fbp` and `_fbc` cookies as they are (not hashed). If `_fbc` is missing but the URL had `fbclid`, build `fb.1.<time>.<fbclid>`.
+- CAPI request has an 8 second timeout and counts as sent only when Meta answers `events_received: 1`. Errors are recorded by code only (`meta_<code>`, `http_<status>`, `timeout`, `network`, `not_received`, `not_configured`); response bodies are never logged.
+- Built in P1c: the snippet in `src/components/tracking/MetaPixel.tsx` fires `ke:pixel-ready` after `fbq` exists, so events from early effects wait for it. `_fbp`, `_fbc`, the page URL (from `Referer`, same origin only), `utm_source` and `utm_campaign` are saved in the order `tracking`. The order form stores the new `publicId` in sessionStorage before opening the thank-you page; the page sends the browser Purchase only when it finds and removes that value, so a refresh or a later visit sends nothing. The server Purchase runs in `after()` and writes `capiPurchase` (`pending` on create, then `sent` or `failed`).
+- `META_TEST_EVENT_CODE` env var sends events to Events Manager "Test events" while testing; when it is empty no test code is sent.
 - No cookie consent banner: the audience is in Bangladesh (owner confirmed).
 - Purchase fires when the order is placed, for COD and advance orders alike (owner decision). `value` is the order total after discount.
 
@@ -680,3 +681,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 84. Call outcome sets the status (P1b, November 2026): Agreed to wait confirms a pending order, Declined cancels a pending or confirmed order; No answer and Call later keep it pending with a badge in the list. Shipped or later orders keep their status.
 85. Dashboard Calls card (P1b, November 2026): to-do counts for pending orders (not called, No answer, Call later) linking to the filtered list, call results with their own period switch and confirm rate (orders agreed out of orders called), and the 5 oldest pending orders still needing a call.
 86. Policy pages (P1e, November 2026): return within 3 days of delivery with photo or video, only damaged, wrong or defective; replace or refund by bKash or Nagad within 7 days; we pay the return courier; no change of mind; a refused COD parcel is not a return. Privacy also states the saved unfinished order form, the IP and browser kept against fake orders, and Meta Pixel. Click-to-call on the admin order page is P3f, after the site is complete.
+87. Meta Pixel + CAPI (P1c, November 2026): ViewContent is browser only; the server sends InitiateCheckout and Purchase with the browser's event_id. Purchase user data adds hashed last name and district.

@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import type { Types } from "mongoose";
 
 import { connectMongoose } from "@/lib/db";
+import type { AdTracking } from "@/lib/meta/ad-tracking";
 import { OrderModel, type OrderDocument, type OrderTracking } from "@/lib/models/Order";
 import { deleteDraftsForOrder } from "@/lib/drafts/save-draft";
 import { checkRepeatOrder } from "@/lib/orders/duplicate-check";
@@ -51,7 +52,7 @@ function paymentFields(payment: PaymentInput, advanceAmount: number, dueOnDelive
 }
 
 // The request facts saved with the order; the Turnstile result is "passed" or "unverified" here.
-export type OrderRequestInfo = Required<Pick<OrderTracking, "ip" | "ipHash" | "userAgent" | "turnstile">>;
+export type OrderRequestInfo = Required<Pick<OrderTracking, "ip" | "ipHash" | "userAgent" | "turnstile">> & AdTracking;
 
 export async function createOrder(input: OrderInput, request: OrderRequestInfo): Promise<CreateOrderResult> {
   await connectMongoose();
@@ -104,6 +105,7 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
       statusHistory: [{ kind: "status", status: "pending", at: new Date(), note: "" }],
       payment: paymentFields(payment, amounts.advanceAmount, amounts.dueOnDelivery),
       tracking: request,
+      capiPurchase: { status: "pending" },
     });
   } catch (error) {
     if (isDuplicateTransaction(error)) return duplicateTransaction();
