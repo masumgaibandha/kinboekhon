@@ -49,3 +49,13 @@ export function dhakaWeekStart(date: Date): Date {
 export function dhakaMonthStart(date: Date): Date {
   return new Date(`${dhakaDay(date).slice(0, 8)}01T00:00:00${DHAKA_OFFSET}`);
 }
+
+// Time passed since a moment, short: "45 min", "3 h 5 min", "2 d 4 h".
+export function formatAge(from: Date, now: Date): string {
+  const minutes = Math.max(0, Math.floor((now.getTime() - from.getTime()) / 60000));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  if (days > 0) return hours > 0 ? `${days} d ${hours} h` : `${days} d`;
+  if (hours > 0) return minutes % 60 > 0 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+  return `${minutes} min`;
+}

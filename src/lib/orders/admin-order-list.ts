@@ -54,7 +54,7 @@ function buildQuery(filters: OrderFilters): Record<string, unknown> {
   if (filters.status) query.status = filters.status;
   if (filters.method) query["payment.method"] = filters.method;
   if (filters.payment) query["payment.status"] = filters.payment;
-  if (filters.call) query["lastCall.outcome"] = filters.call;
+  if (filters.call) query["lastCall.outcome"] = filters.call === "none" ? null : filters.call;
   if (filters.product) query["product.productId"] = filters.product;
 
   const from = filters.from ? dhakaDayStart(filters.from) : null;

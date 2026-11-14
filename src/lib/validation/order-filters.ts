@@ -17,7 +17,8 @@ const filtersSchema = z.object({
   status: z.enum(ORDER_STATUSES).or(z.literal("")).catch(""),
   method: z.enum(PAYMENT_METHODS).or(z.literal("")).catch(""),
   payment: z.enum(PAYMENT_STATUSES).or(z.literal("")).catch(""),
-  call: z.enum(CALL_OUTCOMES).or(z.literal("")).catch(""),
+  // "none": orders never called.
+  call: z.enum(CALL_OUTCOMES).or(z.literal("none")).or(z.literal("")).catch(""),
   product: z
     .string()
     .refine((value) => value === "" || isValidObjectId(value))

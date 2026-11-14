@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin-session";
 import { TRY_AGAIN, adminFail, zodFail, type AdminActionResult } from "@/lib/admin-result";
@@ -19,7 +19,8 @@ export async function reviewPayment(formData: FormData): Promise<AdminActionResu
   const { orderNumber, decision, note } = parsed.data;
   try {
     const result = decision === "approve" ? await approvePayment(orderNumber, note) : await rejectPayment(orderNumber, note);
-    if (result.ok) refresh();
+    // Also drops the admin pages the browser kept, so the dashboard and orders list are fresh.
+    if (result.ok) revalidatePath("/admin", "layout");
     return result;
   } catch {
     return adminFail(TRY_AGAIN);

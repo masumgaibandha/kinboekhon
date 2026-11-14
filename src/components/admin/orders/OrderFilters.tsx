@@ -72,7 +72,7 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
         label="Latest call"
         value={filters.call}
         all="All call outcomes"
-        labels={CALL_OUTCOME_LABELS}
+        labels={{ none: "Not called", ...CALL_OUTCOME_LABELS }}
       />
       <div>
         <label htmlFor="filter-product" className={labelClass}>

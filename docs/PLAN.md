@@ -315,7 +315,7 @@ Order form fields:
 | Route | What it does |
 |---|---|
 | `/admin/login` | Email + password |
-| `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting |
+| `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting; Calls card (P1b) |
 | `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9; latest call outcome in P1b), a latest call column, 25 per page newest first, CSV export button using the same filters (added in P2h) |
 | `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), call outcome form (P1b), customer edit while pending or confirmed |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
@@ -414,7 +414,12 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Order detail: a "Call outcome" card with four choices (Agreed to wait, Declined, No answer, Call later), an optional note (up to 300 characters) and "Save call". Zod checks the outcome on the server.
 - Each save pushes a `kind: call` history entry (outcome, time, note, status at that moment) and sets `lastCall` to the same values. Calls are only added, never edited. History shows "Call: No answer" with the time and note.
 - Status from the call (`src/lib/orders/call-outcome.ts`): Agreed to wait moves the order to Confirmed, Declined to Cancelled, in the same guarded update, with a `kind: status` history entry "After call: <outcome>". No answer and Call later keep the status. Only allowed moves apply (`canMoveStatus`), so a shipped, delivered, returned or cancelled order keeps its status; an advance payment waiting for review is confirmed only by approving it (the call is saved with a warning).
-- Orders list: a "Latest call" column (outcome badge and time, or "Not called"; No answer and Call later stand out with the brand border) and a "Latest call" filter (`call` in the URL) that matches only the newest call of each order.
+- Orders list: a "Latest call" column (outcome badge and time, or "Not called"; No answer and Call later stand out with the brand border) and a "Latest call" filter (`call` in the URL) that matches only the newest call of each order; `call=none` ("Not called") finds orders never called.
+- Dashboard "Calls" card (`src/lib/orders/call-stats.ts`):
+  - To do now: pending orders not called yet, with latest call No answer, and with latest call Call later. Each count links to the orders list with `status=pending` and that `call` filter.
+  - Call results with its own period switch (`calls` in the URL, same periods as the dashboard, today by default): calls made and calls per outcome in the period, and confirm rate = orders with an Agreed to wait call in the period out of orders called in the period.
+  - Oldest pending orders to call: the 5 oldest pending orders never called or with latest call No answer or Call later: order number (opens the order), name, phone, latest call, time since the order.
+  - Order and payment actions revalidate the admin layout, so the card is fresh on the next click.
 
 ### Payment options
 One function in `src/lib/orders/pricing.ts` does this math. The order form uses it for the live summary and the server uses it again to save the order.
@@ -672,3 +677,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 82. Policy pages move to Phase 1 as P1e (November 2026): Bangla privacy, terms and return policy, linked in the footer. Return policy: 3 days, only for damaged, wrong or defective products.
 83. Price calculator (P1a, November 2026): landed cost = China price + weight x air shipping rate + agent fee; profit per order = (1 - return rate) x (price - price x COD % - landed cost) - courier - packaging - ad cost; the suggested price reaches the target profit, rounded up to end in 90. Defaults in Settings: air shipping ৳710/kg, agent fee ৳0, packaging ৳10, courier ৳120, COD 1%, return rate 15%, ad cost ৳250 per order, target profit ৳150. The inputs are saved per product, admin only, never shown in the shop.
 84. Call outcome sets the status (P1b, November 2026): Agreed to wait confirms a pending order, Declined cancels a pending or confirmed order; No answer and Call later keep it pending with a badge in the list. Shipped or later orders keep their status.
+85. Dashboard Calls card (P1b, November 2026): to-do counts for pending orders (not called, No answer, Call later) linking to the filtered list, call results with their own period switch and confirm rate (orders agreed out of orders called), and the 5 oldest pending orders still needing a call.

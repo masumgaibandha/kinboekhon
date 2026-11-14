@@ -26,3 +26,12 @@ export function periodStart(period: Period, now: Date): Date | null {
   if (period === "month") return dhakaMonthStart(now);
   return null;
 }
+
+// Dashboard link with both period switches; today is the default and left out.
+export function dashboardHref(period: Period, calls: Period): string {
+  const params = new URLSearchParams();
+  if (period !== "today") params.set("period", period);
+  if (calls !== "today") params.set("calls", calls);
+  const query = params.toString();
+  return query ? `/admin?${query}` : "/admin";
+}
