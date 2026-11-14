@@ -193,7 +193,7 @@ Any landing section left empty is simply not rendered.
 | payment.reviewNote | string | admin note on approve or reject |
 | payment.reviewedAt | Date | |
 | adminNote | string | free note |
-| tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (M14); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
+| tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
 
 Indexes:
@@ -312,7 +312,7 @@ Order form fields:
 |---|---|
 | `/admin/login` | Email + password |
 | `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting |
-| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9), 25 per page newest first, CSV export button using the same filters (added in M13) |
+| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9), 25 per page newest first, CSV export button using the same filters (added in P2h) |
 | `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), customer edit while pending or confirmed |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
@@ -369,7 +369,7 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - The product is read fresh from the database (must be active), the discount comes from `getSettings()`, and `calculateOrder()` in `pricing.ts` computes the amounts; the landing page summary uses the same function.
 - Order number: atomic `$inc` on Counter `{ _id: "order" }`, `KE` + (10000 + seq). Deleting the counter document restarts at KE10001.
 - `publicId`: 12 random bytes as base64url (16 characters).
-- The order saves a product snapshot (id, name, slug, main image `publicId`, price). `tracking` stays empty until M10 and M14.
+- The order saves a product snapshot (id, name, slug, main image `publicId`, price). `tracking` stays empty until M10 and P1c.
 - The form blocks a second submit while one is running (a ref, so a double tap sends one request), keeps typed values on errors, and clears a field's error when it is edited.
 - Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, "ডেলিভারি চার্জ: ফ্রি", discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
 11. After the response (`after()` from `next/server`), send Purchase to CAPI and save the result in `capiPurchase`.
@@ -380,7 +380,7 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Server verify: `siteverify` with the secret and the customer's IP, 5 second timeout. No token or a refused token: the order is refused. Cloudflare unreachable (network error, timeout, non-2xx, `internal-error`): the order is accepted and saved with `tracking.turnstile: "unverified"`.
 - Duplicate: same phone + same product inside `duplicateWindowHours`, not cancelled: "আপনি গত 24 ঘণ্টায় এই পণ্যটি অর্ডার করেছেন। আপনার অর্ডার নম্বর KE10001।" plus "কিছু বদলাতে চাইলে কল করুন <support phone>।" when a support phone is set.
 - Phone limit: a 4th order from one phone in 24 hours: "এই নম্বর থেকে গত 24 ঘণ্টায় 3টি অর্ডার হয়েছে। আরও অর্ডার করতে চাইলে পরে চেষ্টা করুন।" plus "জরুরি হলে কল করুন <support phone>।".
-- Local development uses Cloudflare's test keys (site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA` always pass; secret `2x0000000000000000000000000000000AA` always fails). Real keys: Cloudflare dashboard, Turnstile, Add widget, hostname kinboekhon.com, mode Managed; set them on Vercel in M16.
+- Local development uses Cloudflare's test keys (site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA` always pass; secret `2x0000000000000000000000000000000AA` always fails). Real keys: Cloudflare dashboard, Turnstile, Add widget, hostname kinboekhon.com, mode Managed; set them on Vercel in P1d.
 - Admin order detail: a Tracking card with the Turnstile result, other orders from the same hashed address in the 24 hours before this order, the first 12 characters of the hash and the user agent.
 
 ### Incomplete orders (M11)
@@ -528,14 +528,46 @@ Each module ends with a browser test. Do not start the next module until the tes
 | M10 | **Fake order protection**: duplicate check, Turnstile, rate limit | Same phone + product twice shows old order number; Turnstile test "always fails" key blocks order; 6th quick order is rate limited |
 | M11 | **Incomplete orders**: autosave draft on field blur, `/api/drafts`, admin list, delete on order | Type name and phone, close tab, see it in `/admin/incomplete`; place order, draft disappears |
 | M12 | **Dashboard**: stats with period switch | Numbers match a hand count of test orders |
-| M13 | **CSV export** | Download CSV with current filters, open in Excel, Bangla shows correctly |
-| M14 | **Meta Pixel + CAPI**: base pixel, ViewContent, InitiateCheckout, Purchase, `/api/track` | Meta Pixel Helper shows events with event IDs; Events Manager Test events shows browser and server events deduplicated |
-| M15 | **Policy pages + polish**: Bangla drafts of privacy, terms and return policy for owner review (return within 3 days, only for damaged, wrong or defective products), 404, metadata, favicon, Open Graph image | Owner approves the policy text; footer links work; sharing a product link on Facebook shows image and title |
-| M16 | **Launch**: Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
 
-## 12. Not in version 1
+Modules M0 to M12 are done. The rest is built in three phases (decision 81), one module at a time in this order. Each module still ends with a browser test. Exact fields, formulas and screens are planned at the start of each module and written here before coding.
 
-Cart, customer accounts, coupons, product variants, stock tracking, courier API (Steadfast, Pathao), SMS, email notifications, online payment gateway, multiple admins, blog, search.
+### Phase 1: before the test campaign
+
+| # | Module | Browser test |
+|---|---|---|
+| P1a | **Price calculator** in the admin product form: China price, weight, air shipping rate per kg, agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Shows the suggested selling price and the profit per order. Default rates live in Settings. Delivery stays free for the customer (decision 76), so the courier charge is a cost inside the price | Enter test values: suggested price and profit match a hand calculation; change a default in Settings and the form starts with the new value |
+| P1b | **Call outcome** on each order: agreed to wait, declined, no answer, call later, each saved with a note and the time. Orders list filter by call outcome | Save "No answer" with a note on an order, see it with the time on the order page; filter the list by it and see only that order |
+| P1c | **Meta Pixel + CAPI** (was M14): base pixel, ViewContent, InitiateCheckout, Purchase, `/api/track` | Meta Pixel Helper shows events with event IDs; Events Manager Test events shows browser and server events deduplicated |
+| P1d | **Launch** (was M16): Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain kinboekhon.com, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
+
+### Phase 2: while the stock ships (about 20 days)
+
+Services not chosen yet (fraud check, SMS) are picked by the owner at the start of their module. Any new package still needs approval.
+
+| # | Module | Browser test |
+|---|---|---|
+| P2a | **Customer CRM** by phone number: all orders, total spent, delivered and returned counts, call history, notes, tags, blacklist | Open a customer from an order: their orders and totals match a hand count; add a note and a tag; a blacklisted phone is flagged on its next order |
+| P2b | **Steadfast API**: book an order, save the tracking code, sync the delivery status | Book a test order, see the tracking code on the order; a status change at Steadfast shows on the order after sync |
+| P2c | **Fraud check** by phone before confirming (service to be chosen) | Check a phone from the order page and see the result before confirming |
+| P2d | **Profit report**: profit per order and daily ad spend entry, with a daily profit report | Enter a day's ad spend: the report's profit matches a hand calculation for that day's orders |
+| P2e | **Stock count** with a low-stock alert | Set stock and a low-stock level; place orders until the alert shows |
+| P2f | **COD payout reconciliation** | Enter a courier payout: matched orders are marked paid, missing or wrong amounts are listed |
+| P2g | **Order SMS** (provider to be chosen) | Place a test order and receive the SMS on a test phone |
+| P2h | **Print and export** (CSV export was M13): invoice and parcel label print, CSV export with the current filters, courier CSV export | Print an invoice and a label; download both CSVs and open them in Excel with Bangla shown correctly |
+
+### Phase 3: after launch
+
+| # | Module | Browser test |
+|---|---|---|
+| P3a | **Repeat-customer promo codes** | A code works once for a returning phone and is refused for a new one |
+| P3b | **Blog and info pages** | Publish a post and an info page, open both on mobile |
+| P3c | **Editable notices and offers** | Change the notice strip text in the admin and see it on the shop |
+| P3d | **SEO and share previews** (was M15): Bangla drafts of privacy, terms and return policy for owner review (return within 3 days, only for damaged, wrong or defective products), 404, metadata, favicon, Open Graph image | Owner approves the policy text; footer links work; sharing a product link on Facebook shows image and title |
+| P3e | **Staff logins**: changes the one-admin rule in CLAUDE.md when built | A staff user logs in and sees only what their role allows |
+
+## 12. Not planned
+
+Cart, customer accounts, product variants, Pathao courier API, email notifications, online payment gateway, search.
 
 ## 13. Owner decisions
 
@@ -577,7 +609,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 36. The duplicate block, rate limit and Turnstile stay in M10.
 37. Order form limits: name 2 to 60 characters. The typed address is 3 to 200 characters (decision 44).
 38. The thank-you page links to more products. (Its delivery area and charge line was removed by decision 76.)
-39. Order `tracking` is filled in M10 (IP, user agent) and M14 (fbp, fbc, UTM).
+39. Order `tracking` is filled in M10 (IP, user agent) and P1c (fbp, fbc, UTM).
 40. Font follows Daraz: no web font (Hind Siliguri removed). Shop and admin use the system font stack system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", "Nirmala UI", sans-serif. The logo SVGs are paths only, so they do not depend on the site font.
 41. Numbers use English digits, like Daraz: prices (৳ 850, ৳ 1,290), quantities, phone numbers, order numbers (KE10001) and percentages, also inside Bangla error messages. All other customer text stays Bangla. The phone field keeps accepting Bangla digits.
 42. Money is shown with a Taka icon instead of the "৳" character, which looks weak in system fonts. `TakaIcon` (`src/components/ui/TakaIcon.tsx`) is the taka stroke of Heroicons `currency-bangladeshi` (MIT) without the circle, with the viewBox cropped to the stroke (outline 8.25, 7.214, 7.5 × 10.037 plus half the stroke on each side). It is 0.71em tall, the measured digit height of the system font, sits on the text baseline, and takes the text color. `Money` (`src/components/ui/Money.tsx`) puts a 0.15em gap before the amount (English digits, lakh grouping: 850, 1,290). Stroke 1.3 for regular text and 2.8 for bold prices, matching the digit stems at weight 400 and 700. The icon is `aria-hidden` with a visually hidden "টাকা". Every on-screen amount in the shop and admin uses `Money`; plain text that cannot show an icon (page title, meta description, Zod messages) writes "৳".
@@ -590,7 +622,7 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 49. Replaced by decision 79 (no delivery area picker). No mismatch hint.
 50. Orders save the city corporation when one is chosen, otherwise division, district and upazila. The server refuses anything else with a Bangla error.
 51. Order status flow: pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned. Delivered and returned are final. Cancelled can be reopened to pending. Every change is added to the history with an optional note.
-52. The payment method and payment status filters are hidden until M9. The CSV export button is hidden until M13.
+52. The payment method and payment status filters are hidden until M9. The CSV export button is hidden until P2h.
 53. The order detail URL uses the order number: `/admin/orders/KE10001`.
 54. Orders list: 25 per page, newest first. Search finds the order number (KE10001 or 10001), phone by prefix, or name (contains, ignoring case).
 55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the location changes no amount (decision 76). Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
@@ -619,3 +651,4 @@ Cart, customer accounts, coupons, product variants, stock tracking, courier API 
 78. Old orders keep their saved amounts unchanged; no order is recalculated. When decisions 76 and 77 were made the database held 0 orders, so no order needed a migration.
 79. No ঢাকার ভিতরে / ঢাকার বাইরে picker (November 2026). Every customer picks বিভাগ, জেলা, উপজেলা / থানা. When জেলা is ঢাকা, the third list shows ঢাকা উত্তর and ঢাকা দক্ষিণ সিটি কর্পোরেশন first, then Dhaka's upazilas; Chattogram city thanas stay as before. The order still saves the city corporation when one is chosen (`kind: dhaka_city`), so courier booking works. Orders and drafts no longer store `deliveryArea`, and drafts no longer store `cityCorporation` (it is the `upazilaId`). When জেলা is ঢাকা a hint line under the list names well-known areas: "উত্তর সিটি: উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর। দক্ষিণ সিটি: ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও।" (`CITY_CORPORATION_HINT`). In November 2026 dncc.gov.bd and dscc.gov.bd were reachable but publish no usable ward or area list (DNCC ward pages are empty and its linked PDF is an unrelated 2016 tax gazette; DSCC has no ward pages), so the earlier Wikipedia check stands: খিলগাঁও is mostly DSCC (DNCC ward 23 also covers part), পুরান ঢাকা is a common name. The admin customer edit form and the server check follow the same rules.
 80. Dashboard (M12, November 2026): the week starts on Saturday. Total sales leave out cancelled and returned orders; delivered value is the sum for delivered orders. Incomplete orders and advance payments waiting are live counts, each linking to its admin page. Orders per product shows count and sales, most orders first.
+81. Build order after M12 (November 2026): three phases. Phase 1 before the test campaign: price calculator, call outcome, Meta Pixel + CAPI, launch. Phase 2 while the stock ships (about 20 days): customer CRM, Steadfast API, fraud check, profit report with ad spend, stock count, COD payout reconciliation, order SMS, print and CSV exports. Phase 3 after launch: repeat-customer promo codes, blog and info pages, editable notices and offers, SEO and share previews with the policy pages, staff logins. Steadfast, SMS, stock tracking, coupons, blog and more than one admin are no longer "not planned".
