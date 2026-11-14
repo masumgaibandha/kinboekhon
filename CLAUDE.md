@@ -76,6 +76,14 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 - Phone numbers are stored as 11 digits: `01XXXXXXXXX`.
 - Money is stored as whole Taka integers. No decimals.
 - Dates are stored in UTC and shown in Asia/Dhaka time.
+
+## Production
+
+- Live at https://www.kinboekhon.com. The apex kinboekhon.com redirects to www.
+- Hosted on Vercel Hobby, project `kinboekhon`. Real Turnstile keys are set there.
+- The Meta domain is verified by a DNS TXT record. Never remove it.
+- Upgrade Vercel to Pro before scaling ads. Watch ISR usage until then.
+
 ## Admin auth (Better Auth)
 
 - Email and password login only, MongoDB adapter. No Auth.js / next-auth.

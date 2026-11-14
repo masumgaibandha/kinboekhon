@@ -563,6 +563,8 @@ Modules M0 to M12 are done. The rest is built in three phases (decision 81), one
 | P1d | **Launch** (was M16): Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain kinboekhon.com, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
 | P1e | **Policy pages** (moved from P3d, decision 82): Bangla `/privacy`, `/terms` and `/return-policy`, linked in the footer. Return policy: report within 3 days of delivery with photo or video, only for damaged, wrong or defective products; replace or refund by bKash or Nagad within 7 days, we pay the return courier; change of mind is not accepted; refusing a COD parcel at the door is not a return. Privacy: name, phone and address only to deliver orders, never sold, Meta Pixel for ads. Under the order button: "অর্ডার করে আপনি আমাদের শর্তাবলী ও রিটার্ন নীতি মেনে নিচ্ছেন" with links (new tab, so the form stays). Drafts go to the owner for review | Owner approves the text; the three footer links open each page on mobile |
 
+P1d is done (November 2026): live at https://www.kinboekhon.com (the apex kinboekhon.com redirects to www) on Vercel Hobby, project `kinboekhon`, with real Turnstile keys. The Meta domain is verified by a DNS TXT record, never remove it. Upgrade Vercel to Pro before scaling ads, and watch ISR usage until then.
+
 ### Phase 2: while the stock ships (about 20 days)
 
 Services not chosen yet (fraud check, SMS) are picked by the owner at the start of their module. Any new package still needs approval.
