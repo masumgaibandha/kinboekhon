@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { Money } from "@/components/ui/Money";
 import { formatDhakaDateTime } from "@/lib/dates";
+import { CALL_OUTCOME_LABELS } from "@/lib/orders/call-labels";
 import type { OrderListItem } from "@/lib/orders/admin-order-list";
 
 export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
@@ -18,6 +19,7 @@ export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
             <th className="px-4 py-3 font-medium">Area</th>
             <th className="px-4 py-3 font-medium">Total</th>
             <th className="px-4 py-3 font-medium">Status</th>
+            <th className="px-4 py-3 font-medium">Latest call</th>
           </tr>
         </thead>
         <tbody>
@@ -42,6 +44,18 @@ export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
               </td>
               <td className="px-4 py-3">
                 <StatusBadge status={order.status} />
+              </td>
+              <td className="px-4 py-3">
+                {order.lastCall ? (
+                  <>
+                    <span className="block whitespace-nowrap font-medium text-heading">
+                      {CALL_OUTCOME_LABELS[order.lastCall.outcome]}
+                    </span>
+                    <span className="whitespace-nowrap text-xs text-muted">{formatDhakaDateTime(order.lastCall.at)}</span>
+                  </>
+                ) : (
+                  <span className="text-muted">Not called</span>
+                )}
               </td>
             </tr>
           ))}

@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 
+import { CALL_OUTCOME_LABELS } from "@/lib/orders/call-labels";
 import { METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/orders/payment-methods";
 import { STATUS_LABELS } from "@/lib/orders/status";
 import type { OrderFilters as Filters } from "@/lib/validation/order-filters";
@@ -66,6 +67,13 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
         all="All payment statuses"
         labels={PAYMENT_STATUS_LABELS}
       />
+      <FilterSelect
+        name="call"
+        label="Latest call"
+        value={filters.call}
+        all="All call outcomes"
+        labels={CALL_OUTCOME_LABELS}
+      />
       <div>
         <label htmlFor="filter-product" className={labelClass}>
           Product
@@ -91,7 +99,7 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
         </label>
         <input id="filter-to" name="to" type="date" defaultValue={filters.to} className={fieldClass} />
       </div>
-      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-4">
+      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
         <button type="submit" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white">
           Apply filters
         </button>

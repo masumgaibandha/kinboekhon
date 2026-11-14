@@ -5,11 +5,13 @@ import { refresh } from "next/cache";
 import { requireAdmin } from "@/lib/admin-session";
 import { TRY_AGAIN, adminFail, zodFail, type AdminActionResult } from "@/lib/admin-result";
 import { INITIAL_VALUES_FIELD, readJsonField } from "@/lib/changed-fields";
+import { logOrderCall } from "@/lib/orders/call-outcome";
 import { changeOrderStatus, saveOrderNote } from "@/lib/orders/change-status";
 import { editOrderCustomer } from "@/lib/orders/edit-customer";
 import { switchToCashOnDelivery } from "@/lib/orders/payment-review";
 import {
   adminNoteSchema,
+  callLogSchema,
   customerEditSchema,
   customerFieldsSchema,
   statusChangeSchema,
@@ -83,4 +85,17 @@ export async function switchOrderToCod(formData: FormData): Promise<AdminActionR
   if (!parsed.success) return zodFail(parsed.error);
   const { orderNumber, note } = parsed.data;
   return run(() => switchToCashOnDelivery(orderNumber, note));
+}
+
+export async function logCall(formData: FormData): Promise<AdminActionResult> {
+  await requireAdmin();
+  const text = reader(formData);
+  const parsed = callLogSchema.safeParse({
+    orderNumber: text("orderNumber"),
+    outcome: text("outcome"),
+    note: text("note"),
+  });
+  if (!parsed.success) return zodFail(parsed.error);
+  const { orderNumber, outcome, note } = parsed.data;
+  return run(() => logOrderCall(orderNumber, outcome, note));
 }

@@ -1,10 +1,12 @@
 import { formatDhakaDateTime } from "@/lib/dates";
 import type { OrderHistoryEntry } from "@/lib/models/Order";
+import { CALL_OUTCOME_LABELS } from "@/lib/orders/call-labels";
 import { STATUS_LABELS } from "@/lib/orders/status";
 
 function titleOf(entry: OrderHistoryEntry & { placed: boolean }): string {
   if (entry.kind === "edit") return "Customer details edited";
   if (entry.kind === "payment") return "Payment";
+  if (entry.kind === "call") return entry.outcome ? `Call: ${CALL_OUTCOME_LABELS[entry.outcome]}` : "Call";
   return entry.placed ? "Order placed" : `Status: ${STATUS_LABELS[entry.status]}`;
 }
 

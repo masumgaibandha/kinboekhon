@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdminNoteForm } from "@/components/admin/orders/AdminNoteForm";
+import { CallOutcomeForm } from "@/components/admin/orders/CallOutcomeForm";
 import { OrderAmounts } from "@/components/admin/orders/OrderAmounts";
 import { OrderCard } from "@/components/admin/orders/OrderCard";
 import { OrderCustomer } from "@/components/admin/orders/OrderCustomer";
@@ -61,6 +62,9 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
               status={order.status}
               paymentWaiting={order.payment.status === "submitted"}
             />
+          </OrderCard>
+          <OrderCard title="Call outcome">
+            <CallOutcomeForm key={key} orderNumber={order.orderNumber} />
           </OrderCard>
           <OrderCard title="Admin note">
             <AdminNoteForm key={key} orderNumber={order.orderNumber} note={order.adminNote} />

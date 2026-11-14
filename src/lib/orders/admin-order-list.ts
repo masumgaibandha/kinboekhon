@@ -2,7 +2,7 @@ import { connectMongoose } from "@/lib/db";
 import { dhakaDayEnd, dhakaDayStart } from "@/lib/dates";
 import { shortLocation } from "@/lib/locations/format";
 import type { OrderLocation } from "@/lib/locations/types";
-import { OrderModel } from "@/lib/models/Order";
+import { OrderModel, type OrderCall } from "@/lib/models/Order";
 import type { OrderStatus } from "@/lib/orders/enums";
 import { normalizePhone } from "@/lib/phone";
 import { ORDERS_PER_PAGE, type OrderFilters } from "@/lib/validation/order-filters";
@@ -17,6 +17,7 @@ export interface OrderListItem {
   area: string;
   total: number;
   status: OrderStatus;
+  lastCall: OrderCall | null;
 }
 
 export interface OrderListPage {
@@ -34,6 +35,7 @@ interface ListDoc {
   quantity: number;
   total: number;
   status: OrderStatus;
+  lastCall?: OrderCall;
 }
 
 const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -52,6 +54,7 @@ function buildQuery(filters: OrderFilters): Record<string, unknown> {
   if (filters.status) query.status = filters.status;
   if (filters.method) query["payment.method"] = filters.method;
   if (filters.payment) query["payment.status"] = filters.payment;
+  if (filters.call) query["lastCall.outcome"] = filters.call;
   if (filters.product) query["product.productId"] = filters.product;
 
   const from = filters.from ? dhakaDayStart(filters.from) : null;
@@ -77,6 +80,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     quantity: 1,
     total: 1,
     status: 1,
+    lastCall: 1,
   })
     .sort({ createdAt: -1 })
     .skip((page - 1) * ORDERS_PER_PAGE)
@@ -93,6 +97,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     area: shortLocation(doc.customer.location),
     total: doc.total,
     status: doc.status,
+    lastCall: doc.lastCall?.outcome ? { outcome: doc.lastCall.outcome, at: doc.lastCall.at, note: doc.lastCall.note ?? "" } : null,
   }));
   return { items, total, page, pageCount };
 }

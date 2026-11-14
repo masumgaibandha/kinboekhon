@@ -1,15 +1,23 @@
 import type { Types } from "mongoose";
 
 import type { OrderLocation } from "@/lib/locations/types";
-import type { CAPI_STATUSES, OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
+import type { CAPI_STATUSES, CallOutcome, OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
 import type { TurnstileResult } from "@/lib/turnstile";
 
-export const HISTORY_KINDS = ["status", "edit", "payment"] as const;
+export const HISTORY_KINDS = ["status", "edit", "payment", "call"] as const;
 
-// A status change, a customer edit or a payment review (for the last two, status holds the status at that moment).
+// A status change, a customer edit, a payment review or a call (for the last three, status holds the status at that moment).
 export interface OrderHistoryEntry {
   kind: (typeof HISTORY_KINDS)[number];
   status: OrderStatus;
+  at: Date;
+  note: string;
+  // Set only on a call entry.
+  outcome?: CallOutcome;
+}
+
+export interface OrderCall {
+  outcome: CallOutcome;
   at: Date;
   note: string;
 }
@@ -51,6 +59,8 @@ export interface OrderDocument {
     reviewedAt?: Date;
   };
   adminNote: string;
+  // The latest call, for the orders list and its filter.
+  lastCall?: OrderCall;
   tracking?: OrderTracking;
   capiPurchase?: { status: (typeof CAPI_STATUSES)[number]; error?: string };
   createdAt: Date;

@@ -2,12 +2,12 @@ import { Schema } from "mongoose";
 
 import { appDb } from "@/lib/db";
 import { HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
-import { CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES } from "@/lib/orders/enums";
+import { CALL_OUTCOMES, CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES } from "@/lib/orders/enums";
 import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
 import { TURNSTILE_RESULTS } from "@/lib/turnstile";
 
 export { HISTORY_KINDS } from "@/lib/models/order-document";
-export type { OrderDocument, OrderHistoryEntry, OrderTracking } from "@/lib/models/order-document";
+export type { OrderCall, OrderDocument, OrderHistoryEntry, OrderTracking } from "@/lib/models/order-document";
 
 const orderSchema = new Schema<OrderDocument>(
   {
@@ -49,6 +49,7 @@ const orderSchema = new Schema<OrderDocument>(
         status: { type: String, enum: ORDER_STATUSES },
         at: Date,
         note: String,
+        outcome: { type: String, enum: CALL_OUTCOMES },
       },
     ],
     payment: {
@@ -64,6 +65,7 @@ const orderSchema = new Schema<OrderDocument>(
       reviewedAt: Date,
     },
     adminNote: { type: String, default: "" },
+    lastCall: { outcome: { type: String, enum: CALL_OUTCOMES }, at: Date, note: String },
     tracking: {
       ip: String,
       ipHash: String,
@@ -86,6 +88,8 @@ orderSchema.index({ createdAt: -1 });
 // Orders from the same address, for the admin tracking box.
 orderSchema.index({ "tracking.ipHash": 1, createdAt: -1 });
 orderSchema.index({ "payment.status": 1, createdAt: 1 });
+// Orders by their latest call outcome, for the orders list filter.
+orderSchema.index({ "lastCall.outcome": 1, createdAt: -1 });
 orderSchema.index(
   { "payment.transactionIdNormalized": 1 },
   { unique: true, partialFilterExpression: { "payment.transactionIdNormalized": { $type: "string" } } },

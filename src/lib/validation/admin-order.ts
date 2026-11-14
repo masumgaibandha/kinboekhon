@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ORDER_STATUSES } from "@/lib/orders/enums";
+import { CALL_OUTCOMES, ORDER_STATUSES } from "@/lib/orders/enums";
 import { ORDER_NUMBER_PATTERN, type AdminOrder } from "@/lib/orders/admin-order-detail";
 import { canMoveStatus } from "@/lib/orders/status";
 import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
@@ -41,6 +41,12 @@ export const paymentReviewSchema = z.object({
 });
 
 export const switchToCodSchema = z.object({ orderNumber, note: reviewNote });
+
+export const callLogSchema = z.object({
+  orderNumber,
+  outcome: z.enum(CALL_OUTCOMES, { error: "Choose the call outcome." }),
+  note: reviewNote,
+});
 
 export const adminNoteSchema = z.object({
   orderNumber,

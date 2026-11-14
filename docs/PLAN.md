@@ -182,7 +182,7 @@ Any landing section left empty is simply not rendered.
 | total | number | subtotal - discount |
 | customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` always has `divisionId, division, districtId, district`, plus `kind`. `kind: dhaka_city` (a Dhaka city corporation was chosen): `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`. `kind: outside_dhaka` (any upazila or city thana, also Dhaka district's upazilas): `upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
-| statusHistory | `{ kind, status, at, note }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit and `kind: payment` for a payment review or a switch to cash on delivery (for both, `status` is the status at that moment and `note` says what happened) |
+| statusHistory | `{ kind, status, at, note, outcome }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit, `kind: payment` for a payment review or a switch to cash on delivery and `kind: call` for a call (P1b, with `outcome`). For the last three, `status` is the status at that moment and `note` says what happened |
 | payment.option | `cod` \| `advance_full` | see section 6, "Payment options" |
 | payment.method | `cod` \| `bkash` \| `nagad` \| `rocket` \| `bank` | `cod` only with option `cod` |
 | payment.status | `cod` \| `submitted` \| `verified` \| `rejected` | `cod` for cash on delivery |
@@ -194,6 +194,7 @@ Any landing section left empty is simply not rendered.
 | payment.reviewNote | string | admin note on approve or reject |
 | payment.reviewedAt | Date | |
 | adminNote | string | free note |
+| lastCall | `{ outcome, at, note }` | the newest call (P1b), for the orders list column and filter. `outcome`: `agreed_to_wait` \| `declined` \| `no_answer` \| `call_later` |
 | tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
 
@@ -204,6 +205,7 @@ Indexes:
 - `{ createdAt: -1 }` for the unfiltered admin list, newest first
 - `{ "tracking.ipHash": 1, createdAt: -1 }` for the admin tracking box
 - `{ "payment.status": 1, createdAt: 1 }` for the payment queue
+- `{ "lastCall.outcome": 1, createdAt: -1 }` for the latest call filter
 - `payment.transactionIdNormalized` unique, partial (only when it is a string), so one TxID cannot be used twice
 
 ### IncompleteOrder
@@ -314,8 +316,8 @@ Order form fields:
 |---|---|
 | `/admin/login` | Email + password |
 | `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting |
-| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9), 25 per page newest first, CSV export button using the same filters (added in P2h) |
-| `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), customer edit while pending or confirmed |
+| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9; latest call outcome in P1b), a latest call column, 25 per page newest first, CSV export button using the same filters (added in P2h) |
+| `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), call outcome form (P1b), customer edit while pending or confirmed |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
@@ -407,6 +409,11 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Status moves (`src/lib/orders/status.ts`): pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned; cancelled can be reopened to pending; delivered and returned are final. The form lists only allowed moves; Zod refuses any other move. Every change pushes a history entry with the optional note.
 - Stale protection: the status form sends the status it was loaded with and the update matches on it (`findOneAndUpdate({ orderNumber, status: from })`). The note form sends the note it was loaded with. The customer form sends all loaded values (`initialValues`) and writes only changed fields, each matched against its loaded value. Any miss shows "This order was changed since you opened it. Reload the page." Every form is keyed on the order's `updatedAt`, and each action calls `refresh()` from `next/cache`.
 - Customer edit: name, phone, typed address and location, with the same rules as the shop form (division, district, then city corporation, upazila or thana) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. A location change changes no amount (decision 76). Each save pushes a `kind: edit` history entry listing old and new values.
+
+### Call outcome (P1b)
+- Order detail: a "Call outcome" card with four choices (Agreed to wait, Declined, No answer, Call later), an optional note (up to 300 characters) and "Save call". Zod checks the outcome on the server.
+- Each save pushes a `kind: call` history entry (outcome, time, note, status at that moment) and sets `lastCall` to the same values. Calls are only added, never edited. History shows "Call: No answer" with the time and note.
+- Orders list: a "Latest call" column (outcome and time, or "Not called") and a "Latest call" filter (`call` in the URL) that matches only the newest call of each order.
 
 ### Payment options
 One function in `src/lib/orders/pricing.ts` does this math. The order form uses it for the live summary and the server uses it again to save the order.

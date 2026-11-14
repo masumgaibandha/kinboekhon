@@ -91,6 +91,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
       status: entry.status,
       at: entry.at,
       note: entry.note ?? "",
+      ...(entry.outcome && { outcome: entry.outcome }),
     })),
     adminNote: doc.adminNote ?? "",
     tracking: {
