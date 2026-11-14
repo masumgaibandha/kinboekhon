@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LocationSelect as Select } from "@/components/shop/order/LocationSelect";
-import { cityGroupOf } from "@/lib/locations/dhaka";
+import { CITY_CORPORATION_HINT, cityGroupOf } from "@/lib/locations/dhaka";
 import type { LocationData, LocationSelection, Place } from "@/lib/locations/types";
 
 interface LocationPickerProps {
@@ -89,6 +89,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         label="উপজেলা / থানা"
         value={value.upazilaId}
         error={errors.upazilaId}
+        hint={group?.kind === "city_corporation" ? CITY_CORPORATION_HINT : undefined}
         disabled={!district}
         onChange={(upazilaId) => onChange({ ...value, upazilaId })}
       >

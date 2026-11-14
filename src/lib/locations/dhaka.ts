@@ -6,6 +6,10 @@ export const CITY_CORPORATIONS = [
   { id: "dscc", bn: "ঢাকা দক্ষিণ সিটি কর্পোরেশন", en: "Dhaka South City Corporation" },
 ] as const;
 
+// Well-known areas of each city corporation, shown under the list when the district is Dhaka.
+export const CITY_CORPORATION_HINT =
+  "উত্তর সিটি: উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর। দক্ষিণ সিটি: ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও।";
+
 export type CityCorporationId = (typeof CITY_CORPORATIONS)[number]["id"];
 
 export const DHAKA_DISTRICT_ID = "47";

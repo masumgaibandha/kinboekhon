@@ -8,12 +8,14 @@ interface SelectProps {
   label: string;
   value: string;
   error?: string;
+  // A help line under the list.
+  hint?: string;
   disabled: boolean;
   onChange: (value: string) => void;
   children: ReactNode;
 }
 
-export function LocationSelect({ id, name, label, value, error, disabled, onChange, children }: SelectProps) {
+export function LocationSelect({ id, name, label, value, error, hint, disabled, onChange, children }: SelectProps) {
   return (
     <OrderField id={id} label={label} error={error}>
       <select
@@ -23,11 +25,16 @@ export function LocationSelect({ id, name, label, value, error, disabled, onChan
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
+        aria-describedby={[error && `${id}-error`, hint && `${id}-hint`].filter(Boolean).join(" ") || undefined}
         className={`${fieldClass} disabled:bg-page disabled:text-muted`}
       >
         {children}
       </select>
+      {hint && (
+        <p id={`${id}-hint`} className="mt-1.5 text-sm leading-relaxed text-desc">
+          {hint}
+        </p>
+      )}
     </OrderField>
   );
 }
