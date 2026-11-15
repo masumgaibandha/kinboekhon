@@ -5,9 +5,11 @@ import { updateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-session";
 import { changedFields, INITIAL_VALUES_FIELD, readJsonField } from "@/lib/changed-fields";
 import { connectMongoose } from "@/lib/db";
+import { relabelAllCustomers } from "@/lib/fraud/customer-risk";
 import { SettingsModel } from "@/lib/models/Settings";
 import { SETTINGS_KEY, SETTINGS_TAG } from "@/lib/settings";
 import { COST_DEFAULT_KEYS, readCostFields } from "@/lib/validation/costs";
+import { FRAUD_SETTING_KEYS } from "@/lib/validation/fraud-settings";
 import { adminSettingsSchema } from "@/lib/validation/settings";
 
 export type SaveSettingsResult =
@@ -41,6 +43,7 @@ function readForm(formData: FormData) {
     duplicateWindowHours: text("duplicateWindowHours"),
     costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
     ads: { usdRate: text("ads.usdRate"), maxCpa: text("ads.maxCpa") },
+    fraud: Object.fromEntries(FRAUD_SETTING_KEYS.map((key) => [key, text(`fraud.${key}`)])),
   };
 }
 
@@ -65,6 +68,10 @@ export async function saveSettings(formData: FormData): Promise<SaveSettingsResu
   try {
     await connectMongoose();
     await SettingsModel.updateOne({ key: SETTINGS_KEY }, { $set: changes }, { upsert: true });
+    // New thresholds give every checked phone a fresh risk label.
+    if (Object.keys(changes).some((path) => path.startsWith("fraud.") && path !== "fraud.bookingMoney")) {
+      await relabelAllCustomers(parsed.data.fraud);
+    }
   } catch {
     return { ok: false, message: "Could not save settings. Try again.", fieldErrors: {} };
   }

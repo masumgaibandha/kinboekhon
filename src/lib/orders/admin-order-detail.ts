@@ -1,7 +1,7 @@
 import { connectMongoose } from "@/lib/db";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel, type OrderDocument, type OrderHistoryEntry } from "@/lib/models/Order";
-import type { OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
+import type { OrderStatus, PaymentMethod, PaymentOption, PaymentStatus, ReturnReason } from "@/lib/orders/enums";
 import type { TurnstileResult } from "@/lib/turnstile";
 
 export const ORDER_NUMBER_PATTERN = /^KE\d{5,9}$/;
@@ -34,6 +34,7 @@ export interface AdminOrder {
   history: OrderHistoryEntry[];
   adminNote: string;
   customerBlocked: boolean;
+  returnReason: ReturnReason | "";
   tracking: AdminTracking;
 }
 
@@ -96,6 +97,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     })),
     adminNote: doc.adminNote ?? "",
     customerBlocked: doc.customerBlocked === true,
+    returnReason: doc.returnReason ?? "",
     tracking: {
       ipHash,
       userAgent: doc.tracking?.userAgent ?? "",

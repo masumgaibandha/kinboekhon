@@ -1,12 +1,12 @@
 import type { Types } from "mongoose";
 
 import type { OrderLocation } from "@/lib/locations/types";
-import type { CAPI_STATUSES, CallOutcome, OrderStatus, PaymentMethod, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
+import type { CAPI_STATUSES, CallOutcome, OrderStatus, PaymentMethod, PaymentOption, PaymentStatus, ReturnReason } from "@/lib/orders/enums";
 import type { TurnstileResult } from "@/lib/turnstile";
 
-export const HISTORY_KINDS = ["status", "edit", "payment", "call"] as const;
+export const HISTORY_KINDS = ["status", "edit", "payment", "call", "return_reason"] as const;
 
-// A status change, a customer edit, a payment review or a call (for the last three, status holds the status at that moment).
+// A status change, a customer edit, a payment review, a call or a return reason (for all but the first, status holds the status at that moment).
 export interface OrderHistoryEntry {
   kind: (typeof HISTORY_KINDS)[number];
   status: OrderStatus;
@@ -61,6 +61,8 @@ export interface OrderDocument {
   adminNote: string;
   // The phone was tagged Blocked when the order was placed.
   customerBlocked?: boolean;
+  // Set by the admin on a cancelled or returned order.
+  returnReason?: ReturnReason;
   // The latest call, for the orders list and its filter.
   lastCall?: OrderCall;
   tracking?: OrderTracking;

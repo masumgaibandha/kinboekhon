@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 
+import { RISK_LABEL_TEXT } from "@/lib/fraud/risk";
 import { CALL_OUTCOME_LABELS } from "@/lib/orders/call-labels";
 import { METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/orders/payment-methods";
 import { STATUS_LABELS } from "@/lib/orders/status";
@@ -74,6 +75,7 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
         all="All call outcomes"
         labels={{ none: "Not called", ...CALL_OUTCOME_LABELS }}
       />
+      <FilterSelect name="risk" label="Risk" value={filters.risk} all="All risk labels" labels={RISK_LABEL_TEXT} />
       <div>
         <label htmlFor="filter-product" className={labelClass}>
           Product
@@ -99,7 +101,7 @@ export function OrderFilters({ filters, products }: OrderFiltersProps) {
         </label>
         <input id="filter-to" name="to" type="date" defaultValue={filters.to} className={fieldClass} />
       </div>
-      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
+      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-2">
         <button type="submit" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white">
           Apply filters
         </button>

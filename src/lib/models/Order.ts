@@ -2,7 +2,7 @@ import { Schema } from "mongoose";
 
 import { appDb } from "@/lib/db";
 import { HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
-import { CALL_OUTCOMES, CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES } from "@/lib/orders/enums";
+import { CALL_OUTCOMES, CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES, RETURN_REASONS } from "@/lib/orders/enums";
 import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
 import { TURNSTILE_RESULTS } from "@/lib/turnstile";
 
@@ -66,6 +66,7 @@ const orderSchema = new Schema<OrderDocument>(
     },
     adminNote: { type: String, default: "" },
     customerBlocked: { type: Boolean, default: false },
+    returnReason: { type: String, enum: RETURN_REASONS },
     lastCall: { outcome: { type: String, enum: CALL_OUTCOMES }, at: Date, note: String },
     tracking: {
       ip: String,

@@ -15,3 +15,15 @@ export const CAPI_STATUSES = ["pending", "sent", "failed"] as const;
 // What happened when the admin called the customer about an order.
 export const CALL_OUTCOMES = ["agreed_to_wait", "declined", "no_answer", "call_later"] as const;
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
+
+// Why a cancelled or returned order failed, set by the admin.
+export const RETURN_REASONS = [
+  "refused",
+  "unreachable",
+  "wrong_address",
+  "courier_delay",
+  "damaged",
+  "wrong_item",
+  "fake_order",
+] as const;
+export type ReturnReason = (typeof RETURN_REASONS)[number];

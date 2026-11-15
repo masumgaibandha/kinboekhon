@@ -30,6 +30,11 @@ const bankSchema = new Schema(
 
 const adsSchema = new Schema({ usdRate: Number, maxCpa: Number }, { _id: false });
 
+const fraudSchema = new Schema(
+  { minRecords: Number, checkFailPercent: Number, highMinFailed: Number, highFailPercent: Number, bookingMoney: Number },
+  { _id: false },
+);
+
 const settingsSchema = new Schema<SettingsDocument>(
   {
     key: { type: String, required: true, unique: true },
@@ -43,6 +48,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     duplicateWindowHours: { type: Number, min: 1 },
     costDefaults: costsSchema,
     ads: adsSchema,
+    fraud: fraudSchema,
   },
   { timestamps: true },
 );

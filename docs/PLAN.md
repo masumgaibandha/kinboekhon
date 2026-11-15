@@ -72,6 +72,7 @@ kinboekhon/
    │  │     ├─ orders/page.tsx                 list, search, filters, pagination
    │  │     ├─ orders/[orderNumber]/page.tsx   detail: /admin/orders/KE10001
    │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
+   │  │     ├─ orders/history-actions.ts       checkDeliveryHistory, saveManualDeliveryHistory (P2c)
    │  │     ├─ customers/page.tsx              customer list, search, tag filter, sort (P2a)
    │  │     ├─ customers/[phone]/page.tsx      customer: orders, calls, tags, notes
    │  │     ├─ customers/actions.ts            updateCustomerTags, saveCustomerNote
@@ -195,7 +196,7 @@ Any landing section left empty is simply not rendered.
 | total | number | subtotal - discount |
 | customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` always has `divisionId, division, districtId, district`, plus `kind`. `kind: dhaka_city` (a Dhaka city corporation was chosen): `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`. `kind: outside_dhaka` (any upazila or city thana, also Dhaka district's upazilas): `upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
-| statusHistory | `{ kind, status, at, note, outcome }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit, `kind: payment` for a payment review or a switch to cash on delivery and `kind: call` for a call (P1b, with `outcome`). For the last three, `status` is the status at that moment and `note` says what happened |
+| statusHistory | `{ kind, status, at, note, outcome }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit, `kind: payment` for a payment review or a switch to cash on delivery, `kind: call` for a call (P1b, with `outcome`) and `kind: return_reason` for a return reason change (P2c, the note is the reason or "Cleared"). For all but `status`, `status` is the status at that moment and `note` says what happened |
 | payment.option | `cod` \| `advance_full` | see section 6, "Payment options" |
 | payment.method | `cod` \| `bkash` \| `nagad` \| `rocket` \| `bank` | `cod` only with option `cod` |
 | payment.status | `cod` \| `submitted` \| `verified` \| `rejected` | `cod` for cash on delivery |
@@ -208,6 +209,7 @@ Any landing section left empty is simply not rendered.
 | payment.reviewedAt | Date | |
 | adminNote | string | free note |
 | customerBlocked | boolean | the phone was tagged Blocked when the order was placed (P2a); shown as a red "Blocked customer" badge |
+| returnReason | `refused` \| `unreachable` \| `wrong_address` \| `courier_delay` \| `damaged` \| `wrong_item` \| `fake_order` | set by the admin on a cancelled or returned order (P2c); not set until then |
 | lastCall | `{ outcome, at, note }` | the newest call (P1b), for the orders list column and filter. `outcome`: `agreed_to_wait` \| `declined` \| `no_answer` \| `call_later` |
 | tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
@@ -247,6 +249,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | duplicateWindowHours | default 24 |
 | costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, courier: 120, codPercent: 1, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
 | ads | `{ usdRate: 125, maxCpa: 300 }` (P2d), admin only: `usdRate` is taka per US dollar (up to 2 decimals), the starting rate of a new ad spend entry; `maxCpa` is the highest ad cost per confirmed order (whole taka) before a product is highlighted in the profit report. `getSettings()` leaves them out; the admin reads them with `getAdSettings()` (uncached) |
+| fraud | `{ minRecords: 3, checkFailPercent: 20, highMinFailed: 3, highFailPercent: 40, bookingMoney: 200 }` (P2c), admin only: risk label thresholds and the booking money asked from a High risk customer. `getSettings()` leaves them out; the admin reads them with `getFraudSettings()` (uncached) |
 
 Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
 
@@ -258,8 +261,9 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 | lastOrderAt | `createdAt` of the newest order |
 | tags | `vip` \| `risky` \| `blocked` |
 | notes | `{ text, at }[]`, only added, shown newest first |
+| risk | `{ label, delivered, failed, at }` (P2c): the phone's courier delivery history summed over every source, with its risk label. Set when a check or manual entry gives counts; missing means "Not checked" |
 
-Indexes: `phone` unique, `{ lastOrderAt: -1 }`, `{ tags: 1, lastOrderAt: -1 }`. `syncCustomer(phone)` upserts name, district and lastOrderAt from the newest order and keeps tags and notes. It runs after every new order and after an admin customer edit (for the new and, if the phone changed, the old phone); a failure there never fails the order or the edit. Counts are not stored: they are read from the orders each time.
+Indexes: `phone` unique, `{ lastOrderAt: -1 }`, `{ tags: 1, lastOrderAt: -1 }`, `{ "risk.label": 1 }` (orders list risk filter). `syncCustomer(phone)` upserts name, district and lastOrderAt from the newest order and keeps tags and notes. It runs after every new order and after an admin customer edit (for the new and, if the phone changed, the old phone); a failure there never fails the order or the edit. Counts are not stored: they are read from the orders each time.
 
 ### AdSpend (P2d)
 | Field | Notes |
@@ -271,6 +275,19 @@ Indexes: `phone` unique, `{ lastOrderAt: -1 }`, `{ tags: 1, lastOrderAt: -1 }`. 
 | amountBdt | whole taka = round(amountUsd x usdRate), worked out on the server in whole cents so it matches a hand calculation |
 
 Indexes: `{ day: 1, productId: 1 }` unique (one entry per product per day: a second one is refused with "edit it instead"), `{ day: -1 }`.
+
+### DeliveryCheck (P2c)
+| Field | Notes |
+|---|---|
+| phone | normalized `01XXXXXXXXX` |
+| source | `steadfast` (a provider) or `manual` |
+| status | a provider's latest attempt: `found`, `no_history` or `error`; a manual entry is `found` |
+| delivered, failed, total | counts from the last good lookup or as typed (`failed` = cancelled or returned); null on a manual entry with only a Pathao rating |
+| checkedAt | time of the last good lookup or of the manual entry |
+| error, errorAt | the last failure as a short code (`http_401`, `timeout`, `network`, `bad_response`); a failure keeps the counts of the last good lookup |
+| pathaoRating, note | manual entry only |
+
+Index: `{ phone, source }` unique, so each source keeps one row per phone.
 
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
@@ -353,8 +370,8 @@ Order form fields:
 |---|---|
 | `/admin/login` | Email + password |
 | `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting; Calls card (P1b) |
-| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9; latest call outcome in P1b), a latest call column, 25 per page newest first, CSV export button using the same filters (added in P2h) |
-| `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), call outcome form (P1b), customer edit while pending or confirmed |
+| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9; latest call outcome in P1b; risk in P2c), a latest call column, a risk column (P2c), 25 per page newest first, CSV export button using the same filters (added in P2h) |
+| `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), call outcome form (P1b), customer edit while pending or confirmed, Delivery history card and Return reason on cancelled or returned orders (P2c) |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
@@ -362,7 +379,7 @@ Order form fields:
 | `/admin/ad-spend` | Ad spend entries (P2d) for a period (default this month), newest day first, each with Edit and Delete; an add form (date, product, USD amount, rate, live taka amount) |
 | `/admin/ad-spend/[id]` | Edit one ad spend entry, with Delete |
 | `/admin/profit` | Profit and ad spend report (P2d) with a period switch and a custom date range |
-| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window, price calculator defaults (no delivery charges), dollar rate and max CPA (P2d) |
+| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window, price calculator defaults (no delivery charges), dollar rate and max CPA (P2d), fraud check thresholds and booking money (P2c) |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight (grams), air shipping (taka per kg), agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Money inputs are whole taka; percents allow one decimal (COD 0 to 20, return 0 to 90); China price and weight may be empty (0). Results update live as the admin types, including the Price field:
 - Landed cost = China price + weight / 1000 x shipping per kg + agent fee.
@@ -514,6 +531,16 @@ Delivery is free everywhere; its cost is built into the product price (decision 
 - Order page: a "Customer record" card under Customer: past orders (other orders of this phone), delivered, return rate, tags, and "Open customer".
 - Blocked: a new order from a Blocked phone is accepted as usual (the customer sees nothing different) and saved Pending with `customerBlocked: true`; the orders list, order page and customer page show a red "Blocked customer" badge. Status rules do not change.
 
+### Fraud check (P2c)
+- Order page "Delivery history" card for the order's phone: one row per source with delivered, cancelled or returned, total, checked time and status (Found, No history, Error with its reason and time, Not connected, Not checked; a manual entry shows Entered with its Pathao rating and note), then the sum over all sources with the failed percent, and the risk label. It only informs: nothing in it changes an order (never auto-cancel).
+- Providers (`src/lib/fraud/providers/`): each source is a `FraudProvider` (`id`, `label`, `connected()`, `check(phone)`) in the `FRAUD_PROVIDERS` list; a new source is one more file in that list (its id joins `PROVIDER_IDS`). First provider: Steadfast official API courier score, `GET https://portal.packzy.com/api/v1/fraud_check/<phone>` with `Api-Key` and `Secret-Key` headers, reading `total_delivered`, `total_cancelled` and `total_parcels`, 8 second timeout. The path was not in Steadfast's public docs in November 2026: confirm it when the keys arrive (one constant in `steadfast.ts`). Without `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY` the row shows "Not connected" and the check button is off. Never log in to a courier panel or scrape one.
+- "Check delivery history" runs every connected provider. A good result (found or no history) is reused for 24 hours; a failed one can be tried again at once and keeps the last good counts. The phone is read from the order on the server, never from the form.
+- Manual entry (fallback, for example from the Pathao merchant panel): delivered and cancelled or returned counts (both or neither, 0 to 9,999), a Pathao rating (free text up to 40 characters, shown only, not used for the label) and a note; at least the counts or a rating. One per phone, a new one replaces it.
+- Risk label from the sum of all sources' counts (failed = cancelled or returned), thresholds from Settings `fraud`: no counts = Unknown; failed at least `highMinFailed` and failed percent at least `highFailPercent` = High; fewer than `minRecords` parcels or failed percent at least `checkFailPercent` = Check; else Low. High shows "Ask booking money" with `bookingMoney` from Settings.
+- The sum and label are saved on the phone's Customer record (`risk`) after each check or manual entry. Changing a threshold in Settings works out every saved label again.
+- Orders list: a Risk column (badge, or "Not checked") and a Risk filter (`risk` in the URL: unknown, low, check, high) that matches orders whose phone has that label.
+- Return reason: on a cancelled or returned order, a "Return reason" card (Not set, Refused, Unreachable, Wrong address, Courier delay, Damaged, Wrong item, Fake order). The form sends the reason it was loaded with and the save matches on it and on the status; each change adds a `kind: return_reason` history entry.
+
 Browser Pixel and Conversions API send the same events with the same `event_id`, so Meta counts each event once.
 
 | Event | Browser (Pixel) | Server (CAPI) | event_id |
@@ -594,6 +621,8 @@ CLOUDINARY_UPLOAD_FOLDER=kinboekhon
 NEXT_PUBLIC_META_PIXEL_ID=
 META_CAPI_ACCESS_TOKEN=
 META_TEST_EVENT_CODE=
+STEADFAST_API_KEY=     # Steadfast merchant API key; empty shows "Not connected"
+STEADFAST_SECRET_KEY=
 ```
 
 ## 11. Build order
@@ -648,6 +677,8 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 P2a is done (November 2026): customer records by phone, `/admin/customers` list and customer page, the order page customer card and the Blocked customer flag. Existing orders were backfilled with `npm run backfill:customers`.
 
 P2d is done (November 2026), built before P2b and P2c at the owner's request (decision 90): `/admin/ad-spend` (add, edit, delete entries in USD with a taka rate), `/admin/profit` report, dollar rate and max CPA in Settings, and the dashboard "Ad spend & profit" card.
+
+P2c is done (November 2026), before P2b at the owner's request (decision 91): the order page Delivery history card with the Steadfast provider ("Not connected" until the keys are set) and manual entry, risk labels with thresholds and booking money in Settings, the orders list risk badge and filter, and the return reason on cancelled or returned orders.
 
 ### Phase 3: after launch
 
@@ -756,3 +787,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 88. Customer CRM (P2a, November 2026): a customer is one normalized phone. Spent counts delivered orders only. Tags are VIP, Risky and Blocked. A Blocked phone can still order: the order is saved Pending and marked "Blocked customer" in red, never refused.
 89. Dev and production data are separate (November 2026). Local dev uses the database `kinboekhon_dev` on the same Atlas cluster; production is `kinboekhon`. The production URI stays in `.env.local` as `MONGODB_URI_PROD`, read only by `npm run dev:clone`, which copies settings and products from production to dev and never writes to production. A dev-only admin (`npm run seed:dev-admin`) exists only in the dev database. The admin header shows a "DEV DATABASE" badge when not on production. All tests use the dev database; orders are never deleted and the counter is never reset on production.
 90. Profit report (P2d, November 2026), built before P2b and P2c at the owner's request: ad spend is entered per product per day in US dollars with a taka rate (default from Settings), and the taka amount is saved with it. The report covers Today, This week, This month or a custom range; revenue counts delivered orders only; costs come from the price calculator inputs; products whose ad cost per confirmed order is above the max CPA in Settings are highlighted. The dashboard shows a small summary card.
+91. Fraud check (P2c, November 2026), built before P2b: delivery history by phone from pluggable sources, first the Steadfast official API courier score (keys in `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY`, "Not connected" until set), with a manual entry fallback (counts or a Pathao rating with a note). Never log in to a courier panel or scrape. Each good check is reused for 24 hours. Risk labels Unknown, Low, Check and High come from thresholds in Settings; High shows an "Ask booking money" hint with the amount from Settings. A label never cancels or changes an order. Cancelled and returned orders get a return reason: refused, unreachable, wrong address, courier delay, damaged, wrong item or fake order.

@@ -1,7 +1,9 @@
 import { connectMongoose } from "@/lib/db";
 import { dhakaDayEnd, dhakaDayStart } from "@/lib/dates";
+import type { RiskLabel } from "@/lib/fraud/risk";
 import { shortLocation } from "@/lib/locations/format";
 import type { OrderLocation } from "@/lib/locations/types";
+import { CustomerModel } from "@/lib/models/Customer";
 import { OrderModel, type OrderCall } from "@/lib/models/Order";
 import type { OrderStatus } from "@/lib/orders/enums";
 import { normalizePhone } from "@/lib/phone";
@@ -20,6 +22,8 @@ export interface OrderListItem {
   status: OrderStatus;
   lastCall: OrderCall | null;
   customerBlocked: boolean;
+  // Null until the phone has a delivery history check or manual entry.
+  risk: RiskLabel | null;
 }
 
 export interface OrderListPage {
@@ -67,6 +71,11 @@ function buildQuery(filters: OrderFilters): Record<string, unknown> {
 export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderListPage> {
   await connectMongoose();
   const query = buildQuery(filters);
+  // Risk is kept per phone on the customer record, so the filter becomes a list of phones.
+  if (filters.risk) {
+    const phones = await CustomerModel.distinct("phone", { "risk.label": filters.risk });
+    query.$and = [{ "customer.phone": { $in: phones } }];
+  }
   const total = await OrderModel.countDocuments(query);
   const pageCount = Math.max(1, Math.ceil(total / ORDERS_PER_PAGE));
   const page = Math.min(filters.page, pageCount);
@@ -89,6 +98,12 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     .limit(ORDERS_PER_PAGE)
     .lean<ListDoc[]>();
 
+  const risks = await CustomerModel.find(
+    { phone: { $in: [...new Set(docs.map((doc) => doc.customer.phone))] }, "risk.label": { $exists: true } },
+    { _id: 0, phone: 1, "risk.label": 1 },
+  ).lean<{ phone: string; risk: { label: RiskLabel } }[]>();
+  const riskByPhone = new Map(risks.map((customer) => [customer.phone, customer.risk.label]));
+
   const items = docs.map((doc) => ({
     orderNumber: doc.orderNumber,
     createdAt: doc.createdAt,
@@ -101,6 +116,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     status: doc.status,
     lastCall: doc.lastCall?.outcome ? { outcome: doc.lastCall.outcome, at: doc.lastCall.at, note: doc.lastCall.note ?? "" } : null,
     customerBlocked: doc.customerBlocked === true,
+    risk: riskByPhone.get(doc.customer.phone) ?? null,
   }));
   return { items, total, page, pageCount };
 }

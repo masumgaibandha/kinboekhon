@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BlockedBadge } from "@/components/admin/customers/BlockedBadge";
+import { RiskBadge } from "@/components/admin/fraud/RiskBadge";
 import { CallBadge } from "@/components/admin/orders/CallBadge";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { Money } from "@/components/ui/Money";
@@ -21,6 +22,7 @@ export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
             <th className="px-4 py-3 font-medium">Total</th>
             <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium">Latest call</th>
+            <th className="px-4 py-3 font-medium">Risk</th>
           </tr>
         </thead>
         <tbody>
@@ -58,6 +60,9 @@ export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
                 ) : (
                   <span className="text-muted">Not called</span>
                 )}
+              </td>
+              <td className="px-4 py-3">
+                {order.risk ? <RiskBadge risk={order.risk} /> : <span className="whitespace-nowrap text-muted">Not checked</span>}
               </td>
             </tr>
           ))}

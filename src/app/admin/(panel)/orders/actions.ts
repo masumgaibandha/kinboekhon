@@ -9,6 +9,8 @@ import { logOrderCall } from "@/lib/orders/call-outcome";
 import { changeOrderStatus, saveOrderNote } from "@/lib/orders/change-status";
 import { editOrderCustomer } from "@/lib/orders/edit-customer";
 import { switchToCashOnDelivery } from "@/lib/orders/payment-review";
+import { saveReturnReason } from "@/lib/orders/return-reason";
+import { returnReasonSchema } from "@/lib/validation/delivery-history";
 import {
   adminNoteSchema,
   callLogSchema,
@@ -86,6 +88,19 @@ export async function switchOrderToCod(formData: FormData): Promise<AdminActionR
   if (!parsed.success) return zodFail(parsed.error);
   const { orderNumber, note } = parsed.data;
   return run(() => switchToCashOnDelivery(orderNumber, note));
+}
+
+export async function updateReturnReason(formData: FormData): Promise<AdminActionResult> {
+  await requireAdmin();
+  const text = reader(formData);
+  const parsed = returnReasonSchema.safeParse({
+    orderNumber: text("orderNumber"),
+    reason: text("reason"),
+    initial: text("initial"),
+  });
+  if (!parsed.success) return zodFail(parsed.error);
+  const { orderNumber, reason, initial } = parsed.data;
+  return run(() => saveReturnReason(orderNumber, reason, initial));
 }
 
 export async function logCall(formData: FormData): Promise<AdminActionResult> {

@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
 import { CostFields } from "@/components/admin/costs/CostFields";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
+import { FraudFields } from "@/components/admin/settings/FraudFields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
 import type { WalletKey } from "@/lib/settings";
@@ -127,6 +128,8 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
           numeric
         />
       </Section>
+
+      <FraudFields fraud={settings.fraud} errors={errors} />
 
       <div className="sticky bottom-0 -mx-4 border-t border-line bg-page/95 px-4 py-3">
         <button

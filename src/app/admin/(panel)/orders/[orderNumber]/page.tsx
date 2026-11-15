@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { BlockedBadge } from "@/components/admin/customers/BlockedBadge";
 import { CustomerSummaryCard } from "@/components/admin/customers/CustomerSummaryCard";
+import { DeliveryHistoryCard } from "@/components/admin/fraud/DeliveryHistoryCard";
 import { AdminNoteForm } from "@/components/admin/orders/AdminNoteForm";
 import { CallOutcomeForm } from "@/components/admin/orders/CallOutcomeForm";
 import { OrderAmounts } from "@/components/admin/orders/OrderAmounts";
@@ -11,12 +12,14 @@ import { OrderCard } from "@/components/admin/orders/OrderCard";
 import { OrderCustomer } from "@/components/admin/orders/OrderCustomer";
 import { OrderPayment } from "@/components/admin/orders/OrderPayment";
 import { OrderTracking } from "@/components/admin/orders/OrderTracking";
+import { ReturnReasonForm } from "@/components/admin/orders/ReturnReasonForm";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
 import { requireAdmin } from "@/lib/admin-session";
 import { getCustomerSummary } from "@/lib/customers/customer-summary";
 import { formatDhakaDateTime } from "@/lib/dates";
+import { getDeliveryHistory } from "@/lib/fraud/delivery-history";
 import { getOrderForAdmin } from "@/lib/orders/admin-order-detail";
 
 export const metadata: Metadata = { title: "Order" };
@@ -28,7 +31,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
   const { orderNumber } = await params;
   const order = await getOrderForAdmin(orderNumber);
   if (!order) notFound();
-  const summary = await getCustomerSummary(order.customer.phone, order.orderNumber);
+  const [summary, history] = await Promise.all([
+    getCustomerSummary(order.customer.phone, order.orderNumber),
+    getDeliveryHistory(order.customer.phone),
+  ]);
+  const failed = order.status === "cancelled" || order.status === "returned";
   // Every form is keyed on the saved version, so it always starts from fresh values.
   const key = `${order.orderNumber}-${order.version}`;
 
@@ -50,6 +57,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
             <OrderCustomer key={key} order={order} />
           </OrderCard>
           <CustomerSummaryCard summary={summary} />
+          <DeliveryHistoryCard history={history} orderNumber={order.orderNumber} formKey={key} />
           <OrderCard title="Product and amounts">
             <OrderAmounts order={order} />
           </OrderCard>
@@ -69,6 +77,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
               paymentWaiting={order.payment.status === "submitted"}
             />
           </OrderCard>
+          {failed && (
+            <OrderCard title="Return reason">
+              <ReturnReasonForm key={key} orderNumber={order.orderNumber} reason={order.returnReason} />
+            </OrderCard>
+          )}
           <OrderCard title="Call outcome">
             <CallOutcomeForm key={key} orderNumber={order.orderNumber} />
           </OrderCard>

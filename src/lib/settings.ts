@@ -2,6 +2,8 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { isAccountType } from "@/lib/account-types";
 import { connectMongoose } from "@/lib/db";
+import { withFraudDefaults } from "@/lib/fraud/fraud-settings";
+import type { FraudSettings } from "@/lib/fraud/risk";
 import { SettingsModel } from "@/lib/models/Settings";
 import type { AdSettings } from "@/lib/validation/ad-settings";
 import type { CostDefaults } from "@/lib/validation/costs";
@@ -74,7 +76,7 @@ export async function getSettings(): Promise<Settings> {
   await connectMongoose();
   const saved = await SettingsModel.findOne(
     { key: SETTINGS_KEY },
-    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0 },
+    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0 },
   ).lean<Partial<Settings>>();
 
   const settings = { ...DEFAULT_SETTINGS, ...saved };
@@ -93,10 +95,21 @@ export interface AdminSettings {
 export async function getSettingsForAdmin(): Promise<AdminSettings> {
   await connectMongoose();
   const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0 }).lean<
-    Partial<Settings> & { costDefaults?: Partial<CostDefaults>; ads?: Partial<AdSettings>; updatedAt?: Date }
+    Partial<Settings> & {
+      costDefaults?: Partial<CostDefaults>;
+      ads?: Partial<AdSettings>;
+      fraud?: Partial<FraudSettings>;
+      updatedAt?: Date;
+    }
   >();
   const { updatedAt, ...values } = doc ?? {};
-  const saved = { ...DEFAULT_SETTINGS, ...values, costDefaults: withCostDefaults(values.costDefaults), ads: withAdDefaults(values.ads) };
+  const saved = {
+    ...DEFAULT_SETTINGS,
+    ...values,
+    costDefaults: withCostDefaults(values.costDefaults),
+    ads: withAdDefaults(values.ads),
+    fraud: withFraudDefaults(values.fraud),
+  };
   const reviewWallets = walletsToReview(saved);
   return {
     settings: withReviewedWallets(saved, reviewWallets, false),
