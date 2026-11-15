@@ -40,6 +40,7 @@ function readForm(formData: FormData) {
     whatsappNumber: text("whatsappNumber"),
     duplicateWindowHours: text("duplicateWindowHours"),
     costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
+    ads: { usdRate: text("ads.usdRate"), maxCpa: text("ads.maxCpa") },
   };
 }
 

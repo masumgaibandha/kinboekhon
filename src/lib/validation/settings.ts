@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ACCOUNT_TYPES } from "@/lib/account-types";
 import { BD_MOBILE_PATTERN, ROCKET_PATTERN, normalizePhone } from "@/lib/phone";
+import { adSettingsSchema } from "@/lib/validation/ad-settings";
 import { costDefaultsSchema } from "@/lib/validation/costs";
 
 const amount = z
@@ -68,8 +69,8 @@ export const settingsSchema = z.object({
     .refine((hours) => hours >= 1 && hours <= 168, "Use 1 to 168 hours."),
 });
 
-// Admin-only form: the shop settings plus the price calculator defaults, which never reach the shop.
-export const adminSettingsSchema = settingsSchema.extend({ costDefaults: costDefaultsSchema });
+// Admin-only form: the shop settings plus the price calculator defaults and ad settings, which never reach the shop.
+export const adminSettingsSchema = settingsSchema.extend({ costDefaults: costDefaultsSchema, ads: adSettingsSchema });
 
 export type Settings = z.output<typeof settingsSchema>;
 export type AdminSettingsValues = z.output<typeof adminSettingsSchema>;

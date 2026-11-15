@@ -83,6 +83,10 @@ kinboekhon/
    │  │     ├─ products/new/page.tsx
    │  │     ├─ products/[id]/page.tsx
    │  │     ├─ products/actions.ts
+   │  │     ├─ ad-spend/page.tsx               ad spend entries for a period, add form (P2d)
+   │  │     ├─ ad-spend/[id]/page.tsx          edit one entry
+   │  │     ├─ ad-spend/actions.ts             createAdSpend, updateAdSpend, deleteAdSpend
+   │  │     ├─ profit/page.tsx                 profit and ad spend report (P2d)
    │  │     ├─ settings/page.tsx
    │  │     └─ settings/actions.ts
    │  └─ api/
@@ -242,6 +246,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | whatsappNumber | shown to customers |
 | duplicateWindowHours | default 24 |
 | costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, courier: 120, codPercent: 1, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
+| ads | `{ usdRate: 125, maxCpa: 300 }` (P2d), admin only: `usdRate` is taka per US dollar (up to 2 decimals), the starting rate of a new ad spend entry; `maxCpa` is the highest ad cost per confirmed order (whole taka) before a product is highlighted in the profit report. `getSettings()` leaves them out; the admin reads them with `getAdSettings()` (uncached) |
 
 Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
 
@@ -255,6 +260,17 @@ Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `setti
 | notes | `{ text, at }[]`, only added, shown newest first |
 
 Indexes: `phone` unique, `{ lastOrderAt: -1 }`, `{ tags: 1, lastOrderAt: -1 }`. `syncCustomer(phone)` upserts name, district and lastOrderAt from the newest order and keeps tags and notes. It runs after every new order and after an admin customer edit (for the new and, if the phone changed, the old phone); a failure there never fails the order or the edit. Counts are not stored: they are read from the orders each time.
+
+### AdSpend (P2d)
+| Field | Notes |
+|---|---|
+| day | Date: the start (00:00 Dhaka time, stored in UTC) of the Dhaka day the money was spent; never after today |
+| productId | ObjectId of the advertised product |
+| amountUsd | what Meta billed in US dollars, up to 2 decimals, more than 0 |
+| usdRate | taka per dollar used for this entry (starts at Settings `ads.usdRate`, up to 2 decimals) |
+| amountBdt | whole taka = round(amountUsd x usdRate), worked out on the server in whole cents so it matches a hand calculation |
+
+Indexes: `{ day: 1, productId: 1 }` unique (one entry per product per day: a second one is refused with "edit it instead"), `{ day: -1 }`.
 
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
@@ -343,7 +359,10 @@ Order form fields:
 | `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
 | `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, price calculator, images (upload, reorder, remove), landing sections, active |
-| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window, price calculator defaults (no delivery charges) |
+| `/admin/ad-spend` | Ad spend entries (P2d) for a period (default this month), newest day first, each with Edit and Delete; an add form (date, product, USD amount, rate, live taka amount) |
+| `/admin/ad-spend/[id]` | Edit one ad spend entry, with Delete |
+| `/admin/profit` | Profit and ad spend report (P2d) with a period switch and a custom date range |
+| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window, price calculator defaults (no delivery charges), dollar rate and max CPA (P2d) |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight (grams), air shipping (taka per kg), agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Money inputs are whole taka; percents allow one decimal (COD 0 to 20, return 0 to 90); China price and weight may be empty (0). Results update live as the admin types, including the Price field:
 - Landed cost = China price + weight / 1000 x shipping per kg + agent fee.
@@ -474,6 +493,19 @@ Delivery is free everywhere; its cost is built into the product price (decision 
 - Orders list: payment method and payment status filters.
 
 ## 7. Facebook tracking
+
+### Profit and ad spend report (P2d)
+- Period: Today, This week, This month (same starts as the dashboard, decision 80) or Custom (`from` and `to` days, both included; an empty side is open). In the URL as `?period=today|week|month|custom&from=&to=`; a missing or bad period shows today, a bad day is dropped. `/admin/ad-spend` uses the same switch with this month as its default.
+- Orders count by placement time in the period (like the dashboard). Ad spend counts by its `day` in the period.
+- One row per product with orders or ad spend in the period (name from the product, else the newest order snapshot), most ad spend first, then a Total row:
+  - Ad spend = sum of `amountBdt`.
+  - Orders = all orders placed. Confirmed = orders now `confirmed`, `shipped`, `delivered` or `returned`. Delivered = orders now `delivered`.
+  - Cost per order = ad spend / orders; cost per confirmed = ad spend / confirmed (whole taka, "-" with nothing to divide by).
+  - Revenue = sum of `total` of delivered orders.
+  - Costs from the product's price calculator inputs (its saved `costs` over the Settings `costDefaults`, today's values): product cost = landed cost x quantity of delivered orders; courier and packaging = per order for delivered and returned orders (a returned parcel still paid both). Each is rounded to whole taka.
+  - Net profit = revenue - product cost - courier - packaging - ad spend. ROAS = revenue / ad spend, two decimals with "x", "-" without ad spend.
+- Highlight: a product row with ad spend whose cost per confirmed order is above Settings `ads.maxCpa`, or with ad spend and no confirmed order, gets the light orange background and an "Above max CPA" label.
+- Dashboard: an "Ad spend & profit" card for the dashboard period (all time included): ad spend, revenue, net profit, ROAS and the number of products above max CPA, linking to the report.
 
 ### Customer CRM (P2a)
 - Numbers per phone: orders, delivered, cancelled, returned, spent (sum of `total` of delivered orders), return rate = returned / (delivered + returned), "-" with nothing finished.
@@ -615,6 +647,8 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 
 P2a is done (November 2026): customer records by phone, `/admin/customers` list and customer page, the order page customer card and the Blocked customer flag. Existing orders were backfilled with `npm run backfill:customers`.
 
+P2d is done (November 2026), built before P2b and P2c at the owner's request (decision 90): `/admin/ad-spend` (add, edit, delete entries in USD with a taka rate), `/admin/profit` report, dollar rate and max CPA in Settings, and the dashboard "Ad spend & profit" card.
+
 ### Phase 3: after launch
 
 | # | Module | Browser test |
@@ -721,3 +755,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 87. Meta Pixel + CAPI (P1c, November 2026): ViewContent is browser only; the server sends InitiateCheckout and Purchase with the browser's event_id. Purchase user data adds hashed last name and district.
 88. Customer CRM (P2a, November 2026): a customer is one normalized phone. Spent counts delivered orders only. Tags are VIP, Risky and Blocked. A Blocked phone can still order: the order is saved Pending and marked "Blocked customer" in red, never refused.
 89. Dev and production data are separate (November 2026). Local dev uses the database `kinboekhon_dev` on the same Atlas cluster; production is `kinboekhon`. The production URI stays in `.env.local` as `MONGODB_URI_PROD`, read only by `npm run dev:clone`, which copies settings and products from production to dev and never writes to production. A dev-only admin (`npm run seed:dev-admin`) exists only in the dev database. The admin header shows a "DEV DATABASE" badge when not on production. All tests use the dev database; orders are never deleted and the counter is never reset on production.
+90. Profit report (P2d, November 2026), built before P2b and P2c at the owner's request: ad spend is entered per product per day in US dollars with a taka rate (default from Settings), and the taka amount is saved with it. The report covers Today, This week, This month or a custom range; revenue counts delivered orders only; costs come from the price calculator inputs; products whose ad cost per confirmed order is above the max CPA in Settings are highlighted. The dashboard shows a small summary card.

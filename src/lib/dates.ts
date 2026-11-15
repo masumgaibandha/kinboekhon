@@ -16,6 +16,13 @@ export function formatDhakaDateTime(date: Date): string {
   return dateTimeFormat.format(date);
 }
 
+const dayFormat = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" });
+
+// A "YYYY-MM-DD" day as "15 Nov 2026".
+export function formatDhakaDay(day: string): string {
+  return dayFormat.format(new Date(`${day}T00:00:00Z`));
+}
+
 // Start of a Dhaka calendar day ("YYYY-MM-DD") as a UTC Date, or null when the text is not a real day.
 export function dhakaDayStart(day: string): Date | null {
   if (!DAY_PATTERN.test(day)) return null;

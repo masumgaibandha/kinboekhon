@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { CallsCard } from "@/components/admin/dashboard/CallsCard";
 import { PeriodSwitch } from "@/components/admin/dashboard/PeriodSwitch";
+import { ProfitSummaryCard } from "@/components/admin/dashboard/ProfitSummaryCard";
 import { ProductStatsTable } from "@/components/admin/dashboard/ProductStatsTable";
 import { StatCard } from "@/components/admin/dashboard/StatCard";
 import { Money } from "@/components/ui/Money";
@@ -9,12 +10,18 @@ import { requireAdmin } from "@/lib/admin-session";
 import { getCallQueue, getCallResults, getCallTodo } from "@/lib/orders/call-stats";
 import { ORDER_STATUSES } from "@/lib/orders/enums";
 import { getDashboardStats } from "@/lib/orders/stats";
+import { getProfitReport } from "@/lib/profit/profit-report";
 import { STATUS_LABELS } from "@/lib/orders/status";
-import { dashboardHref, periodStart, readPeriod } from "@/lib/validation/dashboard-period";
+import { dashboardHref, periodStart, readPeriod, type Period } from "@/lib/validation/dashboard-period";
+import { rangeHref } from "@/lib/validation/report-range";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 export const instant = false;
+
+// The profit report has no all time switch; a custom range with no days covers all time.
+const profitHref = (period: Period) =>
+  period === "all" ? "/admin/profit?period=custom" : rangeHref("/admin/profit", period, "today");
 
 const showPercent = (value: number | null) => (value === null ? "-" : `${value}%`);
 
@@ -24,11 +31,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const period = readPeriod(params.period);
   const callsPeriod = readPeriod(params.calls);
   const now = new Date();
-  const [stats, callTodo, callResults, callQueue] = await Promise.all([
-    getDashboardStats(periodStart(period, now)),
+  const start = periodStart(period, now);
+  const [stats, callTodo, callResults, callQueue, profit] = await Promise.all([
+    getDashboardStats(start),
     getCallTodo(),
     getCallResults(periodStart(callsPeriod, now)),
     getCallQueue(),
+    getProfitReport(start, null),
   ]);
 
   return (
@@ -49,6 +58,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         <StatCard label="Return %">{showPercent(stats.returnPercent)}</StatCard>
         <StatCard label="Cancel %">{showPercent(stats.cancelPercent)}</StatCard>
       </div>
+
+      <ProfitSummaryCard report={profit} href={profitHref(period)} />
 
       <CallsCard
         todo={callTodo}

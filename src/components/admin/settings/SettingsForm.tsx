@@ -109,6 +109,25 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
         <CostFields prefix="costDefaults" keys={COST_DEFAULT_KEYS} values={costDefaultStrings} errors={errors} />
       </Section>
 
+      <Section title="Ads and profit report" description="Admin only.">
+        <TextField
+          name="ads.usdRate"
+          label="Dollar rate (taka per USD)"
+          defaultValue={String(settings.ads.usdRate)}
+          error={errors["ads.usdRate"]}
+          hint="Meta bills in US dollars. A new ad spend entry starts with this rate."
+          numeric="decimal"
+        />
+        <TextField
+          name="ads.maxCpa"
+          label="Max CPA (taka per confirmed order)"
+          defaultValue={String(settings.ads.maxCpa)}
+          error={errors["ads.maxCpa"]}
+          hint="The profit report highlights products whose ad cost per confirmed order is above this."
+          numeric
+        />
+      </Section>
+
       <div className="sticky bottom-0 -mx-4 border-t border-line bg-page/95 px-4 py-3">
         <button
           type="submit"

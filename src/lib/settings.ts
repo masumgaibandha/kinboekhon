@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { isAccountType } from "@/lib/account-types";
 import { connectMongoose } from "@/lib/db";
 import { SettingsModel } from "@/lib/models/Settings";
+import type { AdSettings } from "@/lib/validation/ad-settings";
 import type { CostDefaults } from "@/lib/validation/costs";
 import type { AdminSettingsValues, Settings } from "@/lib/validation/settings";
 
@@ -55,6 +56,12 @@ export const DEFAULT_COST_DEFAULTS: CostDefaults = {
   targetProfit: 150,
 };
 
+export const DEFAULT_AD_SETTINGS: AdSettings = { usdRate: 125, maxCpa: 300 };
+
+function withAdDefaults(saved?: Partial<AdSettings>): AdSettings {
+  return { ...DEFAULT_AD_SETTINGS, ...saved };
+}
+
 function withCostDefaults(saved?: Partial<CostDefaults>): CostDefaults {
   return { ...DEFAULT_COST_DEFAULTS, ...saved };
 }
@@ -67,7 +74,7 @@ export async function getSettings(): Promise<Settings> {
   await connectMongoose();
   const saved = await SettingsModel.findOne(
     { key: SETTINGS_KEY },
-    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0 },
+    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0 },
   ).lean<Partial<Settings>>();
 
   const settings = { ...DEFAULT_SETTINGS, ...saved };
@@ -86,10 +93,10 @@ export interface AdminSettings {
 export async function getSettingsForAdmin(): Promise<AdminSettings> {
   await connectMongoose();
   const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0 }).lean<
-    Partial<Settings> & { costDefaults?: Partial<CostDefaults>; updatedAt?: Date }
+    Partial<Settings> & { costDefaults?: Partial<CostDefaults>; ads?: Partial<AdSettings>; updatedAt?: Date }
   >();
   const { updatedAt, ...values } = doc ?? {};
-  const saved = { ...DEFAULT_SETTINGS, ...values, costDefaults: withCostDefaults(values.costDefaults) };
+  const saved = { ...DEFAULT_SETTINGS, ...values, costDefaults: withCostDefaults(values.costDefaults), ads: withAdDefaults(values.ads) };
   const reviewWallets = walletsToReview(saved);
   return {
     settings: withReviewedWallets(saved, reviewWallets, false),
@@ -106,4 +113,11 @@ export async function getCostDefaults(): Promise<CostDefaults> {
     costDefaults?: Partial<CostDefaults>;
   }>();
   return withCostDefaults(doc?.costDefaults);
+}
+
+// Uncached admin read: the dollar rate for new ad spend entries and the max CPA for the profit report.
+export async function getAdSettings(): Promise<AdSettings> {
+  await connectMongoose();
+  const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, ads: 1 }).lean<{ ads?: Partial<AdSettings> }>();
+  return withAdDefaults(doc?.ads);
 }
