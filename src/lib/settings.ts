@@ -1,12 +1,15 @@
 import { cacheLife, cacheTag } from "next/cache";
 
 import { isAccountType } from "@/lib/account-types";
+import { withCourierDefaults } from "@/lib/courier/courier-cost";
 import { connectMongoose } from "@/lib/db";
 import { withFraudDefaults } from "@/lib/fraud/fraud-settings";
 import type { FraudSettings } from "@/lib/fraud/risk";
 import { SettingsModel } from "@/lib/models/Settings";
+import type { DeliveryContext } from "@/lib/price-calculator";
 import type { AdSettings } from "@/lib/validation/ad-settings";
 import type { CostDefaults } from "@/lib/validation/costs";
+import type { CourierSettings } from "@/lib/validation/courier-settings";
 import type { AdminSettingsValues, Settings } from "@/lib/validation/settings";
 
 export const SETTINGS_KEY = "main";
@@ -54,8 +57,6 @@ export const DEFAULT_COST_DEFAULTS: CostDefaults = {
   shippingPerKg: 710,
   agentFee: 0,
   packaging: 10,
-  courier: 120,
-  codPercent: 1,
   returnPercent: 15,
   adCost: 250,
   targetProfit: 150,
@@ -79,7 +80,7 @@ export async function getSettings(): Promise<Settings> {
   await connectMongoose();
   const saved = await SettingsModel.findOne(
     { key: SETTINGS_KEY },
-    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0 },
+    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0, courier: 0 },
   ).lean<Partial<Settings>>();
 
   const settings = { ...DEFAULT_SETTINGS, ...saved };
@@ -102,6 +103,7 @@ export async function getSettingsForAdmin(): Promise<AdminSettings> {
       costDefaults?: Partial<CostDefaults>;
       ads?: Partial<AdSettings>;
       fraud?: Partial<FraudSettings>;
+      courier?: Partial<CourierSettings>;
       updatedAt?: Date;
     }
   >();
@@ -112,6 +114,7 @@ export async function getSettingsForAdmin(): Promise<AdminSettings> {
     costDefaults: withCostDefaults(values.costDefaults),
     ads: withAdDefaults(values.ads),
     fraud: withFraudDefaults(values.fraud),
+    courier: withCourierDefaults(values.courier),
   };
   const reviewWallets = walletsToReview(saved);
   return {
@@ -129,6 +132,26 @@ export async function getCostDefaults(): Promise<CostDefaults> {
     costDefaults?: Partial<CostDefaults>;
   }>();
   return withCostDefaults(doc?.costDefaults);
+}
+
+// Uncached admin read: courier rates by weight slab, return fee and COD charge.
+export async function getCourierSettings(): Promise<CourierSettings> {
+  await connectMongoose();
+  const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, courier: 1 }).lean<{
+    courier?: Partial<CourierSettings>;
+  }>();
+  return withCourierDefaults(doc?.courier);
+}
+
+// Admin read for the price calculator: delivery charges, advance discount and courier cost.
+export async function getDeliveryContext(): Promise<DeliveryContext> {
+  const [settings, courier] = await Promise.all([getSettings(), getCourierSettings()]);
+  return {
+    dhakaCity: settings.deliveryChargeDhakaCity,
+    outside: settings.deliveryChargeOutside,
+    advanceDiscount: settings.advanceDeliveryDiscount,
+    courier,
+  };
 }
 
 // Uncached admin read: the dollar rate for new ad spend entries and the max CPA for the profit report.

@@ -35,6 +35,20 @@ const fraudSchema = new Schema(
   { _id: false },
 );
 
+const courierSchema = new Schema(
+  {
+    dhakaHalfKg: Number,
+    dhakaOneKg: Number,
+    dhakaTwoKg: Number,
+    outsideHalfKg: Number,
+    outsideOneKg: Number,
+    outsideTwoKg: Number,
+    returnFeePercent: Number,
+    codPercent: Number,
+  },
+  { _id: false },
+);
+
 const settingsSchema = new Schema<SettingsDocument>(
   {
     key: { type: String, required: true, unique: true },
@@ -49,6 +63,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     supportPhone: String,
     whatsappNumber: String,
     duplicateWindowHours: { type: Number, min: 1 },
+    courier: courierSchema,
     costDefaults: costsSchema,
     ads: adsSchema,
     fraud: fraudSchema,

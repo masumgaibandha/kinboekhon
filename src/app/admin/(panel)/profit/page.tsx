@@ -52,9 +52,10 @@ export default async function ProfitPage({ searchParams }: PageProps<"/admin/pro
           delivered or returned. Revenue counts delivered orders only, delivery charge included.
         </p>
         <p>
-          Costs come from each product&apos;s price calculator: landed product cost for delivered items, courier and
-          packaging for delivered and returned parcels. COD charge is the Settings COD % of the cash the courier
-          collected on delivered orders.
+          Costs come from each product&apos;s price calculator: landed product cost for delivered items, packaging for
+          delivered and returned parcels. Courier is the Settings courier cost by area and weight (unit weight x
+          quantity) for each delivered parcel, plus the return fee on returned ones. COD charge is the Settings COD % of
+          the cash the courier collected on delivered orders.
         </p>
         <p>
           Rows with ad spend and a cost per confirmed order above the max CPA (<Money amount={maxCpa} />) are highlighted.{" "}

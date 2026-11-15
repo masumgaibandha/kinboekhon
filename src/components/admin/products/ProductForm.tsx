@@ -8,8 +8,8 @@ import { createProduct, updateProduct } from "@/app/admin/(panel)/products/actio
 import { Section, TextArea, TextField, Toggle } from "@/components/admin/form/fields";
 import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
-import type { DeliveryCharges } from "@/components/admin/products/CostResults";
 import { PriceCalculator } from "@/components/admin/products/PriceCalculator";
+import type { DeliveryContext } from "@/lib/price-calculator";
 import { ACTIVE_INITIAL_FIELD } from "@/lib/product-form";
 import type { ProductCosts } from "@/lib/validation/costs";
 import type { ProductInput } from "@/lib/validation/product";
@@ -18,10 +18,10 @@ interface ProductFormProps {
   productId?: string;
   product: ProductInput;
   costs: ProductCosts;
-  charges: DeliveryCharges;
+  delivery: DeliveryContext;
 }
 
-export function ProductForm({ productId, product, costs, charges }: ProductFormProps) {
+export function ProductForm({ productId, product, costs, delivery }: ProductFormProps) {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -114,7 +114,7 @@ export function ProductForm({ productId, product, costs, charges }: ProductFormP
         </div>
       </Section>
 
-      <PriceCalculator costs={costs} price={price} charges={charges} errors={errors} />
+      <PriceCalculator costs={costs} price={price} delivery={delivery} errors={errors} />
 
       <Section title="Images">
         <ImageUploader

@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
 import { CostFields } from "@/components/admin/costs/CostFields";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
+import { CourierFields } from "@/components/admin/settings/CourierFields";
 import { FraudFields } from "@/components/admin/settings/FraudFields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
@@ -113,6 +114,8 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
       <Section title="Order protection">
         {amount("duplicateWindowHours", "Duplicate order window (hours)", "Same phone and product inside this window is blocked. 1 to 168.")}
       </Section>
+
+      <CourierFields courier={settings.courier} errors={errors} />
 
       <Section
         title="Price calculator defaults"

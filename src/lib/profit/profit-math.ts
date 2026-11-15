@@ -50,12 +50,13 @@ function withRatios(numbers: Omit<ProfitNumbers, "costPerOrder" | "costPerConfir
 }
 
 // Delivered orders cost the landed product and the COD charge on the cash collected; delivered and returned
-// parcels both paid courier and packaging.
+// parcels both paid packaging. `courierCost` is the real courier cost of those parcels (see parcel-courier.ts).
 export function profitRow(
   product: { productId: string; name: string },
   counts: OrderCounts,
   adSpend: number,
   costs: ProductCosts,
+  courierCost: number,
   maxCpa: number,
   codPercent: number,
 ): ProfitRow {
@@ -64,7 +65,7 @@ export function profitRow(
     ...counts,
     adSpend,
     productCost: Math.round(landedCost(costs) * counts.deliveredQuantity),
-    courierCost: Math.round(costs.courier * shipped),
+    courierCost: Math.round(courierCost),
     packagingCost: Math.round(costs.packaging * shipped),
     codCost: Math.round((counts.codCollected * codPercent) / 100),
   });

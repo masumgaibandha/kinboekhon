@@ -6,8 +6,9 @@ import { OrderModel } from "@/lib/models/Order";
 import { ProductModel } from "@/lib/models/Product";
 import type { OrderStatus } from "@/lib/orders/enums";
 import { startingCosts } from "@/lib/products";
+import { courierCostByProduct, parcelGroups } from "@/lib/profit/parcel-courier";
 import { NO_ORDERS, profitRow, totalOf, type OrderCounts, type ProfitNumbers, type ProfitRow } from "@/lib/profit/profit-math";
-import { getAdSettings, getCostDefaults } from "@/lib/settings";
+import { getAdSettings, getCostDefaults, getCourierSettings } from "@/lib/settings";
 import type { ProductCosts } from "@/lib/validation/costs";
 import { rangeFilter } from "@/lib/validation/report-range";
 
@@ -57,11 +58,13 @@ function adSpendTotals(start: Date | null, end: Date | null) {
 // Profit per product for orders placed and ad spend days in [start, end); an open side has no limit.
 export async function getProfitReport(start: Date | null, end: Date | null): Promise<ProfitReport> {
   await connectMongoose();
-  const [orderRows, spendRows, defaults, ads] = await Promise.all([
+  const [orderRows, spendRows, parcels, defaults, ads, courier] = await Promise.all([
     orderCounts(start, end),
     adSpendTotals(start, end),
+    parcelGroups(start, end),
     getCostDefaults(),
     getAdSettings(),
+    getCourierSettings(),
   ]);
 
   const counts = new Map(orderRows.map(({ _id, ...row }) => [String(_id), row]));
@@ -71,6 +74,8 @@ export async function getProfitReport(start: Date | null, end: Date | null): Pro
     { _id: Types.ObjectId; name: string; costs?: Partial<ProductCosts> }[]
   >();
   const byId = new Map(products.map((product) => [String(product._id), product]));
+  const costsOf = (id: string) => startingCosts(defaults, byId.get(id)?.costs);
+  const courierCosts = courierCostByProduct(parcels, (id) => costsOf(id).weightGrams, courier);
 
   const rows = ids
     .map((id) => {
@@ -80,9 +85,10 @@ export async function getProfitReport(start: Date | null, end: Date | null): Pro
         { productId: id, name: product?.name ?? snapshotName ?? "Removed product" },
         orders,
         spend.get(id) ?? 0,
-        startingCosts(defaults, product?.costs),
+        costsOf(id),
+        courierCosts.get(id) ?? 0,
         ads.maxCpa,
-        defaults.codPercent,
+        courier.codPercent,
       );
     })
     .sort((a, b) => b.adSpend - a.adSpend || b.orders - a.orders);

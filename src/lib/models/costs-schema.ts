@@ -8,8 +8,6 @@ export const costsSchema = new Schema(
     shippingPerKg: Number,
     agentFee: Number,
     packaging: Number,
-    courier: Number,
-    codPercent: Number,
     returnPercent: Number,
     adCost: Number,
     targetProfit: Number,

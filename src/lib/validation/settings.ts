@@ -4,6 +4,7 @@ import { ACCOUNT_TYPES } from "@/lib/account-types";
 import { BD_MOBILE_PATTERN, ROCKET_PATTERN, normalizePhone } from "@/lib/phone";
 import { adSettingsSchema } from "@/lib/validation/ad-settings";
 import { costDefaultsSchema } from "@/lib/validation/costs";
+import { courierSettingsSchema } from "@/lib/validation/courier-settings";
 import { fraudSettingsSchema } from "@/lib/validation/fraud-settings";
 
 const amount = z
@@ -73,8 +74,9 @@ export const settingsSchema = z.object({
     .refine((hours) => hours >= 1 && hours <= 168, "Use 1 to 168 hours."),
 });
 
-// Admin-only form: the shop settings plus the price calculator defaults, ad and fraud check settings, which never reach the shop.
+// Admin-only form: the shop settings plus the courier rates, price calculator defaults, ad and fraud check settings, which never reach the shop.
 export const adminSettingsSchema = settingsSchema.extend({
+  courier: courierSettingsSchema,
   costDefaults: costDefaultsSchema,
   ads: adSettingsSchema,
   fraud: fraudSettingsSchema,

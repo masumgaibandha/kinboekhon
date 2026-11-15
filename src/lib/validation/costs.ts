@@ -15,7 +15,7 @@ const optionalWhole = (max: number, message: string) =>
     .transform((value) => (value === "" ? 0 : Number(value)))
     .refine((value) => value <= max, message);
 
-const percent = (max: number) =>
+export const percentField = (max: number) =>
   z
     .string()
     .trim()
@@ -27,9 +27,7 @@ export const costDefaultsSchema = z.object({
   shippingPerKg: taka,
   agentFee: taka,
   packaging: taka,
-  courier: taka,
-  codPercent: percent(20),
-  returnPercent: percent(90),
+  returnPercent: percentField(90),
   adCost: taka,
   targetProfit: taka,
 });

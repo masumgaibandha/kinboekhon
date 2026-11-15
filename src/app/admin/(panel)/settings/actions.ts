@@ -9,6 +9,7 @@ import { relabelAllCustomers } from "@/lib/fraud/customer-risk";
 import { SettingsModel } from "@/lib/models/Settings";
 import { SETTINGS_KEY, SETTINGS_TAG } from "@/lib/settings";
 import { COST_DEFAULT_KEYS, readCostFields } from "@/lib/validation/costs";
+import { COURIER_SETTING_KEYS } from "@/lib/validation/courier-settings";
 import { FRAUD_SETTING_KEYS } from "@/lib/validation/fraud-settings";
 import { adminSettingsSchema } from "@/lib/validation/settings";
 
@@ -44,6 +45,7 @@ function readForm(formData: FormData) {
     supportPhone: text("supportPhone"),
     whatsappNumber: text("whatsappNumber"),
     duplicateWindowHours: text("duplicateWindowHours"),
+    courier: Object.fromEntries(COURIER_SETTING_KEYS.map((key) => [key, text(`courier.${key}`)])),
     costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
     ads: { usdRate: text("ads.usdRate"), maxCpa: text("ads.maxCpa") },
     fraud: Object.fromEntries(FRAUD_SETTING_KEYS.map((key) => [key, text(`fraud.${key}`)])),

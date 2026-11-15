@@ -3,12 +3,10 @@ import type { CostKey } from "@/lib/validation/costs";
 
 const FIELDS: Record<CostKey, { label: string; decimal?: boolean; hint?: string }> = {
   chinaPrice: { label: "China price (taka)" },
-  weightGrams: { label: "Weight (grams)" },
+  weightGrams: { label: "Weight with packaging (grams)", hint: "Used for air shipping and the courier weight slab." },
   shippingPerKg: { label: "Air shipping (taka per kg)" },
   agentFee: { label: "Agent fee (taka)" },
   packaging: { label: "Packaging (taka)" },
-  courier: { label: "Courier charge (taka)", hint: "What the courier takes per parcel. The customer pays the delivery charge." },
-  codPercent: { label: "COD charge (%)", decimal: true },
   returnPercent: { label: "Return rate (%)", decimal: true },
   adCost: { label: "Ad cost per order (taka)" },
   targetProfit: { label: "Target profit per order (taka)" },
