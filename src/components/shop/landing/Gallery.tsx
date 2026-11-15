@@ -8,11 +8,13 @@ import type { ProductImage } from "@/lib/product-images";
 interface GalleryProps {
   images: ProductImage[];
   alt: string;
+  // Below the first screen: no image is preloaded.
+  lazy?: boolean;
 }
 
 const SIZES = "(min-width: 576px) 536px, calc(100vw - 40px)";
 
-export function Gallery({ images, alt }: GalleryProps) {
+export function Gallery({ images, alt, lazy = false }: GalleryProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
 
@@ -42,7 +44,7 @@ export function Gallery({ images, alt }: GalleryProps) {
               alt={index === 0 ? alt : `${alt}, ছবি ${index + 1}`}
               fill
               sizes={SIZES}
-              preload={index === 0}
+              preload={!lazy && index === 0}
               className="object-contain"
             />
           </div>

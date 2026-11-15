@@ -7,7 +7,7 @@ export const MAX_FAQ = 15;
 
 const text = (max: number) => z.string().trim().max(max, `Keep it under ${max} characters.`);
 
-const faq = z
+export const faqListSchema = z
   .array(z.object({ question: text(200), answer: text(1000) }))
   .max(MAX_FAQ, `Up to ${MAX_FAQ} questions.`)
   .superRefine((rows, ctx) => {
@@ -28,7 +28,7 @@ export const homeContentSchema = z.object({
     founderName: text(80),
     founderPhoto: singleImageField("home"),
   }),
-  faq,
+  faq: faqListSchema,
 });
 
 export type HomeContentValues = z.output<typeof homeContentSchema>;

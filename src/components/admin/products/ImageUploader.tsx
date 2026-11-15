@@ -4,6 +4,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 import toast from "react-hot-toast";
 
 import { ImageThumb } from "@/components/admin/products/ImageThumb";
+import type { ImageKind } from "@/lib/cloudinary/folder";
 import { checkImageFile, getUploadSignature, uploadImage } from "@/components/admin/products/upload-image";
 import { IMAGE_ACCEPT, IMAGE_LIMITS, type ImageListName, type ProductImage } from "@/lib/product-images";
 
@@ -14,13 +15,15 @@ interface ImageUploaderProps {
   images: ProductImage[];
   errors: Record<string, string>;
   markMain?: boolean;
+  // Cloudinary folder for new uploads.
+  kind?: ImageKind;
 }
 
 export const UPLOADING_FIELD = "imagesUploading";
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : "Upload failed.");
 
-export function ImageUploader({ name, label, hint, images: initial, errors, markMain }: ImageUploaderProps) {
+export function ImageUploader({ name, label, hint, images: initial, errors, markMain, kind = "products" }: ImageUploaderProps) {
   const [images, setImages] = useState(initial);
   const [uploading, setUploading] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +49,7 @@ export function ImageUploader({ name, label, hint, images: initial, errors, mark
 
     setUploading(valid.length);
     try {
-      const signature = await getUploadSignature();
+      const signature = await getUploadSignature(kind);
       const results = await Promise.allSettled(valid.map((file) => uploadImage(file, signature)));
       const uploaded = results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
       results.forEach((result) => result.status === "rejected" && toast.error(errorMessage(result.reason)));

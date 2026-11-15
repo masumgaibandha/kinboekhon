@@ -61,6 +61,7 @@ kinboekhon/
    │  │  ├─ page.tsx             home: banner slider, trust bar, categories, popular and new products, why us, FAQ (decision 97)
    │  │  ├─ c/[slug]/page.tsx    category page
    │  │  ├─ search/page.tsx      product search (`?q=`)
+   │  ├─ (landing)/              ad landing pages: own layout (logo only, Meta Pixel), `l/[slug]/page.tsx` (decision 98)
    │  │  ├─ p/[slug]/page.tsx    product landing page
    │  │  ├─ thank-you/[publicId]/page.tsx
    │  │  ├─ privacy/page.tsx
@@ -149,6 +150,7 @@ kinboekhon/
       ├─ product-lists.ts        popular, new and category product cards (cached), search (uncached)
       ├─ categories/, banners/   shop.ts (cached reads) and admin.ts (uncached admin reads)
       ├─ home/home-content.ts    home page texts with defaults (cached, tag `home`)
+      ├─ landing/                landing-pages.ts (cached shop read, admin read), video.ts (YouTube and Facebook links), benefit-icons.ts
       ├─ dates.ts                Asia/Dhaka date format, day ranges, week start (Saturday) and month start
       ├─ turnstile.ts            server verify (passed, failed, unverified)
       ├─ rate-limit.ts           fixed-window counters in MongoDB
@@ -237,6 +239,25 @@ No delete and no active flag in this version. Every category is shown in the hea
 
 Read through `getHomeContent()` (`"use cache"`, tag `home`) with code defaults until the first save.
 
+### LandingPage (decision 98)
+One per product (`productId` unique). Shown at `/l/<product slug>` only while `active` (On) and the product is Active. Every section is optional and hidden when empty; empty titles use a Bangla default.
+| Field | Notes |
+|---|---|
+| active | On / Off. The editor sends the values it was loaded with; the action writes only the sections that changed |
+| headline, subheadline | headline empty: the product name |
+| heroImage | `landing` folder; empty: the product's main image |
+| heroVideoUrl | YouTube (`watch`, `youtu.be`, `shorts`, `live`, `embed`) or Facebook (`/videos/`, `watch?v=`, `reel`, `fb.watch`) link. Shown as a cover (hero image, else YouTube's still) with a play button; the player (youtube-nocookie or Facebook plugin) loads only on tap |
+| problem | `{ title, points[] }` up to 10 |
+| solution | `{ title, text }`, each line a paragraph |
+| benefits | `{ title, items: { icon, text }[] }` up to 10; icons: check, shield, bolt, clock, star, heart, leaf, hand, gift, truck |
+| gallery | `{ title, images[] }` up to 10, swipe gallery |
+| howTo | `{ title, steps[] }` up to 10, numbered |
+| inBox | `{ title, items[] }` up to 15 |
+| specs | `{ title, rows: { label, value }[] }` up to 20, typed as "Label: value" lines |
+| guarantee | one line in a highlighted strip |
+| faq | `{ question, answer }[]` up to 15 |
+| isDemo | demo data |
+
 ### Order
 | Field | Type | Notes |
 |---|---|---|
@@ -267,7 +288,7 @@ Read through `getHomeContent()` (`"use cache"`, tag `home`) with code defaults u
 | courier | `{ provider: pathao, state, startedAt, consignmentId, deliveryFee, status, statusAt, error }` (P2b). `state`: `sending` (request out, the lock that stops a second send), `sent`, `unknown` (no clear answer: the admin checks the Pathao panel, then clears it). `deliveryFee` is Pathao's fee in whole taka; `status` is Pathao's latest status slug (like `in-transit`) |
 | courierLocation | `{ cityId, cityName, zoneId, zoneName, areaId, areaName }` (P2b): the Pathao place saved by the admin, or used when sent |
 | lastCall | `{ outcome, at, note }` | the newest call (P1b), for the orders list column and filter. `outcome`: `agreed_to_wait` \| `declined` \| `no_answer` \| `call_later` |
-| tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
+| tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmMedium, utmCampaign, utmContent, utmTerm }` (UTMs read from the order page URL, the request's same-origin Referer; the admin order Tracking card shows the page path and the UTMs, decision 98) | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
 | stockOut | number | P2e: units taken from stock when the order became Shipped (by the status form or a Pathao send); set once. Orders shipped before P2e have none and never touch stock |
 | stockBack | number | P2e: units put back when the order became Returned, unless its return reason is Damaged. Setting Damaged later takes them out again; changing it away from Damaged puts them back |
@@ -388,6 +409,7 @@ Index: `{ productId, createdAt: -1 }`. Only `createdAt` (no `updatedAt`). A move
 | `/` | Home page, see "Home page" below (decision 97) |
 | `/c/[slug]` | Category name and its active products (sortOrder, then newest); unknown slug: not-found page with a home button |
 | `/search?q=` | Search box and active products whose name contains the text (ignoring case, up to 40), `noindex`, uncached |
+| `/l/[slug]` | Ad landing page (decision 98), `noindex`: logo-only header (no link, no menu), hero (headline, subheadline, image or video, product name and price, order button, trust badges), problem, solution, benefits, gallery, how to use, in the box, specs, guarantee line, FAQ, product name and price again, the same order form, sticky mobile bar with price and "অর্ডার করুন", a small footer without links. No other products. ViewContent, InitiateCheckout and Purchase work as on `/p/[slug]`. Cached with tags `product-<slug>`, `landing-<productId>` and `landings`; Off or unknown: not-found page (first request after a change 200, later 404, as decision 35) |
 | `/p/[slug]` | Landing page, see below |
 | `/thank-you/[publicId]` | Thank-you message, order number, product, delivery charge, discount, total, advance paid (with "payment under review" note) and amount due on delivery, support phone |
 | `/privacy`, `/terms`, `/return-policy` | Static Bangla text (P1e), linked in the footer and from a line under the order button; contact phone and WhatsApp from Settings, each hidden when empty |
@@ -477,6 +499,7 @@ Order form fields:
 | `/admin/categories`, `/admin/categories/new`, `/admin/categories/[id]` | Category list (image, name, slug, product count, order, View, Edit) and form: name, slug, sort order, image upload (decision 97) |
 | `/admin/banners`, `/admin/banners/new`, `/admin/banners/[id]` | Banner list (mobile thumbnail, title, link, order, On/Off) and form: title, link, sort order, On, mobile and desktop image uploads |
 | `/admin/home` | Trust bar texts, why us (title, text, founder name, founder photo), FAQ rows (add, remove) |
+| `/admin/products/[id]/landing` | Ad landing page editor for the product (decision 98): On, every section, image uploads. The product page and this page show an "Ad landing page" card: live or not, View, "Copy landing link" (the link with `utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}`, Meta's URL macros) and, on the product page, "Edit landing page" |
 | `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, courier cost (decision 93), price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c) |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight with packaging (grams), air shipping (taka per kg), agent fee, packaging, return rate %, ad cost per order, target profit. Money inputs are whole taka; the return rate allows one decimal (0 to 90); China price and weight may be empty (0). Delivery charges, the advance discount, courier cost, return fee and COD % come from Settings (decision 93). Results update live as the admin types, including the Price field:
@@ -804,6 +827,8 @@ P2e is done (November 2026, decision 95): product stock and low-stock level, log
 
 P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page and the orders list (bulk, one per page) and the orders CSV export.
 
+H2 **Ad landing pages** is done (November 2026, decision 98): `/l/[slug]` per product with On/Off, optional sections edited at `/admin/products/[id]/landing`, Copy landing link with the UTM template, five UTM values saved on orders. Browser test at 390px: every section, sticky bar scrolls to the form and hides, video plays on tap, a COD order with UTMs fired ViewContent, InitiateCheckout and Purchase with their event ids and the order page shows the UTMs, Off gives the not-found page. `npm run demo:seed` also makes `/l/demo-vegetable-chopper` (gallery placeholders in the `landing` folder); `demo:clear` deletes landing pages marked `isDemo`.
+
 H1 **Home page** is done (November 2026, decision 97), built at the owner's request: categories (admin, product field, `/c/[slug]`), banner slider, trust bar, popular and new products, why us, FAQ, floating WhatsApp button, header category menu and search (`/search`). Browser test: 390px and desktop, slider auto and swipe, menu, search, category page, admin saves update the shop at once.
 
 Demo data (dev database only): `npm run demo:seed` adds 3 categories, 8 products and 2 banners, each `isDemo: true`, with plain placeholder PNGs uploaded to Cloudinary under fixed `demo-*` ids (a rerun replaces them). `npm run demo:clear` deletes every product, category and banner marked `isDemo` and clears the category of any other product that pointed to a demo category. Both refuse to run on production. Restart the dev server or build again afterwards, because the scripts cannot refresh the cache tags.
@@ -922,3 +947,4 @@ Cart, customer accounts, product variants, email notifications, online payment g
 95. Stock count (P2e, November 2026): stock goes down when an order is sent to the courier (status Shipped, by hand or by a Pathao send), never when it is placed or confirmed. A returned parcel goes back in stock unless its return reason is Damaged (the P2c reason decides). Orders are still taken at 0 stock by default and the admin sees "Out of stock" on pending and confirmed orders of that product; a Settings toggle hides the order button and form at 0 stock instead. Purchases log units and cost per unit; manual adjustments need a reason. New products start with stock 0 and a low-stock level of 5.
 96. Print and export (P2h, November 2026), built as the owner asked: A5 invoice per order in Bangla, bulk print of ticked orders (one invoice per page) and the orders CSV export with the current filters. The parcel label and courier CSV export from the first P2h line were not built; Pathao parcels are booked through the API (decision 94).
 97. Home page (November 2026), replacing decision 25: hero banner slider (separate mobile and desktop images, link, order, On/Off), trust bar under it with editable text, categories (admin add, edit, sort, image; each product has one category; page `/c/[slug]`), "জনপ্রিয় পণ্য" picked with a Popular box on each product, "নতুন পণ্য" (newest 8), "কেন কিনবো এখন" with editable text and an optional founder photo, an editable FAQ, and a floating WhatsApp button from Settings. The header gets a category menu and a search box (`/search`, product name only). Admin pages: Categories, Banners, Home page. Trust bar digits follow decision 41 ("3 দিনে রিটার্ন"). Demo data with `isDemo` and `npm run demo:seed` / `demo:clear`, dev database only.
+98. Ad landing pages (November 2026): one page per product at `/l/<product slug>` for Meta ads, On/Off from admin, in its own layout with only the logo (no menu, no links away, no other products). Optional sections edited on the product's landing editor (`/admin/products/[id]/landing`, a separate page so its fields do not clash with the product form): headline, subheadline, hero image or YouTube/Facebook video, problem, solution, benefits with icons, gallery, how to use, in the box, specs, guarantee line, FAQ, then the existing order form. Price near the top and above the form; sticky mobile order bar. Meta events as on the product page. Orders also save utm_medium, utm_content and utm_term. Admin "Copy landing link" adds a UTM template with Meta's URL macros. The pages are `noindex`.

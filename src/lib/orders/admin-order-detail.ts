@@ -49,6 +49,8 @@ export interface AdminTracking {
   turnstile: TurnstileResult | null;
   // Other orders from the same address in the 24 hours before this one.
   sameIpOrders: number;
+  sourceUrl: string;
+  utm: { source: string; medium: string; campaign: string; content: string; term: string };
 }
 
 export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder | null> {
@@ -112,6 +114,14 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
       userAgent: doc.tracking?.userAgent ?? "",
       turnstile: doc.tracking?.turnstile ?? null,
       sameIpOrders,
+      sourceUrl: doc.tracking?.sourceUrl ?? "",
+      utm: {
+        source: doc.tracking?.utmSource ?? "",
+        medium: doc.tracking?.utmMedium ?? "",
+        campaign: doc.tracking?.utmCampaign ?? "",
+        content: doc.tracking?.utmContent ?? "",
+        term: doc.tracking?.utmTerm ?? "",
+      },
     },
   };
 }

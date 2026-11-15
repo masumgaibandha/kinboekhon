@@ -9,6 +9,14 @@ const TURNSTILE_LABELS: Record<TurnstileResult, string> = {
   unverified: "Unverified (Cloudflare could not be reached)",
 };
 
+const UTM_ROWS = [
+  ["source", "UTM source"],
+  ["medium", "UTM medium"],
+  ["campaign", "UTM campaign"],
+  ["content", "UTM content"],
+  ["term", "UTM term"],
+] as const;
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex justify-between gap-4 py-1">
@@ -35,6 +43,16 @@ export function OrderTracking({ tracking }: { tracking: AdminTracking }) {
       <Row label="Browser">
         <span className="text-xs">{tracking.userAgent || "Unknown"}</span>
       </Row>
+      <Row label="Ordered from">
+        <span className="text-xs">{tracking.sourceUrl ? new URL(tracking.sourceUrl).pathname : "Unknown"}</span>
+      </Row>
+      {UTM_ROWS.map(([key, label]) =>
+        tracking.utm[key] ? (
+          <Row key={key} label={label}>
+            <span className="text-xs">{tracking.utm[key]}</span>
+          </Row>
+        ) : null,
+      )}
     </dl>
   );
 }

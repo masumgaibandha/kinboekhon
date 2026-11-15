@@ -49,7 +49,10 @@ export interface OrderTracking {
   fbc?: string;
   sourceUrl?: string;
   utmSource?: string;
+  utmMedium?: string;
   utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
 }
 
 export interface OrderDocument {

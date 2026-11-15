@@ -14,6 +14,7 @@ export const IMAGE_LIMITS = {
   images: 8,
   "solution.images": 6,
   "proof.images": 10,
+  "gallery.images": 10,
 } as const;
 
 export type ImageListName = keyof typeof IMAGE_LIMITS;

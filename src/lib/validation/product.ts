@@ -7,9 +7,9 @@ import { imageListField } from "@/lib/validation/image";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const text = (max: number) => z.string().trim().max(max, `Keep it under ${max} characters.`);
+export const text = (max: number) => z.string().trim().max(max, `Keep it under ${max} characters.`);
 
-const lines = (maxItems: number) =>
+export const lines = (maxItems: number) =>
   z
     .string()
     .transform((value) =>

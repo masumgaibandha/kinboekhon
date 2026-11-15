@@ -5,6 +5,7 @@ import { ProductModel } from "@/lib/models/Product";
 
 import { DEMO_BANNERS, DEMO_CATEGORIES, DEMO_PRODUCTS } from "./demo-data";
 import { uploadPlaceholder } from "./demo-images";
+import { seedDemoLanding } from "./demo-landing";
 
 // Demo categories, products and banners for testing. Only on a dev database, never production.
 async function seedDemo() {
@@ -60,8 +61,10 @@ async function seedDemo() {
     );
   }
 
+  const landingSlug = await seedDemoLanding();
+
   console.log(`Database: ${DB_NAME}`);
-  console.log(`Demo data: ${DEMO_CATEGORIES.length} categories, ${DEMO_PRODUCTS.length} products, ${DEMO_BANNERS.length} banners.`);
+  console.log(`Demo data: ${DEMO_CATEGORIES.length} categories, ${DEMO_PRODUCTS.length} products, ${DEMO_BANNERS.length} banners, landing page /l/${landingSlug}.`);
   console.log("Restart the dev server (or build again) to see it in the shop.");
 }
 
