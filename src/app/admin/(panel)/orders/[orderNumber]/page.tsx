@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BlockedBadge } from "@/components/admin/customers/BlockedBadge";
+import { CustomerSummaryCard } from "@/components/admin/customers/CustomerSummaryCard";
 import { AdminNoteForm } from "@/components/admin/orders/AdminNoteForm";
 import { CallOutcomeForm } from "@/components/admin/orders/CallOutcomeForm";
 import { OrderAmounts } from "@/components/admin/orders/OrderAmounts";
@@ -13,6 +15,7 @@ import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
 import { requireAdmin } from "@/lib/admin-session";
+import { getCustomerSummary } from "@/lib/customers/customer-summary";
 import { formatDhakaDateTime } from "@/lib/dates";
 import { getOrderForAdmin } from "@/lib/orders/admin-order-detail";
 
@@ -25,6 +28,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
   const { orderNumber } = await params;
   const order = await getOrderForAdmin(orderNumber);
   if (!order) notFound();
+  const summary = await getCustomerSummary(order.customer.phone, order.orderNumber);
   // Every form is keyed on the saved version, so it always starts from fresh values.
   const key = `${order.orderNumber}-${order.version}`;
 
@@ -36,6 +40,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-bold text-heading">{order.orderNumber}</h1>
         <StatusBadge status={order.status} />
+        {order.customerBlocked && <BlockedBadge />}
         <span className="text-sm text-muted">Placed {formatDhakaDateTime(order.createdAt)}</span>
       </div>
 
@@ -44,6 +49,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
           <OrderCard title="Customer">
             <OrderCustomer key={key} order={order} />
           </OrderCard>
+          <CustomerSummaryCard summary={summary} />
           <OrderCard title="Product and amounts">
             <OrderAmounts order={order} />
           </OrderCard>

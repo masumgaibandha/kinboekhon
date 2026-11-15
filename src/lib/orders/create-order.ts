@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import type { Types } from "mongoose";
 
+import { isBlockedPhone, syncCustomer } from "@/lib/customers/sync-customer";
 import { connectMongoose } from "@/lib/db";
 import type { AdTracking } from "@/lib/meta/ad-tracking";
 import { OrderModel, type OrderDocument, type OrderTracking } from "@/lib/models/Order";
@@ -81,6 +82,8 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
     return duplicateTransaction();
   }
 
+  // A blocked customer's order is still taken, flagged for the admin.
+  const customerBlocked = await isBlockedPhone(input.phone);
   const orderNumber = await nextOrderNumber();
   // 12 random bytes give 16 URL-safe characters, so thank-you links cannot be guessed.
   const publicId = randomBytes(12).toString("base64url");
@@ -104,6 +107,7 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
       status: "pending",
       statusHistory: [{ kind: "status", status: "pending", at: new Date(), note: "" }],
       payment: paymentFields(payment, amounts.advanceAmount, amounts.dueOnDelivery),
+      customerBlocked,
       tracking: request,
       capiPurchase: { status: "pending" },
     });
@@ -112,9 +116,12 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
     throw error;
   }
 
-  // The order is saved; a failed draft cleanup must not turn it into an error.
+  // The order is saved; a failed draft cleanup or customer update must not turn it into an error.
   try {
     await deleteDraftsForOrder(input.draftKey, input.phone, product._id);
+  } catch {}
+  try {
+    await syncCustomer(input.phone);
   } catch {}
 
   return { ok: true, publicId };

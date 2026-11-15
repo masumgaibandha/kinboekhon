@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts"
+    "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
+    "backfill:customers": "tsx --env-file=.env.local scripts/backfill-customers.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.20",

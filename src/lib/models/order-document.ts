@@ -59,6 +59,8 @@ export interface OrderDocument {
     reviewedAt?: Date;
   };
   adminNote: string;
+  // The phone was tagged Blocked when the order was placed.
+  customerBlocked?: boolean;
   // The latest call, for the orders list and its filter.
   lastCall?: OrderCall;
   tracking?: OrderTracking;

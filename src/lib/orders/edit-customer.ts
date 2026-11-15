@@ -1,4 +1,5 @@
 import { adminFail, type AdminActionResult } from "@/lib/admin-result";
+import { syncCustomer } from "@/lib/customers/sync-customer";
 import { connectMongoose } from "@/lib/db";
 import { cityCorporationOf } from "@/lib/locations/dhaka";
 import { formatLocation } from "@/lib/locations/format";
@@ -68,5 +69,11 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
     { projection: { _id: 1 } },
   ).lean();
   if (!updated) return missOrStale(edit.orderNumber);
+
+  // The edit is saved; a failed customer record refresh must not turn it into an error.
+  try {
+    await syncCustomer(edit.phone);
+    if (changed.phone) await syncCustomer(order.customer.phone);
+  } catch {}
   return { ok: true, message: "Customer details saved." };
 }

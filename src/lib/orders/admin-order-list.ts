@@ -5,6 +5,7 @@ import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel, type OrderCall } from "@/lib/models/Order";
 import type { OrderStatus } from "@/lib/orders/enums";
 import { normalizePhone } from "@/lib/phone";
+import { escapeRegex } from "@/lib/regex";
 import { ORDERS_PER_PAGE, type OrderFilters } from "@/lib/validation/order-filters";
 
 export interface OrderListItem {
@@ -18,6 +19,7 @@ export interface OrderListItem {
   total: number;
   status: OrderStatus;
   lastCall: OrderCall | null;
+  customerBlocked: boolean;
 }
 
 export interface OrderListPage {
@@ -36,9 +38,8 @@ interface ListDoc {
   total: number;
   status: OrderStatus;
   lastCall?: OrderCall;
+  customerBlocked?: boolean;
 }
-
-const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // "KE10001" or "10001" finds an order number, a number starting with 0 finds phones by prefix, anything else a name.
 function searchQuery(q: string): Record<string, unknown> {
@@ -81,6 +82,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     total: 1,
     status: 1,
     lastCall: 1,
+    customerBlocked: 1,
   })
     .sort({ createdAt: -1 })
     .skip((page - 1) * ORDERS_PER_PAGE)
@@ -98,6 +100,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     total: doc.total,
     status: doc.status,
     lastCall: doc.lastCall?.outcome ? { outcome: doc.lastCall.outcome, at: doc.lastCall.at, note: doc.lastCall.note ?? "" } : null,
+    customerBlocked: doc.customerBlocked === true,
   }));
   return { items, total, page, pageCount };
 }

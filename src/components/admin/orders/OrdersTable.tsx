@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BlockedBadge } from "@/components/admin/customers/BlockedBadge";
 import { CallBadge } from "@/components/admin/orders/CallBadge";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { Money } from "@/components/ui/Money";
@@ -33,7 +34,8 @@ export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
               <td className="whitespace-nowrap px-4 py-3 text-desc">{formatDhakaDateTime(order.createdAt)}</td>
               <td className="px-4 py-3">
                 <span className="block font-medium text-heading">{order.name}</span>
-                <span className="text-desc">{order.phone}</span>
+                <span className="block text-desc">{order.phone}</span>
+                {order.customerBlocked && <BlockedBadge />}
               </td>
               <td className="px-4 py-3 text-body">
                 {order.productName} <span className="whitespace-nowrap text-muted">x {order.quantity}</span>

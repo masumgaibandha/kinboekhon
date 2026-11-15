@@ -65,6 +65,7 @@ const orderSchema = new Schema<OrderDocument>(
       reviewedAt: Date,
     },
     adminNote: { type: String, default: "" },
+    customerBlocked: { type: Boolean, default: false },
     lastCall: { outcome: { type: String, enum: CALL_OUTCOMES }, at: Date, note: String },
     tracking: {
       ip: String,

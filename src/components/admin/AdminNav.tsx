@@ -18,6 +18,9 @@ export function AdminNav() {
           <Link href="/admin/orders" className="hover:text-brand">
             Orders
           </Link>
+          <Link href="/admin/customers" className="hover:text-brand">
+            Customers
+          </Link>
           <Link href="/admin/payments" className="hover:text-brand">
             Payments
           </Link>

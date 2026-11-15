@@ -43,7 +43,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         <OrdersTable orders={result.items} />
       )}
 
-      <Pagination filters={filters} page={result.page} pageCount={result.pageCount} />
+      <Pagination
+        page={result.page}
+        pageCount={result.pageCount}
+        hrefFor={(page) => `/admin/orders${filtersQuery(filters, page)}`}
+      />
     </div>
   );
 }

@@ -46,6 +46,7 @@ kinboekhon/
 │  └─ brand/                     logo-horizontal-white.svg (shop header), logo-horizontal.svg (admin), icon-circle.svg (footer), copied from logos/
 ├─ scripts/
 │  ├─ seed-admin.ts              creates or updates the one admin from ADMIN_EMAIL and ADMIN_PASSWORD
+│  ├─ backfill-customers.ts      `npm run backfill:customers`: one customer record per phone on existing orders (safe to rerun)
 │  ├─ build-locations.ts         builds src/data/bd-locations.json from the bangladesh-geocode JSON files
 │  └─ location-thanas.ts         CMP (Chattogram) city thana list used by build-locations.ts
 └─ src/
@@ -71,6 +72,9 @@ kinboekhon/
    │  │     ├─ orders/page.tsx                 list, search, filters, pagination
    │  │     ├─ orders/[orderNumber]/page.tsx   detail: /admin/orders/KE10001
    │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
+   │  │     ├─ customers/page.tsx              customer list, search, tag filter, sort (P2a)
+   │  │     ├─ customers/[phone]/page.tsx      customer: orders, calls, tags, notes
+   │  │     ├─ customers/actions.ts            updateCustomerTags, saveCustomerNote
    │  │     ├─ payments/page.tsx         advance payments waiting for review
    │  │     ├─ payments/actions.ts       reviewPayment (approve or reject)
    │  │     ├─ incomplete/page.tsx
@@ -100,7 +104,9 @@ kinboekhon/
    │  │                          orders/OrdersTable, OrderFilters, Pagination, StatusBadge, OrderCard,
    │  │                          OrderCustomer, CustomerEditor, CustomerEditForm, AdminLocationFields,
    │  │                          OrderAmounts, OrderPayment, OrderTracking, SwitchToCodForm, StatusForm, StatusHistory, AdminNoteForm,
-   │  │                          use-admin-action.ts, incomplete/DraftCard, DraftActions
+   │  │                          use-admin-action.ts, incomplete/DraftCard, DraftActions,
+   │  │                          customers/CustomersTable, CustomerFilters, TagBadges, BlockedBadge, CustomerOrders,
+   │  │                          CustomerCalls, CustomerNotes, CustomerNoteForm, CustomerTagsForm, CustomerSummaryCard
    │  ├─ tracking/               MetaPixel.tsx, pixel.ts (client helpers)
    │  └─ ui/                     Button, Input, Textarea, Select, Badge, CloudinaryImage, Money (Taka icon + amount), TakaIcon
    └─ lib/
@@ -117,6 +123,9 @@ kinboekhon/
       │                          payment-queue.ts, payment-review.ts (approve, reject, switch to COD),
       │                          duplicate-check.ts, stats.ts (dashboard numbers), csv.ts
       ├─ drafts/                 save-draft.ts (save, delete on order), draft-place.ts, admin-draft-list.ts
+      ├─ customers/              tags.ts, sync-customer.ts (record from newest order, blocked check), customer-stats.ts,
+      │                          admin-customer-list.ts, admin-customer-detail.ts, customer-summary.ts, edit-customer-record.ts
+      ├─ regex.ts                escapeRegex for typed search text
       ├─ admin-result.ts         result type and helpers for admin Server Actions
       ├─ phone.ts                normalize + validate BD mobile numbers
       ├─ locations/              types.ts (location types), dhaka.ts (city corporations, city group of a district), resolve.ts (server check + Bangla names),
@@ -194,6 +203,7 @@ Any landing section left empty is simply not rendered.
 | payment.reviewNote | string | admin note on approve or reject |
 | payment.reviewedAt | Date | |
 | adminNote | string | free note |
+| customerBlocked | boolean | the phone was tagged Blocked when the order was placed (P2a); shown as a red "Blocked customer" badge |
 | lastCall | `{ outcome, at, note }` | the newest call (P1b), for the orders list column and filter. `outcome`: `agreed_to_wait` \| `declined` \| `no_answer` \| `call_later` |
 | tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
@@ -234,6 +244,17 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, courier: 120, codPercent: 1, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
 
 Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
+
+### Customer (P2a)
+| Field | Notes |
+|---|---|
+| phone | string, unique: the normalized `01XXXXXXXXX`, the record's key |
+| name, district | from the phone's newest order (district in Bangla) |
+| lastOrderAt | `createdAt` of the newest order |
+| tags | `vip` \| `risky` \| `blocked` |
+| notes | `{ text, at }[]`, only added, shown newest first |
+
+Indexes: `phone` unique, `{ lastOrderAt: -1 }`, `{ tags: 1, lastOrderAt: -1 }`. `syncCustomer(phone)` upserts name, district and lastOrderAt from the newest order and keeps tags and notes. It runs after every new order and after an admin customer edit (for the new and, if the phone changed, the old phone); a failure there never fails the order or the edit. Counts are not stored: they are read from the orders each time.
 
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
@@ -359,6 +380,7 @@ Server Actions (each calls `requireAdmin()` first):
 - payments: `reviewPayment` (approve or reject); orders: `switchOrderToCod`
 - products: `createProduct`, `updateProduct`, `setProductActive` (no delete in v1, deactivate instead)
 - incomplete: `markDraftContacted`, `deleteIncompleteOrder`
+- customers: `updateCustomerTags`, `saveCustomerNote`
 - settings: `saveSettings`
 
 ### Create order flow (`POST /api/orders`)
@@ -452,6 +474,13 @@ Delivery is free everywhere; its cost is built into the product price (decision 
 - Orders list: payment method and payment status filters.
 
 ## 7. Facebook tracking
+
+### Customer CRM (P2a)
+- Numbers per phone: orders, delivered, cancelled, returned, spent (sum of `total` of delivered orders), return rate = returned / (delivered + returned), "-" with nothing finished.
+- `/admin/customers`: 25 per page. Columns: name, phone and tags, district, orders, delivered, cancelled, returned, spent, last order. Search box: a number starting with 0 finds phones by prefix (Bangla digits and `+880` work), anything else names (contains, ignoring case). Tag filter (`tag`), sort (`sort`: last order by default, most orders, most spent). Filters live in the URL.
+- `/admin/customers/01XXXXXXXXX`: number cards, all orders (newest first), every call from every order's history (newest first, with its order number), tags form and notes (add only, each with its time). The tags form sends the tags it was loaded with and only the toggled tags are added or removed, in one update.
+- Order page: a "Customer record" card under Customer: past orders (other orders of this phone), delivered, return rate, tags, and "Open customer".
+- Blocked: a new order from a Blocked phone is accepted as usual (the customer sees nothing different) and saved Pending with `customerBlocked: true`; the orders list, order page and customer page show a red "Blocked customer" badge. Status rules do not change.
 
 Browser Pixel and Conversions API send the same events with the same `event_id`, so Meta counts each event once.
 
@@ -580,6 +609,8 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 | P2g | **Order SMS** (provider to be chosen) | Place a test order and receive the SMS on a test phone |
 | P2h | **Print and export** (CSV export was M13): invoice and parcel label print, CSV export with the current filters, courier CSV export | Print an invoice and a label; download both CSVs and open them in Excel with Bangla shown correctly |
 
+P2a is done (November 2026): customer records by phone, `/admin/customers` list and customer page, the order page customer card and the Blocked customer flag. Existing orders were backfilled with `npm run backfill:customers`.
+
 ### Phase 3: after launch
 
 | # | Module | Browser test |
@@ -684,3 +715,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 85. Dashboard Calls card (P1b, November 2026): to-do counts for pending orders (not called, No answer, Call later) linking to the filtered list, call results with their own period switch and confirm rate (orders agreed out of orders called), and the 5 oldest pending orders still needing a call.
 86. Policy pages (P1e, November 2026): return within 3 days of delivery with photo or video, only damaged, wrong or defective; replace or refund by bKash or Nagad within 7 days; we pay the return courier; no change of mind; a refused COD parcel is not a return. Privacy also states the saved unfinished order form, the IP and browser kept against fake orders, and Meta Pixel. Click-to-call on the admin order page is P3f, after the site is complete.
 87. Meta Pixel + CAPI (P1c, November 2026): ViewContent is browser only; the server sends InitiateCheckout and Purchase with the browser's event_id. Purchase user data adds hashed last name and district.
+88. Customer CRM (P2a, November 2026): a customer is one normalized phone. Spent counts delivered orders only. Tags are VIP, Risky and Blocked. A Blocked phone can still order: the order is saved Pending and marked "Blocked customer" in red, never refused.

@@ -33,6 +33,7 @@ export interface AdminOrder {
   customer: { name: string; phone: string; address: string; location: OrderLocation };
   history: OrderHistoryEntry[];
   adminNote: string;
+  customerBlocked: boolean;
   tracking: AdminTracking;
 }
 
@@ -94,6 +95,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
       ...(entry.outcome && { outcome: entry.outcome }),
     })),
     adminNote: doc.adminNote ?? "",
+    customerBlocked: doc.customerBlocked === true,
     tracking: {
       ipHash,
       userAgent: doc.tracking?.userAgent ?? "",
