@@ -1,7 +1,13 @@
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+
 import { imageFolder, type ImageKind } from "@/lib/cloudinary/folder";
-import { signParams } from "@/lib/cloudinary/sign";
-import { requiredEnv } from "@/lib/env";
 import type { ProductImage } from "@/lib/product-images";
+
+import { uploadImage } from "./demo-cloudinary";
+
+const PHOTO_ROOT = path.join(process.cwd(), "public", "demo-products");
+const PHOTO_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 
 interface PlaceholderOptions {
   width: number;
@@ -22,33 +28,31 @@ function placeholderSvg({ width, height, background, title, subtitle }: Placehol
 </svg>`;
 }
 
-interface UploadResponse {
-  public_id?: string;
-  width?: number;
-  height?: number;
-  error?: { message?: string };
+// Uploads the placeholder as a PNG under a fixed demo id, so running the seed again replaces it.
+export function uploadPlaceholder(kind: ImageKind, name: string, options: PlaceholderOptions): Promise<ProductImage> {
+  const params = { folder: imageFolder(kind), format: "png", overwrite: "true", invalidate: "true", public_id: `demo-${name}` };
+  const svg = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg(options)).toString("base64")}`;
+  return uploadImage(params, svg, name);
 }
 
-// Uploads the placeholder as a PNG under a fixed demo id, so running the seed again replaces it.
-export async function uploadPlaceholder(kind: ImageKind, name: string, options: PlaceholderOptions): Promise<ProductImage> {
-  const params: Record<string, string> = {
-    folder: imageFolder(kind),
-    format: "png",
-    overwrite: "true",
-    public_id: `demo-${name}`,
-    timestamp: String(Math.floor(Date.now() / 1000)),
-  };
-  const body = new FormData();
-  for (const [key, value] of Object.entries(params)) body.append(key, value);
-  body.append("api_key", requiredEnv("CLOUDINARY_API_KEY"));
-  body.append("signature", signParams(params));
-  body.append("file", `data:image/svg+xml;base64,${Buffer.from(placeholderSvg(options)).toString("base64")}`);
+// Image file names of one demo product folder, in name order (the first is the main image). Videos are skipped.
+export async function demoPhotoFiles(folder: string): Promise<string[]> {
+  const files = await readdir(path.join(PHOTO_ROOT, folder));
+  const photos = files.filter((file) => path.extname(file).toLowerCase() in PHOTO_TYPES).sort();
+  if (photos.length === 0) throw new Error(`No images in public/demo-products/${folder}.`);
+  return photos;
+}
 
-  const cloud = requiredEnv("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME");
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body });
-  const data = (await response.json()) as UploadResponse;
-  if (!data.public_id || !data.width || !data.height) {
-    throw new Error(`Cloudinary upload of ${name} failed: ${data.error?.message ?? response.status}`);
-  }
-  return { publicId: data.public_id, width: data.width, height: data.height };
+// Uploads one photo to `<kind>/demo/<name>`, longest side at most 2000 px like admin uploads.
+export async function uploadPhoto(kind: ImageKind, name: string, folder: string, file: string): Promise<ProductImage> {
+  const bytes = await readFile(path.join(PHOTO_ROOT, folder, file));
+  const blob = new Blob([bytes], { type: PHOTO_TYPES[path.extname(file).toLowerCase()] });
+  const params = {
+    folder: `${imageFolder(kind)}/demo`,
+    public_id: name,
+    overwrite: "true",
+    invalidate: "true",
+    transformation: "c_limit,h_2000,w_2000",
+  };
+  return uploadImage(params, blob, `${folder}/${file}`);
 }

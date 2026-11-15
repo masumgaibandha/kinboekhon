@@ -1,6 +1,9 @@
 # reference material, never committed
 _reference/
 
+# demo product photos, never committed
+public/demo-products/
+
 # dependencies
 node_modules/
 
