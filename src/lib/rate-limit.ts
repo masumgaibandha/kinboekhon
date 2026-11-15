@@ -18,6 +18,12 @@ export const DRAFT_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 60, windowMs:
 // Tracking events from the shop pages: one InitiateCheckout per product page visit.
 export const TRACK_IP_WINDOWS: RateWindow[] = [{ name: "10m", max: 30, windowMs: 10 * MINUTE }];
 
+// Order status lookups on /track: every try counts, so order numbers and phones can't be guessed in bulk.
+export const ORDER_STATUS_IP_WINDOWS: RateWindow[] = [
+  { name: "10m", max: 10, windowMs: 10 * MINUTE },
+  { name: "day", max: 40, windowMs: 24 * 60 * MINUTE },
+];
+
 // Only placed orders and failed Turnstile checks count, so customers sharing a carrier address aren't blocked by form mistakes.
 export const ORDER_IP_WINDOWS: RateWindow[] = [
   { name: "10m", max: 10, windowMs: 10 * MINUTE },

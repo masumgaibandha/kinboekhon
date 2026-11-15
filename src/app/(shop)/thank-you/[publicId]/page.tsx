@@ -70,8 +70,14 @@ async function ThankYou({ params }: Pick<PageProps<"/thank-you/[publicId]">, "pa
       />
 
       <Link
+        href={`/track?ref=${publicId}`}
+        className="mt-6 block rounded-md bg-brand py-3 text-center font-bold text-white transition-colors hover:bg-brand-dark"
+      >
+        অর্ডার ট্র্যাক করুন
+      </Link>
+      <Link
         href="/"
-        className="mt-6 block rounded-md border border-brand py-3 text-center font-bold text-brand transition-colors hover:bg-brand-light"
+        className="mt-3 block rounded-md border border-brand py-3 text-center font-bold text-brand transition-colors hover:bg-brand-light"
       >
         আরও পণ্য দেখুন
       </Link>

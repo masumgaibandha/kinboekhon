@@ -4,7 +4,7 @@ import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import type { PaymentStatus } from "@/lib/orders/enums";
 
-const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
+export const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
 
 // Only what the thank-you page shows: no address or phone number.
 export interface ThankYouOrder {
