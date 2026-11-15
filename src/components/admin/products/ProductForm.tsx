@@ -5,7 +5,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import toast from "react-hot-toast";
 
 import { createProduct, updateProduct } from "@/app/admin/(panel)/products/actions";
-import { Section, TextArea, TextField, Toggle } from "@/components/admin/form/fields";
+import { Section, TextArea, TextField, Toggle, inputClass } from "@/components/admin/form/fields";
 import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
 import { PriceCalculator } from "@/components/admin/products/PriceCalculator";
@@ -17,11 +17,12 @@ import type { ProductInput } from "@/lib/validation/product";
 interface ProductFormProps {
   productId?: string;
   product: ProductInput;
+  categories: { id: string; name: string }[];
   costs: ProductCosts;
   delivery: DeliveryContext;
 }
 
-export function ProductForm({ productId, product, costs, delivery }: ProductFormProps) {
+export function ProductForm({ productId, product, categories, costs, delivery }: ProductFormProps) {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -109,8 +110,29 @@ export function ProductForm({ productId, product, costs, delivery }: ProductForm
           hint="Lower numbers show first on the home page."
           numeric
         />
-        <div className="flex items-end pb-2">
+        <div>
+          <label htmlFor="categoryId" className="block text-sm font-medium text-body">
+            Category
+          </label>
+          <select
+            id="categoryId"
+            name="categoryId"
+            defaultValue={product.categoryId ?? ""}
+            aria-invalid={errors.categoryId ? true : undefined}
+            className={`${inputClass} ${errors.categoryId ? "border-brand-dark" : "border-line-strong"}`}
+          >
+            <option value="">No category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          {errors.categoryId && <p className="mt-1 text-sm text-brand-dark">{errors.categoryId}</p>}
+        </div>
+        <div className="flex flex-col justify-end gap-2 pb-2">
           <Toggle name="active" label="Active (shown in the shop)" defaultChecked={product.active} />
+          <Toggle name="popular" label="Popular (shown in জনপ্রিয় পণ্য on the home page)" defaultChecked={product.popular} />
         </div>
       </Section>
 

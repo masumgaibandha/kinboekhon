@@ -7,6 +7,8 @@ import { requireAdmin } from "@/lib/admin-session";
 import { PRODUCTS_TAG, productTag } from "@/lib/catalog";
 import { connectMongoose } from "@/lib/db";
 import { activeWasChanged } from "@/lib/product-form";
+import { CategoryModel } from "@/lib/models/Category";
+import { isDuplicateKey } from "@/lib/mongo-errors";
 import { ProductModel } from "@/lib/models/Product";
 import { PRODUCT_COST_KEYS, readCostFields } from "@/lib/validation/costs";
 import { productFormSchema, type ProductFormValues } from "@/lib/validation/product";
@@ -30,6 +32,8 @@ function readForm(formData: FormData) {
     shortDescription: text("shortDescription"),
     sortOrder: text("sortOrder"),
     active: formData.get("active") === "on",
+    categoryId: text("categoryId"),
+    popular: formData.get("popular") === "on",
     images: text("images"),
     hook: { headline: text("hook.headline"), subheadline: text("hook.subheadline") },
     problem: { title: text("problem.title"), points: text("problem.points") },
@@ -49,10 +53,6 @@ function readForm(formData: FormData) {
   };
 }
 
-function isDuplicateKey(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
-}
-
 async function saveProduct(
   formData: FormData,
   write: (product: ProductFormValues) => Promise<string | null>,
@@ -69,6 +69,9 @@ async function saveProduct(
   let previousSlug: string | null;
   try {
     await connectMongoose();
+    if (parsed.data.categoryId && !(await CategoryModel.exists({ _id: parsed.data.categoryId }))) {
+      return { ok: false, message: FIX_FIELDS, fieldErrors: { categoryId: "This category no longer exists." } };
+    }
     previousSlug = await write(parsed.data);
     if (previousSlug === null) return NOT_FOUND;
   } catch (error) {

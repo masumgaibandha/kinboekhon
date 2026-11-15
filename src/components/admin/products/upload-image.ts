@@ -1,3 +1,4 @@
+import type { ImageKind } from "@/lib/cloudinary/folder";
 import type { UploadSignature } from "@/lib/cloudinary/sign";
 import { IMAGE_FORMATS, MAX_IMAGE_BYTES, type ProductImage } from "@/lib/product-images";
 
@@ -15,8 +16,12 @@ export function checkImageFile(file: File): string | null {
   return null;
 }
 
-export async function getUploadSignature(): Promise<UploadSignature> {
-  const response = await fetch("/api/admin/upload-signature", { method: "POST" });
+export async function getUploadSignature(kind: ImageKind = "products"): Promise<UploadSignature> {
+  const response = await fetch("/api/admin/upload-signature", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind }),
+  });
   if (response.status === 401) throw new Error("Your session has ended. Log in again.");
   if (!response.ok) throw new Error("Could not start the upload. Try again.");
   return (await response.json()) as UploadSignature;

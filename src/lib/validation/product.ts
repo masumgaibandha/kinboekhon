@@ -1,8 +1,9 @@
+import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 
-import { productImageFolder } from "@/lib/cloudinary/folder";
 import { IMAGE_LIMITS } from "@/lib/product-images";
 import { productCostsSchema } from "@/lib/validation/costs";
+import { imageListField } from "@/lib/validation/image";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -32,32 +33,7 @@ const reviews = z
   })
   .transform((rows) => rows.filter((row) => row.text));
 
-const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/;
-
-const imageSize = z.number().int().min(1).max(10000);
-
-const image = z.object({
-  publicId: z
-    .string()
-    .regex(PUBLIC_ID_PATTERN, "Invalid image.")
-    .refine((id) => id.startsWith(`${productImageFolder()}/`), "Invalid image."),
-  width: imageSize,
-  height: imageSize,
-});
-
-// Image lists arrive as one JSON string per list from a hidden form field.
-const imageList = (max: number) =>
-  z
-    .string()
-    .transform((value, ctx): unknown => {
-      try {
-        return JSON.parse(value || "[]");
-      } catch {
-        ctx.addIssue({ code: "custom", message: "Images could not be read. Reload the page." });
-        return z.NEVER;
-      }
-    })
-    .pipe(z.array(image).max(max, `Up to ${max} images.`));
+const imageList = (max: number) => imageListField("products", max);
 
 export const productSchema = z
   .object({
@@ -81,6 +57,13 @@ export const productSchema = z
       .regex(/^\d{1,4}$/, "Enter a whole number from 0 to 9999.")
       .transform(Number),
     active: z.boolean(),
+    // Empty means no category.
+    categoryId: z
+      .string()
+      .trim()
+      .refine((id) => id === "" || isValidObjectId(id), "Choose a category from the list.")
+      .transform((id) => id || null),
+    popular: z.boolean(),
     images: imageList(IMAGE_LIMITS.images),
     hook: z.object({ headline: text(150), subheadline: text(300) }),
     problem: z.object({ title: text(150), points: lines(10) }),

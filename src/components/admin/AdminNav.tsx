@@ -7,7 +7,7 @@ import { DB_NAME, isProductionDb } from "@/lib/db";
 export function AdminNav() {
   return (
     <header className="border-b border-line bg-card">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+      <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-6 px-4 py-2">
         <Link href="/admin" className="flex items-center gap-2 font-bold text-heading">
           <Image src="/brand/icon-circle.svg" alt="" width={28} height={28} className="h-7 w-7" />
           Admin
@@ -20,7 +20,7 @@ export function AdminNav() {
             DEV DATABASE
           </span>
         )}
-        <nav className="flex flex-1 items-center gap-4 text-sm font-medium text-desc">
+        <nav className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-desc">
           <Link href="/admin" className="hover:text-brand">
             Dashboard
           </Link>
@@ -44,6 +44,15 @@ export function AdminNav() {
           </Link>
           <Link href="/admin/products" className="hover:text-brand">
             Products
+          </Link>
+          <Link href="/admin/categories" className="hover:text-brand">
+            Categories
+          </Link>
+          <Link href="/admin/banners" className="hover:text-brand">
+            Banners
+          </Link>
+          <Link href="/admin/home" className="hover:text-brand">
+            Home page
           </Link>
           <Link href="/admin/settings" className="hover:text-brand">
             Settings

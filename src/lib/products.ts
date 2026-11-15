@@ -7,7 +7,13 @@ import { getCostDefaults } from "@/lib/settings";
 import type { CostDefaults, ProductCosts } from "@/lib/validation/costs";
 import type { ProductInput } from "@/lib/validation/product";
 
-export type ProductDoc = ProductInput & { _id: Types.ObjectId; costs?: Partial<ProductCosts>; updatedAt?: Date };
+export type ProductDoc = Omit<ProductInput, "categoryId" | "popular"> & {
+  _id: Types.ObjectId;
+  categoryId?: Types.ObjectId | null;
+  popular?: boolean;
+  costs?: Partial<ProductCosts>;
+  updatedAt?: Date;
+};
 
 export interface AdminProduct {
   product: ProductInput;
@@ -27,6 +33,8 @@ export const EMPTY_PRODUCT: ProductInput = {
   shortDescription: "",
   sortOrder: 0,
   active: false,
+  categoryId: null,
+  popular: false,
   images: [],
   hook: { headline: "", subheadline: "" },
   problem: { title: "", points: [] },
@@ -44,6 +52,8 @@ export function toProductInput(doc: ProductDoc): ProductInput {
     shortDescription: doc.shortDescription ?? "",
     sortOrder: doc.sortOrder ?? 0,
     active: doc.active,
+    categoryId: doc.categoryId ? String(doc.categoryId) : null,
+    popular: doc.popular ?? false,
     images: pickImages(doc.images),
     hook: { headline: doc.hook?.headline ?? "", subheadline: doc.hook?.subheadline ?? "" },
     problem: { title: doc.problem?.title ?? "", points: doc.problem?.points ?? [] },

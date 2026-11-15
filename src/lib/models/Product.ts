@@ -2,17 +2,13 @@ import { Schema } from "mongoose";
 
 import { appDb } from "@/lib/db";
 import { costsSchema } from "@/lib/models/costs-schema";
+import { imageSchema } from "@/lib/models/image-schema";
 import type { ProductFormValues } from "@/lib/validation/product";
 
 const reviewSchema = new Schema({ name: String, text: String }, { _id: false });
 
-const imageSchema = new Schema(
-  { publicId: { type: String, required: true }, width: Number, height: Number },
-  { _id: false },
-);
-
 // Stock is changed only through logged stock moves, never by the product form.
-export type ProductDocument = ProductFormValues & { stock: number; lowStockLevel: number };
+export type ProductDocument = ProductFormValues & { stock: number; lowStockLevel: number; isDemo: boolean };
 
 export const DEFAULT_LOW_STOCK_LEVEL = 5;
 
@@ -30,15 +26,21 @@ const productSchema = new Schema<ProductDocument>(
     proof: { title: String, images: [imageSchema], reviews: [reviewSchema] },
     cta: { title: String, text: String },
     active: { type: Boolean, default: false },
+    categoryId: { type: Schema.Types.ObjectId, default: null },
+    popular: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
     costs: costsSchema,
     stock: { type: Number, default: 0 },
     lowStockLevel: { type: Number, default: DEFAULT_LOW_STOCK_LEVEL, min: 0 },
+    // Demo data for testing, removed by `npm run demo:clear`.
+    isDemo: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 
 productSchema.index({ active: 1, sortOrder: 1 });
+productSchema.index({ active: 1, categoryId: 1, sortOrder: 1 });
+productSchema.index({ active: 1, createdAt: -1 });
 
 // Replace a model left from an earlier hot reload, so schema changes apply in development.
 if (appDb.models.Product) appDb.deleteModel("Product");

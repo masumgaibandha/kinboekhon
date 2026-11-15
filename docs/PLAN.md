@@ -58,7 +58,9 @@ kinboekhon/
    │  ├─ not-found.tsx
    │  ├─ (shop)/                 customer site, Bangla
    │  │  ├─ layout.tsx           header, notice strip, footer, Meta Pixel base
-   │  │  ├─ page.tsx             home: active products
+   │  │  ├─ page.tsx             home: banner slider, trust bar, categories, popular and new products, why us, FAQ (decision 97)
+   │  │  ├─ c/[slug]/page.tsx    category page
+   │  │  ├─ search/page.tsx      product search (`?q=`)
    │  │  ├─ p/[slug]/page.tsx    product landing page
    │  │  ├─ thank-you/[publicId]/page.tsx
    │  │  ├─ privacy/page.tsx
@@ -86,6 +88,9 @@ kinboekhon/
    │  │     ├─ products/[id]/page.tsx
    │  │     ├─ products/actions.ts
    │  │     ├─ products/stock-actions.ts       addPurchase, addAdjustment, updateLowStockLevel (P2e)
+   │  │     ├─ categories/                     list, new, [id], actions.ts (createCategory, updateCategory)
+   │  │     ├─ banners/                        list, new, [id], actions.ts (createBanner, updateBanner)
+   │  │     ├─ home/                           page.tsx and actions.ts (saveHomeContent): trust bar, why us, FAQ
    │  │     ├─ ad-spend/page.tsx               ad spend entries for a period, add form (P2d)
    │  │     ├─ ad-spend/[id]/page.tsx          edit one entry
    │  │     ├─ ad-spend/actions.ts             createAdSpend, updateAdSpend, deleteAdSpend
@@ -141,13 +146,16 @@ kinboekhon/
       ├─ locations/              types.ts (location types), dhaka.ts (city corporations, city group of a district), resolve.ts (server check + Bangla names),
       │                          format.ts (location as admin text)
       ├─ catalog.ts              cached shop reads ("use cache" + tags); admin reads stay uncached in products.ts
+      ├─ product-lists.ts        popular, new and category product cards (cached), search (uncached)
+      ├─ categories/, banners/   shop.ts (cached reads) and admin.ts (uncached admin reads)
+      ├─ home/home-content.ts    home page texts with defaults (cached, tag `home`)
       ├─ dates.ts                Asia/Dhaka date format, day ranges, week start (Saturday) and month start
       ├─ turnstile.ts            server verify (passed, failed, unverified)
       ├─ rate-limit.ts           fixed-window counters in MongoDB
       ├─ rate-limit.ts
       ├─ request.ts              same-origin check, client IP, user agent, keyed IP hash
       ├─ product-images.ts       image type, formats, size and count limits (browser and server)
-      ├─ cloudinary/             sign.ts (upload signature, server only), folder.ts, image-url.ts (URL + next/image loader)
+      ├─ cloudinary/             sign.ts (upload signature, server only), folder.ts (one folder per image kind: products, categories, banners, home), image-url.ts (URL + next/image loader)
       ├─ auth.ts                 Better Auth server config (MongoDB adapter, email + password, sign-up off)
       ├─ admin-session.ts        requireAdmin() for pages, actions and admin API routes
       ├─ stock/                  P2e: record-move (atomic stock change + log), order-stock (ship and return), product-stock, stock-alerts
@@ -179,11 +187,14 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | cta | `{ title, text }` | final push above the form |
 | active | boolean | only active products are shown or orderable; new products start inactive (the create form's Active box starts unchecked). Saving the edit form writes `active` only when the admin changed the box: the form sends the value it was loaded with (`activeInitial`), and the edit form is keyed on the product's `updatedAt`, so a page restored from navigation history always shows fresh values |
 | sortOrder | number | home page order |
+| categoryId | ObjectId or null | the product's category (decision 97); "No category" in the form saves null |
+| popular | boolean, default false | shown in "জনপ্রিয় পণ্য" on the home page, in sortOrder, up to 8 |
+| isDemo | boolean, default false | demo data, deleted by `npm run demo:clear` |
 | costs | `{ chinaPrice, weightGrams, shippingPerKg, agentFee, packaging, returnPercent, adCost, targetProfit }` | price calculator inputs (P1a), admin only. `weightGrams` is the weight with packaging, used for air shipping and the courier weight slab. Courier cost and COD % come from Settings `courier` (decision 93); old saved `courier` and `codPercent` values are ignored. `toProductInput()` leaves them out, so the shop never reads them. A product without `costs` starts the form with China price and weight empty and the rates from Settings `costDefaults` |
 | stock | number, default 0 (P2e): units in stock. Changed only by a logged stock move (`recordStockMove`, one atomic `$inc`), never by the product form. Can go below 0 when more is shipped than was counted. Stock writes skip `updatedAt`, so the open product form is not reset |
 | lowStockLevel | number, default 5 (P2e): the dashboard lists an active product when stock is this or less |
 
-Index: `slug` unique, `{ active, sortOrder }`.
+Index: `slug` unique, `{ active, sortOrder }`, `{ active, categoryId, sortOrder }`, `{ active, createdAt: -1 }`.
 Any landing section left empty is simply not rendered.
 
 #### Product images
@@ -194,6 +205,37 @@ Any landing section left empty is simply not rendered.
 - On save, Zod checks every `publicId` is inside the product folder.
 - Reorder with earlier and later buttons, remove with a button. A removed image stays on Cloudinary (old orders keep its picture).
 - Mongoose models replace any model left from an earlier hot reload, so schema changes apply in development without a restart.
+
+### Category (decision 97)
+| Field | Notes |
+|---|---|
+| name | Bangla, up to 60 characters |
+| slug | unique, used in `/c/[slug]`, same rule as product slugs |
+| image | `{ publicId, width, height }` or null, in the `categories` Cloudinary folder; shown round in the home grid (first letter on light orange when none) |
+| sortOrder | menu and grid order, lowest first |
+| isDemo | demo data |
+
+No delete and no active flag in this version. Every category is shown in the header menu and the home grid.
+
+### Banner (decision 97)
+| Field | Notes |
+|---|---|
+| title | Bangla, used as the image alt text, not drawn on the image |
+| link | empty, a page path starting with `/` (same tab) or a full `https://` link (new tab) |
+| mobileImage | 1200 x 600 (2:1), shown below 768px |
+| desktopImage | 1920 x 600 (16:5), shown from 768px. Both required, `banners` folder; a wrong size is cropped (`object-cover`), never stretched |
+| sortOrder | slider order |
+| active | On / Off. The edit form sends the values it was loaded with and the action writes only changed fields |
+| isDemo | demo data |
+
+### HomeContent (single document, `key: "main"`, decision 97)
+| Field | Notes |
+|---|---|
+| trust | 4 strings for the trust bar; the icons are fixed in this order: cash, truck, return, WhatsApp. Default: ক্যাশ অন ডেলিভারি, সারা দেশে ডেলিভারি, 3 দিনে রিটার্ন, WhatsApp সাপোর্ট |
+| why | `{ title, body, founderName, founderPhoto }` for "কেন কিনবো এখন"; each body line is a paragraph; hidden when title and body are empty; photo optional (`home` folder) |
+| faq | `{ question, answer }[]`, up to 15; both or neither per row; the section is hidden when empty |
+
+Read through `getHomeContent()` (`"use cache"`, tag `home`) with code defaults until the first save.
 
 ### Order
 | Field | Type | Notes |
@@ -343,7 +385,9 @@ Index: `{ productId, createdAt: -1 }`. Only `createdAt` (no `updatedAt`). A move
 ### Customer site (Bangla)
 | Route | What it shows |
 |---|---|
-| `/` | Logo header, notice strip (সারা দেশে হোম ডেলিভারি, ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
+| `/` | Home page, see "Home page" below (decision 97) |
+| `/c/[slug]` | Category name and its active products (sortOrder, then newest); unknown slug: not-found page with a home button |
+| `/search?q=` | Search box and active products whose name contains the text (ignoring case, up to 40), `noindex`, uncached |
 | `/p/[slug]` | Landing page, see below |
 | `/thank-you/[publicId]` | Thank-you message, order number, product, delivery charge, discount, total, advance paid (with "payment under review" note) and amount due on delivery, support phone |
 | `/privacy`, `/terms`, `/return-policy` | Static Bangla text (P1e), linked in the footer and from a line under the order button; contact phone and WhatsApp from Settings, each hidden when empty |
@@ -386,7 +430,16 @@ Pages are statically generated. Their data comes from `"use cache"` functions wi
 - An inactive or unknown slug renders `p/[slug]/not-found.tsx`. With Cache Components the first request after a change is streamed after the shell, so it returns `200` with `<meta name="robots" content="noindex">`; the result is cached and later requests return a real `404`.
 
 #### Home page
-- Slim one-line heading (আমাদের পণ্য), no banner. Bangla message when no product is active.
+Replaced in November 2026 by decision 97. Top to bottom, `max-w-5xl`:
+1. Hero slider: active banners, CSS scroll-snap swipe, auto-slide every 5 seconds (paused while touched or hovered, off with reduced motion), dots. A `<picture>` with the desktop source from 768px (`getImageProps` with the Cloudinary loader); only the first slide loads eagerly with high priority. Hidden without banners.
+2. Trust bar: 4 items in one row on every width.
+3. ক্যাটাগরি: round images, 4 columns on mobile, 6 from 640px, 8 from 1024px. Hidden without categories.
+4. জনপ্রিয় পণ্য (products marked Popular) and 5. নতুন পণ্য (newest 8 active products), each hidden when empty; with no active product the Bangla message shows.
+6. কেন কিনবো এখন and 7. সাধারণ জিজ্ঞাসা (`<details>`), both from HomeContent.
+- Floating WhatsApp button (brand orange, bottom right) with the Settings number, on the home, category and search pages only (landing pages keep their sticky order bar). Hidden when the number is empty.
+- Header: category menu button (dropdown, full width on mobile), logo, search box (second header row on mobile, in the row from 768px), support phone (icon only below 400px). Footer unchanged.
+- The page reads only cached data (tags `banners`, `home`, `categories`, `products`, `settings`), so it stays static; each admin save calls `updateTag` for its tag.
+- Product grids and cards keep these rules:
 - Grid: 2 columns on mobile, 3 from 640px, 4 from 1024px.
 - Each card is one link to `/p/[slug]`. "অর্ডার করুন" is a button-styled `span` inside the link, never a real `button`.
 - The first 2 card images load with `loading="eager"` and `fetchPriority="high"`; the rest are lazy.
@@ -421,6 +474,9 @@ Order form fields:
 | `/admin/ad-spend` | Ad spend entries (P2d) for a period (default this month), newest day first, each with Edit and Delete; an add form (date, product, USD amount, rate, live taka amount) |
 | `/admin/ad-spend/[id]` | Edit one ad spend entry, with Delete |
 | `/admin/profit` | Profit and ad spend report (P2d) with a period switch and a custom date range |
+| `/admin/categories`, `/admin/categories/new`, `/admin/categories/[id]` | Category list (image, name, slug, product count, order, View, Edit) and form: name, slug, sort order, image upload (decision 97) |
+| `/admin/banners`, `/admin/banners/new`, `/admin/banners/[id]` | Banner list (mobile thumbnail, title, link, order, On/Off) and form: title, link, sort order, On, mobile and desktop image uploads |
+| `/admin/home` | Trust bar texts, why us (title, text, founder name, founder photo), FAQ rows (add, remove) |
 | `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, courier cost (decision 93), price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c) |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight with packaging (grams), air shipping (taka per kg), agent fee, packaging, return rate %, ad cost per order, target profit. Money inputs are whole taka; the return rate allows one decimal (0 to 90); China price and weight may be empty (0). Delivery charges, the advance discount, courier cost, return fee and COD % come from Settings (decision 93). Results update live as the admin types, including the Price field:
@@ -748,6 +804,10 @@ P2e is done (November 2026, decision 95): product stock and low-stock level, log
 
 P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page and the orders list (bulk, one per page) and the orders CSV export.
 
+H1 **Home page** is done (November 2026, decision 97), built at the owner's request: categories (admin, product field, `/c/[slug]`), banner slider, trust bar, popular and new products, why us, FAQ, floating WhatsApp button, header category menu and search (`/search`). Browser test: 390px and desktop, slider auto and swipe, menu, search, category page, admin saves update the shop at once.
+
+Demo data (dev database only): `npm run demo:seed` adds 3 categories, 8 products and 2 banners, each `isDemo: true`, with plain placeholder PNGs uploaded to Cloudinary under fixed `demo-*` ids (a rerun replaces them). `npm run demo:clear` deletes every product, category and banner marked `isDemo` and clears the category of any other product that pointed to a demo category. Both refuse to run on production. Restart the dev server or build again afterwards, because the scripts cannot refresh the cache tags.
+
 ### Phase 3: after launch
 
 | # | Module | Browser test |
@@ -761,7 +821,7 @@ P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page
 
 ## 12. Not planned
 
-Cart, customer accounts, product variants, email notifications, online payment gateway, search.
+Cart, customer accounts, product variants, email notifications, online payment gateway. (Product search by name was added by decision 97.)
 
 ## 13. Owner decisions
 
@@ -789,7 +849,7 @@ Cart, customer accounts, product variants, email notifications, online payment g
 22. A removed image is kept on Cloudinary, never deleted.
 23. Each image stores only `{ publicId, width, height }`. URLs are built in code from the `publicId`.
 24. Shop header is orange (`brand`, #F85606) with the white horizontal logo. `public/brand/logo-horizontal-white.svg` is made from `logos/kinboekhon-logo-horizontal-white.svg` with the orange background removed and the viewBox cropped tightly to the artwork; the original in `logos/` is unchanged. It is shown 28px tall, so it matches the old header logo. Header text and icons are white. The notice strip and footer stay as they are and must read well under the orange header.
-25. Home page: slim one-line heading, no banner.
+25. Replaced by decision 97: the home page has a banner slider and sections.
 26. Replaced by decision 43: there is no discount percent.
 27. The whole product card is one link to `/p/[slug]`; the order "button" inside it is a styled `span`.
 28. Product grid: 2, 3 and 4 columns; the first 2 images load with high priority.
@@ -861,3 +921,4 @@ Cart, customer accounts, product variants, email notifications, online payment g
 94. Pathao courier API (P2b, November 2026) instead of Steadfast booking: send confirmed orders one by one or in bulk, consignment and Pathao's delivery fee saved, status by webhook and a Refresh button. Pathao places are matched by name and the admin's corrections are remembered. The profit report uses Pathao's real fee when there is one, and counts the approved advance delivery charge of a returned (refused) parcel as income. Terms page: "পার্সেল গ্রহণ না করলে অগ্রিম ডেলিভারি চার্জ ফেরতযোগ্য নয়।"
 95. Stock count (P2e, November 2026): stock goes down when an order is sent to the courier (status Shipped, by hand or by a Pathao send), never when it is placed or confirmed. A returned parcel goes back in stock unless its return reason is Damaged (the P2c reason decides). Orders are still taken at 0 stock by default and the admin sees "Out of stock" on pending and confirmed orders of that product; a Settings toggle hides the order button and form at 0 stock instead. Purchases log units and cost per unit; manual adjustments need a reason. New products start with stock 0 and a low-stock level of 5.
 96. Print and export (P2h, November 2026), built as the owner asked: A5 invoice per order in Bangla, bulk print of ticked orders (one invoice per page) and the orders CSV export with the current filters. The parcel label and courier CSV export from the first P2h line were not built; Pathao parcels are booked through the API (decision 94).
+97. Home page (November 2026), replacing decision 25: hero banner slider (separate mobile and desktop images, link, order, On/Off), trust bar under it with editable text, categories (admin add, edit, sort, image; each product has one category; page `/c/[slug]`), "জনপ্রিয় পণ্য" picked with a Popular box on each product, "নতুন পণ্য" (newest 8), "কেন কিনবো এখন" with editable text and an optional founder photo, an editable FAQ, and a floating WhatsApp button from Settings. The header gets a category menu and a search box (`/search`, product name only). Admin pages: Categories, Banners, Home page. Trust bar digits follow decision 41 ("3 দিনে রিটার্ন"). Demo data with `isDemo` and `npm run demo:seed` / `demo:clear`, dev database only.

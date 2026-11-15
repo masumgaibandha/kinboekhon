@@ -17,12 +17,25 @@ export interface ProductCardData {
   image: ProductImage | null;
 }
 
-interface CardDoc {
+export interface CardDoc {
   _id: Types.ObjectId;
   name: string;
   slug: string;
   price: number;
   images?: ProductImage[];
+}
+
+// Only the fields a product card shows.
+export const CARD_FIELDS = { name: 1, slug: 1, price: 1, images: { $slice: 1 } };
+
+export function toCard(doc: CardDoc): ProductCardData {
+  return {
+    id: String(doc._id),
+    name: doc.name,
+    slug: doc.slug,
+    price: doc.price,
+    image: pickImages(doc.images)[0] ?? null,
+  };
 }
 
 export async function getActiveProducts(): Promise<ProductCardData[]> {
@@ -31,20 +44,10 @@ export async function getActiveProducts(): Promise<ProductCardData[]> {
   cacheLife("max");
 
   await connectMongoose();
-  const docs = await ProductModel.find(
-    { active: true },
-    { name: 1, slug: 1, price: 1, images: { $slice: 1 } },
-  )
+  const docs = await ProductModel.find({ active: true }, CARD_FIELDS)
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean<CardDoc[]>();
-
-  return docs.map((doc) => ({
-    id: String(doc._id),
-    name: doc.name,
-    slug: doc.slug,
-    price: doc.price,
-    image: pickImages(doc.images)[0] ?? null,
-  }));
+  return docs.map(toCard);
 }
 
 export function productTag(slug: string): string {
