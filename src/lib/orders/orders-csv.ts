@@ -5,6 +5,7 @@ import { formatDhakaDateTime } from "@/lib/dates";
 import { formatLocation } from "@/lib/locations/format";
 import { OrderModel, type OrderDocument } from "@/lib/models/Order";
 import { CALL_OUTCOME_LABELS } from "@/lib/orders/call-labels";
+import { itemsLabel, orderItems, totalUnits } from "@/lib/orders/order-items";
 import { orderListQuery } from "@/lib/orders/order-query";
 import { METHOD_LABELS, OPTION_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/orders/payment-methods";
 import { RETURN_REASON_LABELS } from "@/lib/orders/return-reason-labels";
@@ -22,9 +23,9 @@ const HEADER = [
   "Phone",
   "Address",
   "Area",
-  "Product",
+  "Products",
   "Quantity",
-  "Unit price",
+  "Unit prices",
   "Subtotal",
   "Delivery charge",
   "Discount",
@@ -41,6 +42,7 @@ const HEADER = [
 ];
 
 function row(order: OrderDocument): CsvCell[] {
+  const items = orderItems(order);
   const paid = order.payment.status === "verified" ? order.payment.advanceAmount : 0;
   return [
     order.orderNumber,
@@ -50,9 +52,9 @@ function row(order: OrderDocument): CsvCell[] {
     { excelText: order.customer.phone },
     order.customer.address,
     formatLocation(order.customer.location),
-    order.product.name,
-    order.quantity,
-    order.product.price,
+    itemsLabel(items),
+    totalUnits(items),
+    items.map((item) => item.price).join("; "),
     order.subtotal,
     order.deliveryCharge ?? 0,
     order.discount,

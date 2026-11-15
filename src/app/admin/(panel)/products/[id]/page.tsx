@@ -7,7 +7,7 @@ import { StockCard } from "@/components/admin/stock/StockCard";
 import { requireAdmin } from "@/lib/admin-session";
 import { categoryOptions } from "@/lib/categories/admin";
 import { getLandingForAdmin } from "@/lib/landing/landing-pages";
-import { getProductForAdmin } from "@/lib/products";
+import { getProductForAdmin, productChoices } from "@/lib/products";
 import { getDeliveryContext } from "@/lib/settings";
 import { getProductStock } from "@/lib/stock/product-stock";
 
@@ -18,12 +18,13 @@ export const instant = false;
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
   const { id } = await params;
-  const [found, delivery, stock, categories, { landing }] = await Promise.all([
+  const [found, delivery, stock, categories, { landing }, choices] = await Promise.all([
     getProductForAdmin(id),
     getDeliveryContext(),
     getProductStock(id),
     categoryOptions(),
     getLandingForAdmin(id),
+    productChoices(),
   ]);
   if (!found || !stock) notFound();
 
@@ -38,6 +39,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
         productId={id}
         product={found.product}
         categories={categories}
+        upsellOptions={choices.filter((choice) => choice.id !== id)}
         costs={found.costs}
         delivery={delivery}
       />

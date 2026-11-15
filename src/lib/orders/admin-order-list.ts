@@ -1,5 +1,3 @@
-import type { Types } from "mongoose";
-
 import { connectMongoose } from "@/lib/db";
 import type { RiskLabel } from "@/lib/fraud/risk";
 import { shortLocation } from "@/lib/locations/format";
@@ -7,6 +5,7 @@ import type { OrderLocation } from "@/lib/locations/types";
 import { CustomerModel } from "@/lib/models/Customer";
 import { OrderModel, type OrderCall } from "@/lib/models/Order";
 import type { OrderStatus } from "@/lib/orders/enums";
+import { ITEM_LINES_PROJECTION, orderItems, type ItemLinesDoc } from "@/lib/orders/order-items";
 import { orderListQuery } from "@/lib/orders/order-query";
 import { getProductStocks } from "@/lib/stock/stock-alerts";
 import { ORDERS_PER_PAGE, type OrderFilters } from "@/lib/validation/order-filters";
@@ -16,8 +15,7 @@ export interface OrderListItem {
   createdAt: Date;
   name: string;
   phone: string;
-  productName: string;
-  quantity: number;
+  items: { name: string; quantity: number }[];
   area: string;
   total: number;
   status: OrderStatus;
@@ -27,7 +25,7 @@ export interface OrderListItem {
   risk: RiskLabel | null;
   // Confirmed and not sent to Pathao yet.
   canSendToPathao: boolean;
-  // Not sent to the courier yet while its product has no stock.
+  // Not sent to the courier yet while a product on it has no stock.
   outOfStock: boolean;
 }
 
@@ -41,12 +39,10 @@ export interface OrderListPage {
   pageCount: number;
 }
 
-interface ListDoc {
+interface ListDoc extends ItemLinesDoc {
   orderNumber: string;
   createdAt: Date;
   customer: { name: string; phone: string; location: OrderLocation };
-  product: { name: string; productId: Types.ObjectId };
-  quantity: number;
   total: number;
   status: OrderStatus;
   lastCall?: OrderCall;
@@ -67,9 +63,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     "customer.name": 1,
     "customer.phone": 1,
     "customer.location": 1,
-    "product.name": 1,
-    "product.productId": 1,
-    quantity: 1,
+    ...ITEM_LINES_PROJECTION,
     total: 1,
     status: 1,
     lastCall: 1,
@@ -86,15 +80,15 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     { _id: 0, phone: 1, "risk.label": 1 },
   ).lean<{ phone: string; risk: { label: RiskLabel } }[]>();
   const riskByPhone = new Map(risks.map((customer) => [customer.phone, customer.risk.label]));
-  const stocks = await getProductStocks([...new Set(docs.map((doc) => String(doc.product.productId)))]);
+  const lines = new Map(docs.map((doc) => [doc.orderNumber, orderItems(doc)]));
+  const stocks = await getProductStocks([...new Set([...lines.values()].flat().map((item) => String(item.productId)))]);
 
   const items = docs.map((doc) => ({
     orderNumber: doc.orderNumber,
     createdAt: doc.createdAt,
     name: doc.customer.name,
     phone: doc.customer.phone,
-    productName: doc.product.name,
-    quantity: doc.quantity,
+    items: (lines.get(doc.orderNumber) ?? []).map(({ name, quantity }) => ({ name, quantity })),
     area: shortLocation(doc.customer.location),
     total: doc.total,
     status: doc.status,
@@ -102,7 +96,9 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     customerBlocked: doc.customerBlocked === true,
     risk: riskByPhone.get(doc.customer.phone) ?? null,
     canSendToPathao: doc.status === "confirmed" && !doc.courier,
-    outOfStock: NOT_SENT.includes(doc.status) && (stocks.get(String(doc.product.productId))?.stock ?? 0) <= 0,
+    outOfStock:
+      NOT_SENT.includes(doc.status) &&
+      (lines.get(doc.orderNumber) ?? []).some((item) => (stocks.get(String(item.productId))?.stock ?? 0) <= 0),
   }));
   return { items, total, page, pageCount };
 }

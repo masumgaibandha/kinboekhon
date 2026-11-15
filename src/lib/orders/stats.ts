@@ -2,6 +2,7 @@ import { connectMongoose } from "@/lib/db";
 import { IncompleteOrderModel } from "@/lib/models/IncompleteOrder";
 import { OrderModel } from "@/lib/models/Order";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/orders/enums";
+import { UNWIND_ITEMS, lineShare } from "@/lib/orders/order-items";
 
 export interface ProductStat {
   productId: string;
@@ -37,7 +38,7 @@ interface ProductRow {
 
 // Cancelled and returned orders bring in no money, so they are left out of sales.
 const NOT_SOLD: OrderStatus[] = ["cancelled", "returned"];
-const SOLD_TOTAL = { $cond: [{ $in: ["$status", NOT_SOLD] }, 0, "$total"] };
+const SOLD_LINE = { $cond: [{ $in: ["$status", NOT_SOLD] }, 0, lineShare("$total")] };
 
 const percent = (part: number, whole: number) => (whole === 0 ? null : Math.round((part / whole) * 1000) / 10);
 
@@ -53,13 +54,15 @@ export async function getDashboardStats(start: Date | null): Promise<DashboardSt
       {
         $facet: {
           statuses: [{ $group: { _id: "$status", count: { $sum: 1 }, value: { $sum: "$total" } } }],
+          // Each product counts the orders it is on; a line sells its own value, the main line also the delivery charge and discount.
           products: [
+            ...UNWIND_ITEMS,
             {
               $group: {
-                _id: "$product.productId",
-                name: { $first: "$product.name" },
+                _id: "$items.productId",
+                name: { $first: "$items.name" },
                 orders: { $sum: 1 },
-                sales: { $sum: SOLD_TOTAL },
+                sales: { $sum: SOLD_LINE },
               },
             },
             { $sort: { orders: -1, sales: -1 } },

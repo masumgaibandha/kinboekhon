@@ -1,6 +1,7 @@
 import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import type { OrderStatus, PaymentMethod, PaymentOption } from "@/lib/orders/enums";
+import { ITEM_LINES_PROJECTION, orderItems, type ItemLinesDoc } from "@/lib/orders/order-items";
 
 export interface QueuedPayment {
   orderNumber: string;
@@ -8,8 +9,7 @@ export interface QueuedPayment {
   status: OrderStatus;
   name: string;
   phone: string;
-  productName: string;
-  quantity: number;
+  items: { name: string; quantity: number }[];
   total: number;
   option: PaymentOption;
   method: PaymentMethod;
@@ -18,13 +18,11 @@ export interface QueuedPayment {
   transactionId: string;
 }
 
-interface QueueDoc {
+interface QueueDoc extends ItemLinesDoc {
   orderNumber: string;
   createdAt: Date;
   status: OrderStatus;
   customer: { name: string; phone: string };
-  product: { name: string };
-  quantity: number;
   total: number;
   payment: {
     option: PaymentOption;
@@ -46,8 +44,7 @@ export async function listPaymentsToReview(): Promise<QueuedPayment[]> {
       status: 1,
       "customer.name": 1,
       "customer.phone": 1,
-      "product.name": 1,
-      quantity: 1,
+      ...ITEM_LINES_PROJECTION,
       total: 1,
       "payment.option": 1,
       "payment.method": 1,
@@ -66,8 +63,7 @@ export async function listPaymentsToReview(): Promise<QueuedPayment[]> {
     status: doc.status,
     name: doc.customer.name,
     phone: doc.customer.phone,
-    productName: doc.product.name,
-    quantity: doc.quantity,
+    items: orderItems(doc).map(({ name, quantity }) => ({ name, quantity })),
     total: doc.total,
     option: doc.payment.option,
     method: doc.payment.method,

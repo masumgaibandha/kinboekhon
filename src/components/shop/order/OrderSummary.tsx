@@ -4,9 +4,15 @@ import { Money } from "@/components/ui/Money";
 import type { PaymentOption } from "@/lib/orders/enums";
 import type { OrderAmounts } from "@/lib/orders/pricing";
 
-interface OrderSummaryProps {
+interface SummaryLine {
+  name: string;
   price: number;
   quantity: number;
+}
+
+interface OrderSummaryProps {
+  // The ordered product first, then any "এটাও নিন" products.
+  lines: SummaryLine[];
   amounts: OrderAmounts;
   option: PaymentOption;
   // Null until the customer picks the upazila, thana or city corporation.
@@ -29,20 +35,23 @@ function Row({ label, children, className = "" }: { label: ReactNode; children: 
   );
 }
 
-export function OrderSummary({ price, quantity, amounts, option, dhakaCity, charges }: OrderSummaryProps) {
+export function OrderSummary({ lines, amounts, option, dhakaCity, charges }: OrderSummaryProps) {
   const area = dhakaCity === null ? "" : dhakaCity ? " (ঢাকা সিটি)" : " (ঢাকা সিটির বাইরে)";
 
   return (
     <dl className="space-y-1.5 border-t border-dashed border-line-strong pt-3 text-[15px] text-desc">
-      <Row
-        label={
-          <>
-            পণ্যের দাম (<Money amount={price} /> × {quantity})
-          </>
-        }
-      >
-        <Money amount={amounts.subtotal} />
-      </Row>
+      {lines.map((line, index) => (
+        <Row
+          key={index}
+          label={
+            <>
+              {lines.length > 1 ? line.name : "পণ্যের দাম"} (<Money amount={line.price} /> × {line.quantity})
+            </>
+          }
+        >
+          <Money amount={line.price * line.quantity} />
+        </Row>
+      ))}
       <Row label={`ডেলিভারি চার্জ${area}`}>
         <Money amount={amounts.deliveryCharge} />
       </Row>

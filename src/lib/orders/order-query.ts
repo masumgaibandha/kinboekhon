@@ -1,6 +1,7 @@
 import { connectMongoose } from "@/lib/db";
 import { dhakaDayEnd, dhakaDayStart } from "@/lib/dates";
 import { CustomerModel } from "@/lib/models/Customer";
+import { withProduct } from "@/lib/orders/order-items";
 import { normalizePhone } from "@/lib/phone";
 import { escapeRegex } from "@/lib/regex";
 import type { OrderFilters } from "@/lib/validation/order-filters";
@@ -21,7 +22,7 @@ export async function orderListQuery(filters: OrderFilters): Promise<Record<stri
   if (filters.method) query["payment.method"] = filters.method;
   if (filters.payment) query["payment.status"] = filters.payment;
   if (filters.call) query["lastCall.outcome"] = filters.call === "none" ? null : filters.call;
-  if (filters.product) query["product.productId"] = filters.product;
+  if (filters.product) Object.assign(query, withProduct(filters.product));
 
   const from = filters.from ? dhakaDayStart(filters.from) : null;
   const to = filters.to ? dhakaDayEnd(filters.to) : null;

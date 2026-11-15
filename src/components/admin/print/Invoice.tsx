@@ -53,16 +53,18 @@ export function Invoice({ order, contact }: { order: InvoiceOrder; contact: Invo
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-line">
-            <td className="py-1.5 pr-2">{order.productName}</td>
-            <td className="py-1.5 text-right">{order.quantity}</td>
-            <td className="py-1.5 text-right">
-              <Money amount={order.price} />
-            </td>
-            <td className="py-1.5 text-right">
-              <Money amount={order.subtotal} />
-            </td>
-          </tr>
+          {order.items.map((item, index) => (
+            <tr key={index} className="border-b border-line">
+              <td className="py-1.5 pr-2">{item.name}</td>
+              <td className="py-1.5 text-right">{item.quantity}</td>
+              <td className="py-1.5 text-right">
+                <Money amount={item.price} />
+              </td>
+              <td className="py-1.5 text-right">
+                <Money amount={item.price * item.quantity} />
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 

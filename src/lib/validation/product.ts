@@ -1,6 +1,7 @@
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 
+import { MAX_EXTRAS } from "@/lib/orders/limits";
 import { IMAGE_LIMITS } from "@/lib/product-images";
 import { productCostsSchema } from "@/lib/validation/costs";
 import { imageListField } from "@/lib/validation/image";
@@ -64,6 +65,16 @@ export const productSchema = z
       .refine((id) => id === "" || isValidObjectId(id), "Choose a category from the list.")
       .transform((id) => id || null),
     popular: z.boolean(),
+    // "এটাও নিন" products shown in the order summary, in this order; none means the same category's products.
+    upsellIds: z
+      .array(z.string().trim())
+      .transform((ids) => ids.filter(Boolean))
+      .pipe(
+        z
+          .array(z.string().refine(isValidObjectId, "Choose a product from the list."))
+          .max(MAX_EXTRAS, `Pick up to ${MAX_EXTRAS} products.`)
+          .refine((ids) => new Set(ids).size === ids.length, "Pick each product once."),
+      ),
     images: imageList(IMAGE_LIMITS.images),
     hook: z.object({ headline: text(150), subheadline: text(300) }),
     problem: z.object({ title: text(150), points: lines(10) }),

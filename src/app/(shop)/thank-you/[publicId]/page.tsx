@@ -60,14 +60,7 @@ async function ThankYou({ params }: Pick<PageProps<"/thank-you/[publicId]">, "pa
         </p>
       )}
 
-      <PurchasePixel
-        publicId={publicId}
-        orderNumber={order.orderNumber}
-        productId={order.productId}
-        productName={order.productName}
-        value={order.subtotal}
-        quantity={order.quantity}
-      />
+      <PurchasePixel publicId={publicId} orderNumber={order.orderNumber} lines={order.items} />
 
       <Link
         href={`/track?ref=${publicId}`}

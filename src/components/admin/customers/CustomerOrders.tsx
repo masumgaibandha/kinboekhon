@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { Money } from "@/components/ui/Money";
 import type { CustomerOrderRow } from "@/lib/customers/admin-customer-detail";
 import { formatDhakaDateTime } from "@/lib/dates";
+import { itemsLabel } from "@/lib/orders/order-items";
 
 export function CustomerOrders({ orders }: { orders: CustomerOrderRow[] }) {
   if (orders.length === 0) return <p className="text-sm text-desc">No orders.</p>;
@@ -31,7 +32,7 @@ export function CustomerOrders({ orders }: { orders: CustomerOrderRow[] }) {
               </td>
               <td className="whitespace-nowrap px-5 py-2 text-desc">{formatDhakaDateTime(order.createdAt)}</td>
               <td className="px-5 py-2 text-body">
-                {order.productName} <span className="whitespace-nowrap text-muted">x {order.quantity}</span>
+                {itemsLabel(order.items)}
               </td>
               <td className="whitespace-nowrap px-5 py-2">
                 <Money amount={order.total} />

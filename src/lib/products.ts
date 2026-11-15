@@ -7,13 +7,23 @@ import { getCostDefaults } from "@/lib/settings";
 import type { CostDefaults, ProductCosts } from "@/lib/validation/costs";
 import type { ProductInput } from "@/lib/validation/product";
 
-export type ProductDoc = Omit<ProductInput, "categoryId" | "popular"> & {
+export type ProductDoc = Omit<ProductInput, "categoryId" | "popular" | "upsellIds"> & {
   _id: Types.ObjectId;
   categoryId?: Types.ObjectId | null;
   popular?: boolean;
+  upsellIds?: Types.ObjectId[];
   costs?: Partial<ProductCosts>;
   updatedAt?: Date;
 };
+
+// Every product (active or not) as id and name, in the products list order.
+export async function productChoices(): Promise<{ id: string; name: string }[]> {
+  await connectMongoose();
+  const products = await ProductModel.find({}, { name: 1 })
+    .sort({ sortOrder: 1, createdAt: -1 })
+    .lean<{ _id: Types.ObjectId; name: string }[]>();
+  return products.map((product) => ({ id: String(product._id), name: product.name }));
+}
 
 export interface AdminProduct {
   product: ProductInput;
@@ -35,6 +45,7 @@ export const EMPTY_PRODUCT: ProductInput = {
   active: false,
   categoryId: null,
   popular: false,
+  upsellIds: [],
   images: [],
   hook: { headline: "", subheadline: "" },
   problem: { title: "", points: [] },
@@ -54,6 +65,7 @@ export function toProductInput(doc: ProductDoc): ProductInput {
     active: doc.active,
     categoryId: doc.categoryId ? String(doc.categoryId) : null,
     popular: doc.popular ?? false,
+    upsellIds: (doc.upsellIds ?? []).map(String),
     images: pickImages(doc.images),
     hook: { headline: doc.hook?.headline ?? "", subheadline: doc.hook?.subheadline ?? "" },
     problem: { title: doc.problem?.title ?? "", points: doc.problem?.points ?? [] },

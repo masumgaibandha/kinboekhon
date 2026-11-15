@@ -3,13 +3,17 @@ import type { Types } from "mongoose";
 import { connectMongoose } from "@/lib/db";
 import { sendCapiEvent } from "@/lib/meta/capi";
 import { customerUserData } from "@/lib/meta/user-data";
+import { orderContent } from "@/lib/meta/order-content";
 import { OrderModel, type OrderTracking } from "@/lib/models/Order";
+import { orderItems } from "@/lib/orders/order-items";
+
+type Line = { productId: Types.ObjectId; name: string; price: number };
 
 interface PurchaseOrder {
   orderNumber: string;
-  product: { productId: Types.ObjectId; name: string };
-  quantity: number;
-  subtotal: number;
+  items?: (Line & { quantity: number })[];
+  product?: Line;
+  quantity?: number;
   customer: { name: string; phone: string; location: { districtId: string } };
   tracking?: OrderTracking;
   createdAt: Date;
@@ -22,7 +26,7 @@ export async function sendPurchaseEvent(publicId: string): Promise<void> {
   await connectMongoose();
   const order = await OrderModel.findOne(
     { publicId },
-    { orderNumber: 1, product: 1, quantity: 1, subtotal: 1, customer: 1, tracking: 1, createdAt: 1 },
+    { orderNumber: 1, items: 1, product: 1, quantity: 1, customer: 1, tracking: 1, createdAt: 1 },
   ).lean<PurchaseOrder>();
   if (!order) return;
 
@@ -37,15 +41,7 @@ export async function sendPurchaseEvent(publicId: string): Promise<void> {
       { name: order.customer.name, phone: order.customer.phone, districtId: order.customer.location.districtId },
       tracking,
     ),
-    custom_data: {
-      content_ids: [String(order.product.productId)],
-      content_name: order.product.name,
-      content_type: "product",
-      currency: "BDT",
-      // Product total only: no delivery charge, no discount.
-      value: order.subtotal,
-      num_items: order.quantity,
-    },
+    custom_data: orderContent(orderItems(order).map((item) => ({ ...item, productId: String(item.productId) }))),
   });
 
   const capiPurchase = result.ok ? { status: "sent" } : { status: "failed", error: result.error };

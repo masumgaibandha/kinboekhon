@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { ReviewForm } from "@/components/admin/payments/ReviewForm";
 import { Money } from "@/components/ui/Money";
 import { formatDhakaDateTime } from "@/lib/dates";
+import { itemsLabel } from "@/lib/orders/order-items";
 import { METHOD_LABELS, OPTION_LABELS } from "@/lib/orders/payment-methods";
 import type { QueuedPayment } from "@/lib/orders/payment-queue";
 
@@ -47,7 +48,7 @@ export function PaymentReviewCard({ payment }: { payment: QueuedPayment }) {
           {payment.name}, {payment.phone}
         </Item>
         <Item label="Product">
-          {payment.productName} x {payment.quantity}
+          {itemsLabel(payment.items)}
         </Item>
       </dl>
 

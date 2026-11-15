@@ -12,6 +12,7 @@ export interface PixelProductData {
   content_name?: string;
   content_type: "product";
   currency: "BDT";
+  contents?: { id: string; quantity: number; item_price: number }[];
   value: number;
   num_items?: number;
 }

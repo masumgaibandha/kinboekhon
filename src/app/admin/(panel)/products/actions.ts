@@ -34,6 +34,7 @@ function readForm(formData: FormData) {
     active: formData.get("active") === "on",
     categoryId: text("categoryId"),
     popular: formData.get("popular") === "on",
+    upsellIds: formData.getAll("upsellIds").map(String),
     images: text("images"),
     hook: { headline: text("hook.headline"), subheadline: text("hook.subheadline") },
     problem: { title: text("problem.title"), points: text("problem.points") },
@@ -56,6 +57,7 @@ function readForm(formData: FormData) {
 async function saveProduct(
   formData: FormData,
   write: (product: ProductFormValues) => Promise<string | null>,
+  selfId?: string,
 ): Promise<ProductActionResult> {
   const parsed = productFormSchema.safeParse(readForm(formData));
   if (!parsed.success) {
@@ -71,6 +73,10 @@ async function saveProduct(
     await connectMongoose();
     if (parsed.data.categoryId && !(await CategoryModel.exists({ _id: parsed.data.categoryId }))) {
       return { ok: false, message: FIX_FIELDS, fieldErrors: { categoryId: "This category no longer exists." } };
+    }
+    const upsellIds = parsed.data.upsellIds;
+    if (upsellIds.includes(selfId ?? "") || (await ProductModel.countDocuments({ _id: { $in: upsellIds } })) !== upsellIds.length) {
+      return { ok: false, message: FIX_FIELDS, fieldErrors: { upsellIds: "Choose other existing products." } };
     }
     previousSlug = await write(parsed.data);
     if (previousSlug === null) return NOT_FOUND;
@@ -108,7 +114,7 @@ export async function updateProduct(id: string, formData: FormData): Promise<Pro
     const before = await ProductModel.findOneAndUpdate({ _id: id }, { $set: changes }, { projection: { slug: 1 } })
       .lean<{ slug: string }>();
     return before?.slug ?? null;
-  });
+  }, id);
 }
 
 export async function setProductActive(id: string, active: boolean): Promise<ProductActionResult> {

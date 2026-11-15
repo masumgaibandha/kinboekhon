@@ -9,8 +9,7 @@ import { calculateOrder, type Discounts, type OrderAmounts } from "@/lib/orders/
 const PAYMENT_FIELDS = ["paymentMethod", "senderNumber", "transactionId"];
 
 interface PaymentChoiceArgs {
-  price: number;
-  quantity: number;
+  subtotal: number;
   deliveryCharge: number;
   discounts: Discounts;
   accounts: PaymentAccount[];
@@ -19,12 +18,12 @@ interface PaymentChoiceArgs {
 
 // The chosen payment option and method, and the amounts of every option for the live summary.
 // Delivery charge in advance starts chosen; without an advance account only cash on delivery is offered.
-export function usePaymentChoice({ price, quantity, deliveryCharge, discounts, accounts, clearError }: PaymentChoiceArgs) {
+export function usePaymentChoice({ subtotal, deliveryCharge, discounts, accounts, clearError }: PaymentChoiceArgs) {
   const [chosen, setChosen] = useState<PaymentOption>("advance_delivery");
   const [method, setMethod] = useState<AdvanceMethod | "">(accounts[0]?.method ?? "");
 
   const amounts = Object.fromEntries(
-    PAYMENT_OPTIONS.map((item) => [item, calculateOrder(price, quantity, deliveryCharge, item, discounts)]),
+    PAYMENT_OPTIONS.map((item) => [item, calculateOrder(subtotal, deliveryCharge, item, discounts)]),
   ) as Record<PaymentOption, OrderAmounts>;
   // An option with nothing to send in advance is not offered.
   const offered = (item: PaymentOption) => item === "cod" || (accounts.length > 0 && amounts[item].advanceAmount > 0);

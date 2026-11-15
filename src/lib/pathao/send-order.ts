@@ -2,11 +2,12 @@ import { adminFail, type AdminActionResult } from "@/lib/admin-result";
 import { connectMongoose } from "@/lib/db";
 import { OrderModel, type OrderDocument } from "@/lib/models/Order";
 import { ORDER_NOT_FOUND } from "@/lib/orders/change-status";
+import { orderItems } from "@/lib/orders/order-items";
 import { dataOf, pathaoError, pathaoRequest, PathaoUnreachable } from "@/lib/pathao/client";
 import { NOT_CONNECTED, pathaoConfig } from "@/lib/pathao/config";
 import { guessLocation, type CourierLocation } from "@/lib/pathao/location-match";
 import { parcelBody, parcelProblem, parcelWeightKg } from "@/lib/pathao/parcel";
-import { unitWeightGrams } from "@/lib/pathao/parcel-weight";
+import { parcelGrams } from "@/lib/pathao/parcel-weight";
 import { statusSlug } from "@/lib/pathao/status-map";
 import { takeOrderStock } from "@/lib/stock/order-stock";
 
@@ -72,7 +73,7 @@ export async function sendOrderToPathao(orderNumber: string): Promise<AdminActio
   if (order.courier) return adminFail(ALREADY_SENT);
   if (order.status !== "confirmed") return adminFail("Only confirmed orders can be sent to Pathao.");
 
-  const weightKg = parcelWeightKg(await unitWeightGrams(order.product.productId), order.quantity);
+  const weightKg = parcelWeightKg(await parcelGrams(orderItems(order)));
   const problem = parcelProblem(order, weightKg);
   if (problem) return adminFail(problem);
   const location = await locationFor(order);

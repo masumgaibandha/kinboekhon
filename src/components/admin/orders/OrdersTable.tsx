@@ -8,6 +8,7 @@ import { OutOfStockBadge } from "@/components/admin/stock/StockLevelBadge";
 import { Money } from "@/components/ui/Money";
 import { formatDhakaDateTime } from "@/lib/dates";
 import type { OrderListItem } from "@/lib/orders/admin-order-list";
+import { itemsLabel } from "@/lib/orders/order-items";
 
 // With `bulkFormId`, every order gets a tick box for that bulk actions form.
 export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; bulkFormId?: string }) {
@@ -60,7 +61,7 @@ export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; b
                 {order.customerBlocked && <BlockedBadge />}
               </td>
               <td className="px-4 py-3 text-body">
-                {order.productName} <span className="whitespace-nowrap text-muted">x {order.quantity}</span>
+                {itemsLabel(order.items)}
               </td>
               <td className="px-4 py-3 text-body">{order.area}</td>
               <td className="whitespace-nowrap px-4 py-3">

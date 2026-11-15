@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { connectMongoose } from "@/lib/db";
 import { IncompleteOrderModel } from "@/lib/models/IncompleteOrder";
 import { OrderModel } from "@/lib/models/Order";
+import { withProduct } from "@/lib/orders/order-items";
 import { ProductModel } from "@/lib/models/Product";
 import { getSettings } from "@/lib/settings";
 import type { DraftInput } from "@/lib/validation/draft";
@@ -25,7 +26,7 @@ export async function saveDraft(input: DraftInput, request: DraftRequestInfo): P
   // A blur on the last field can arrive after the order itself; that draft must not come back.
   const { duplicateWindowHours } = await getSettings();
   const since = new Date(Date.now() - duplicateWindowHours * HOUR);
-  if (await OrderModel.exists({ "customer.phone": input.phone, "product.productId": productId, createdAt: { $gte: since } })) return;
+  if (await OrderModel.exists({ "customer.phone": input.phone, ...withProduct(productId), createdAt: { $gte: since } })) return;
 
   const { draftKey, ...fields } = input;
   await IncompleteOrderModel.updateOne(

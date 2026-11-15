@@ -31,16 +31,19 @@ export function deliveryChargeFor(dhakaCity: boolean, settings: PricingSettings)
   return dhakaCity ? settings.deliveryChargeDhakaCity : settings.deliveryChargeOutside;
 }
 
+// Price x quantity summed over the order lines.
+export function itemsSubtotal(items: { price: number; quantity: number }[]): number {
+  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+}
+
 // The one place order money is calculated: the live summary and the saved order both use it.
 // Only one discount applies: off the delivery charge when it is paid in advance, or off the total when everything is.
 export function calculateOrder(
-  price: number,
-  quantity: number,
+  subtotal: number,
   deliveryCharge: number,
   option: PaymentOption = "cod",
   discounts: Discounts = NO_DISCOUNTS,
 ): OrderAmounts {
-  const subtotal = price * quantity;
   const full = subtotal + deliveryCharge;
   const discount =
     option === "advance_delivery"

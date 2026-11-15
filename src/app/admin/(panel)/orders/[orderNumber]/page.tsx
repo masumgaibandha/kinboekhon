@@ -39,9 +39,9 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
   const [summary, history, stocks] = await Promise.all([
     getCustomerSummary(order.customer.phone, order.orderNumber),
     getDeliveryHistory(order.customer.phone),
-    getProductStocks([order.productId]),
+    getProductStocks(order.items.map((item) => item.productId)),
   ]);
-  const outOfStock = NOT_SENT.includes(order.status) && (stocks.get(order.productId)?.stock ?? 0) <= 0;
+  const outOfStock = NOT_SENT.includes(order.status) && order.items.some((item) => (stocks.get(item.productId)?.stock ?? 0) <= 0);
   const failed = order.status === "cancelled" || order.status === "returned";
   // Every form is keyed on the saved version, so it always starts from fresh values.
   const key = `${order.orderNumber}-${order.version}`;

@@ -9,6 +9,7 @@ import { Section, TextArea, TextField, Toggle, inputClass } from "@/components/a
 import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
 import { PriceCalculator } from "@/components/admin/products/PriceCalculator";
+import { UpsellFields } from "@/components/admin/products/UpsellFields";
 import type { DeliveryContext } from "@/lib/price-calculator";
 import { ACTIVE_INITIAL_FIELD } from "@/lib/product-form";
 import type { ProductCosts } from "@/lib/validation/costs";
@@ -18,11 +19,13 @@ interface ProductFormProps {
   productId?: string;
   product: ProductInput;
   categories: { id: string; name: string }[];
+  // Every other product, for the upsell lists.
+  upsellOptions: { id: string; name: string }[];
   costs: ProductCosts;
   delivery: DeliveryContext;
 }
 
-export function ProductForm({ productId, product, categories, costs, delivery }: ProductFormProps) {
+export function ProductForm({ productId, product, categories, upsellOptions, costs, delivery }: ProductFormProps) {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -148,6 +151,8 @@ export function ProductForm({ productId, product, categories, costs, delivery }:
           markMain
         />
       </Section>
+
+      <UpsellFields options={upsellOptions} selected={product.upsellIds} error={errors.upsellIds} />
 
       <LandingFields product={product} errors={errors} />
 

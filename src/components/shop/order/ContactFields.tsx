@@ -3,6 +3,23 @@ import { OrderField, fieldClass } from "@/components/shop/order/OrderField";
 const invalid = (errors: Record<string, string>, field: string) =>
   errors[field] ? { "aria-invalid": true, "aria-describedby": `order-${field}-error` } : {};
 
+// The typed part of the address: house, road, area.
+export function AddressField({ errors }: { errors: Record<string, string> }) {
+  return (
+    <OrderField id="order-address" label="ঠিকানা (বাড়ি, রাস্তা, এলাকা)" error={errors.address}>
+      <textarea
+        id="order-address"
+        name="address"
+        rows={2}
+        autoComplete="street-address"
+        placeholder="যেমন: বাড়ি নম্বর, রাস্তা, এলাকার নাম"
+        className={`${fieldClass} resize-none`}
+        {...invalid(errors, "address")}
+      />
+    </OrderField>
+  );
+}
+
 // The customer's name and mobile number.
 export function ContactFields({ errors }: { errors: Record<string, string> }) {
   return (

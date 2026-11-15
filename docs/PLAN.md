@@ -191,6 +191,7 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | sortOrder | number | home page order |
 | categoryId | ObjectId or null | the product's category (decision 97); "No category" in the form saves null |
 | popular | boolean, default false | shown in "জনপ্রিয় পণ্য" on the home page, in sortOrder, up to 8 |
+| upsellIds | ObjectId[], default [] | up to 3 "এটাও নিন" products for this product's order summary, in order (decision 102) |
 | isDemo | boolean, default false | demo data, deleted by `npm run demo:clear` |
 | costs | `{ chinaPrice, weightGrams, shippingPerKg, agentFee, packaging, returnPercent, adCost, targetProfit }` | price calculator inputs (P1a), admin only. `weightGrams` is the weight with packaging, used for air shipping and the courier weight slab. Courier cost and COD % come from Settings `courier` (decision 93); old saved `courier` and `codPercent` values are ignored. `toProductInput()` leaves them out, so the shop never reads them. A product without `costs` starts the form with China price and weight empty and the rates from Settings `costDefaults` |
 | stock | number, default 0 (P2e): units in stock. Changed only by a logged stock move (`recordStockMove`, one atomic `$inc`), never by the product form. Can go below 0 when more is shipped than was counted. Stock writes skip `updatedAt`, so the open product form is not reset |
@@ -263,9 +264,9 @@ One per product (`productId` unique). Shown at `/l/<product slug>` only while `a
 |---|---|---|
 | orderNumber | string, unique | human number, e.g. `KE10001`, from Counter |
 | publicId | string, unique | random 16 chars, used in thank-you URL so it cannot be guessed |
-| product | `{ productId, name, slug, image, price }` | snapshot at order time |
-| quantity | number | 1 to 5 (`MAX_QUANTITY`) |
-| subtotal | number | price x quantity |
+| items | `{ productId, name, slug, image, price, quantity }[]` | snapshot at order time, one line per product (decision 102). The first line is the product the order was placed from, the others were added from "এটাও নিন" (up to 3). Quantity 1 to 5 (`MAX_QUANTITY`) per line |
+| product, quantity | | only on orders placed before decision 102: their one product and quantity. Code reads both shapes through `orderItems()` and the `ITEMS_STAGE` aggregation stage (`src/lib/orders/order-items.ts`); old orders are not migrated |
+| subtotal | number | price x quantity summed over the lines |
 | deliveryCharge | number | from Settings at order time by area: Dhaka City (a city corporation, `location.kind: dhaka_city`) or everywhere else (decision 92). Missing on orders from the free delivery time, read as 0 |
 | discount | number | one discount only: `advanceDeliveryDiscount` off the delivery charge for `advance_delivery` (never more than the charge), `fullAdvanceDiscount` off the total for `advance_full`, 0 for COD |
 | total | number | subtotal + deliveryCharge - discount |
@@ -295,7 +296,7 @@ One per product (`productId` unique). Shown at `/l/<product slug>` only while `a
 
 Indexes:
 - `orderNumber` unique, `publicId` unique
-- `{ "customer.phone": 1, "product.productId": 1, createdAt: -1 }` for the duplicate check
+- `{ "customer.phone": 1, "items.productId": 1, createdAt: -1 }` and the old `{ "customer.phone": 1, "product.productId": 1, createdAt: -1 }` for the duplicate check
 - `{ status: 1, createdAt: -1 }` for lists and dashboard
 - `{ createdAt: -1 }` for the unfiltered admin list, newest first
 - `{ "tracking.ipHash": 1, createdAt: -1 }` for the admin tracking box
@@ -846,7 +847,7 @@ Demo data (dev database only): product photos live in `public/demo-products/<slu
 
 ## 12. Not planned
 
-Cart, customer accounts, product variants, email notifications, online payment gateway. (Product search by name was added by decision 97.)
+Cart, customer accounts, product variants, email notifications, online payment gateway. (Product search by name was added by decision 97. Decision 102 lets one order carry up to 3 "এটাও নিন" products; there is still no cart.)
 
 ## 13. Owner decisions
 
@@ -951,3 +952,4 @@ Cart, customer accounts, product variants, email notifications, online payment g
 99. Desktop layout (November 2026): from 1024px the shop uses a 1200px container (`max-w-shop`) for header, footer and pages. Product page: hero in two columns (gallery with thumbnails 55%, sticky text, price, order button and trust icons 45%), other sections full width. Landing page: hero in two columns (media left, text right), sections in a centered 860px column (`max-w-column`). Below 1024px both pages keep the phone layout unchanged.
 100. Desktop checkout (November 2026), replacing the 560px order form of decision 99: from 1024px the order form on both pages is a centered 1000px checkout (`max-w-checkout`). Left about 58%: name and phone side by side, division, district and upazila in one row (short first lines: "বিভাগ বেছে নিন", "জেলা বেছে নিন", "থানা বেছে নিন"), address full width, then the whole payment section. Right about 42%, sticky: a summary card with product thumbnail, name and price, quantity, totals, pay now vs on delivery and the confirm button. The landing page hides its separate name and price strip above the form there. The sold out box stays at 560px. Phones are unchanged.
 101. Order tracking (November 2026): `/track` (Bangla) asks for the order number ("KE10001", "10001" or Bangla digits) and the phone used on the order; both must match, so nobody can look up orders by phone alone. `POST /api/order-status` (same origin, Zod) counts every try per hashed IP: 10 per 10 minutes, 40 per day. Wrong number or phone get the same "not found" message. The result shows the order number, time, items, total, a timeline (অর্ডার পেয়েছি, কনফার্ম হয়েছে, কুরিয়ারে দেওয়া হয়েছে, then ডেলিভারি হয়েছে or ফেরত এসেছে; a cancelled order shows "অর্ডারটি বাতিল হয়েছে" and the steps it reached), each with its time from the status history, the Pathao tracking link once shipped, and a WhatsApp button with the order number as the message. No address, name or payment details. Links: header (truck icon, text from 1024px), footer, and the thank-you page (`/track?ref=<publicId>` fills in both fields).
+102. Upsell and multi-item orders (November 2026): the order form shows "এটাও নিন" with up to 3 products: the ones picked in the product form's Upsell section (inactive ones skipped), else up to 3 other active products of the same category. Out of stock ones are left out when Settings hide ordering at 0 stock. Phones show the list under the quantity, desktop in the summary card. One tap adds a product (quantity 1, then a stepper; minus at 1 takes it off). All lines share one delivery charge and one discount; the summary lists each line. `/api/orders` takes `extras: { productId, quantity }[]` (max 3, no repeats, never the main product); prices come from the database and every line must be active (and in stock when that setting is on). Orders store `items`. Everywhere else reads all lines: admin order page (Upsell tag on added lines), orders list, payments queue and customer page ("Name x 2, Other x 1"), invoice (one row per line), CSV ("Products", total "Quantity", "Unit prices"), stock (one move per line when shipped, returned or marked damaged; `stockOut` holds the units of all lines), Pathao (weight = each line's weight with packaging x quantity, added up; item_quantity = all units; description lists every line), duplicate check (the main product on any line of a recent order), dashboard product table (each product counts the orders it is on; a line sells its own value, the main line also the delivery charge and discount), profit report (order counts, packaging and courier cost go to the main product; revenue, units, product cost and COD charge to each line, the main line taking the order-level remainder so lines add up to the order), and Meta Purchase (browser and server: every content id, `contents` with quantity and price, value = product total of all lines). ViewContent and InitiateCheckout stay on the page's product. Drafts keep only the main product.

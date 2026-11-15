@@ -16,15 +16,23 @@ function Row({ label, children, strong }: { label: string; children: ReactNode; 
 export function OrderAmounts({ order }: { order: AdminOrder }) {
   return (
     <div className="space-y-3 text-sm">
-      <p>
-        <Link href={`/p/${order.product.slug}`} className="font-semibold text-heading hover:text-brand hover:underline">
-          {order.product.name}
-        </Link>
-      </p>
-      <dl className="divide-y divide-line">
-        <Row label={`Price x ${order.quantity}`}>
-          <Money amount={order.product.price} />
-        </Row>
+      <ul className="space-y-2">
+        {order.items.map((item, index) => (
+          <li key={item.productId} className="flex justify-between gap-4">
+            <div>
+              <Link href={`/p/${item.slug}`} className="font-semibold text-heading hover:text-brand hover:underline">
+                {item.name}
+              </Link>
+              {index > 0 && <span className="ml-2 rounded bg-brand-light px-1.5 py-0.5 text-xs font-semibold text-brand-dark">Upsell</span>}
+              <p className="text-desc">
+                <Money amount={item.price} /> x {item.quantity}
+              </p>
+            </div>
+            <Money amount={item.price * item.quantity} />
+          </li>
+        ))}
+      </ul>
+      <dl className="divide-y divide-line border-t border-line">
         <Row label="Subtotal">
           <Money amount={order.subtotal} />
         </Row>

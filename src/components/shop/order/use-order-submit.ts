@@ -9,6 +9,7 @@ import type { PaymentOption } from "@/lib/orders/enums";
 export interface OrderFields {
   productId: string;
   quantity: number;
+  extras: { productId: string; quantity: number }[];
   name: string;
   phone: string;
   divisionId: string;

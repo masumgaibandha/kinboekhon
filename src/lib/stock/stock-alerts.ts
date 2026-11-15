@@ -3,6 +3,7 @@ import type { Types } from "mongoose";
 import { connectMongoose } from "@/lib/db";
 import { DEFAULT_LOW_STOCK_LEVEL, ProductModel } from "@/lib/models/Product";
 import { OrderModel } from "@/lib/models/Order";
+import { UNWIND_ITEMS } from "@/lib/orders/order-items";
 
 export interface LowStockProduct {
   id: string;
@@ -41,7 +42,8 @@ export async function getStockShortfalls(): Promise<StockShortfall[]> {
   await connectMongoose();
   const needs = await OrderModel.aggregate<{ _id: Types.ObjectId; units: number }>([
     { $match: { status: "confirmed" } },
-    { $group: { _id: "$product.productId", units: { $sum: "$quantity" } } },
+    ...UNWIND_ITEMS,
+    { $group: { _id: "$items.productId", units: { $sum: "$items.quantity" } } },
   ]);
   if (needs.length === 0) return [];
   const stocks = await getProductStocks(needs.map((need) => need._id));

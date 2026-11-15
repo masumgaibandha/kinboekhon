@@ -1,4 +1,4 @@
-import { Schema } from "mongoose";
+import { Schema, type Types } from "mongoose";
 
 import { appDb } from "@/lib/db";
 import { costsSchema } from "@/lib/models/costs-schema";
@@ -8,7 +8,12 @@ import type { ProductFormValues } from "@/lib/validation/product";
 const reviewSchema = new Schema({ name: String, text: String }, { _id: false });
 
 // Stock is changed only through logged stock moves, never by the product form.
-export type ProductDocument = ProductFormValues & { stock: number; lowStockLevel: number; isDemo: boolean };
+export type ProductDocument = Omit<ProductFormValues, "upsellIds"> & {
+  upsellIds: Types.ObjectId[];
+  stock: number;
+  lowStockLevel: number;
+  isDemo: boolean;
+};
 
 export const DEFAULT_LOW_STOCK_LEVEL = 5;
 
@@ -28,6 +33,7 @@ const productSchema = new Schema<ProductDocument>(
     active: { type: Boolean, default: false },
     categoryId: { type: Schema.Types.ObjectId, default: null },
     popular: { type: Boolean, default: false },
+    upsellIds: { type: [Schema.Types.ObjectId], default: [] },
     sortOrder: { type: Number, default: 0 },
     costs: costsSchema,
     stock: { type: Number, default: 0 },

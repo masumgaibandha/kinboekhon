@@ -3,16 +3,14 @@ import type { Types } from "mongoose";
 import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import type { PaymentStatus } from "@/lib/orders/enums";
+import { orderItems } from "@/lib/orders/order-items";
 
 export const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
 
 // Only what the thank-you page shows: no address or phone number.
 export interface ThankYouOrder {
   orderNumber: string;
-  productId: string;
-  productName: string;
-  price: number;
-  quantity: number;
+  items: { productId: string; name: string; price: number; quantity: number }[];
   subtotal: number;
   deliveryCharge: number;
   discount: number;
@@ -22,10 +20,13 @@ export interface ThankYouOrder {
   paymentStatus: PaymentStatus;
 }
 
+type Line = { productId: Types.ObjectId; name: string; price: number };
+
 interface ThankYouDoc {
   orderNumber: string;
-  product: { productId: Types.ObjectId; name: string; price: number };
-  quantity: number;
+  items?: (Line & { quantity: number })[];
+  product?: Line;
+  quantity?: number;
   subtotal: number;
   deliveryCharge?: number;
   discount: number;
@@ -40,6 +41,10 @@ export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder 
     { publicId },
     {
       orderNumber: 1,
+      "items.productId": 1,
+      "items.name": 1,
+      "items.price": 1,
+      "items.quantity": 1,
       "product.productId": 1,
       "product.name": 1,
       "product.price": 1,
@@ -57,10 +62,7 @@ export async function getThankYouOrder(publicId: string): Promise<ThankYouOrder 
 
   return {
     orderNumber: doc.orderNumber,
-    productId: String(doc.product.productId),
-    productName: doc.product.name,
-    price: doc.product.price,
-    quantity: doc.quantity,
+    items: orderItems(doc).map((item) => ({ productId: String(item.productId), name: item.name, price: item.price, quantity: item.quantity })),
     subtotal: doc.subtotal,
     deliveryCharge: doc.deliveryCharge ?? 0,
     discount: doc.discount,

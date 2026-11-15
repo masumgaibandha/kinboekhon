@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 
 import { OrderModel } from "@/lib/models/Order";
+import { withProduct } from "@/lib/orders/order-items";
 import type { Settings } from "@/lib/validation/settings";
 
 const HOUR = 60 * 60 * 1000;
@@ -9,11 +10,11 @@ export const PHONE_ORDERS_PER_DAY = 3;
 // The call line, when a support phone is set in Settings.
 const callLine = (supportPhone: string, text: string) => (supportPhone ? ` ${text} ${supportPhone}।` : "");
 
-// Same phone and same product inside the duplicate window (cancelled orders don't count): no new order.
+// Same phone and same product (on any line) inside the duplicate window (cancelled orders don't count): no new order.
 async function findDuplicate(phone: string, productId: Types.ObjectId, windowHours: number): Promise<string | null> {
   const since = new Date(Date.now() - windowHours * HOUR);
   const existing = await OrderModel.findOne(
-    { "customer.phone": phone, "product.productId": productId, createdAt: { $gte: since }, status: { $ne: "cancelled" } },
+    { "customer.phone": phone, ...withProduct(productId), createdAt: { $gte: since }, status: { $ne: "cancelled" } },
     { orderNumber: 1 },
   )
     .sort({ createdAt: -1 })

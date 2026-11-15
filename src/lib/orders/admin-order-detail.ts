@@ -3,6 +3,7 @@ import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel, type OrderCourier, type OrderDocument, type OrderHistoryEntry } from "@/lib/models/Order";
 import type { CourierLocation } from "@/lib/pathao/location-match";
 import type { OrderStatus, PaymentMethod, PaymentOption, PaymentStatus, ReturnReason } from "@/lib/orders/enums";
+import { orderItems } from "@/lib/orders/order-items";
 import type { TurnstileResult } from "@/lib/turnstile";
 
 export const ORDER_NUMBER_PATTERN = /^KE\d{5,9}$/;
@@ -25,8 +26,7 @@ export interface AdminOrder {
   // Changes on every save; edit forms are keyed on it.
   version: string;
   status: OrderStatus;
-  product: { name: string; slug: string; price: number };
-  quantity: number;
+  items: AdminOrderItem[];
   subtotal: number;
   deliveryCharge: number;
   discount: number;
@@ -38,9 +38,16 @@ export interface AdminOrder {
   customerBlocked: boolean;
   returnReason: ReturnReason | "";
   tracking: AdminTracking;
-  productId: string;
   courier: OrderCourier | null;
   courierLocation: CourierLocation | null;
+}
+
+export interface AdminOrderItem {
+  productId: string;
+  name: string;
+  slug: string;
+  price: number;
+  quantity: number;
 }
 
 export interface AdminTracking {
@@ -73,8 +80,13 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     createdAt: doc.createdAt,
     version: doc.updatedAt.toISOString(),
     status: doc.status,
-    product: { name: doc.product.name, slug: doc.product.slug, price: doc.product.price },
-    quantity: doc.quantity,
+    items: orderItems(doc).map((item) => ({
+      productId: String(item.productId),
+      name: item.name,
+      slug: item.slug,
+      price: item.price,
+      quantity: item.quantity,
+    })),
     subtotal: doc.subtotal,
     deliveryCharge: doc.deliveryCharge ?? 0,
     discount: doc.discount,
@@ -106,7 +118,6 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     adminNote: doc.adminNote ?? "",
     customerBlocked: doc.customerBlocked === true,
     returnReason: doc.returnReason ?? "",
-    productId: String(doc.product.productId),
     courier: doc.courier ?? null,
     courierLocation: doc.courierLocation ?? null,
     tracking: {

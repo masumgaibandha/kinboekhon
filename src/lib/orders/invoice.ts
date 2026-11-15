@@ -4,6 +4,7 @@ import { connectMongoose } from "@/lib/db";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel, type OrderDocument } from "@/lib/models/Order";
 import { ORDER_NUMBER_PATTERN } from "@/lib/orders/admin-order-detail";
+import { orderItems } from "@/lib/orders/order-items";
 import { amountToCollect } from "@/lib/pathao/parcel";
 
 export const MAX_INVOICES = 100;
@@ -17,9 +18,7 @@ export interface InvoiceOrder {
   phone: string;
   address: string;
   place: string;
-  productName: string;
-  quantity: number;
-  price: number;
+  items: { name: string; quantity: number; price: number }[];
   subtotal: number;
   deliveryCharge: number;
   discount: number;
@@ -45,9 +44,7 @@ function toInvoice(order: OrderDocument): InvoiceOrder {
     phone: order.customer.phone,
     address: order.customer.address,
     place: placeLine(order.customer.location),
-    productName: order.product.name,
-    quantity: order.quantity,
-    price: order.product.price,
+    items: orderItems(order).map(({ name, quantity, price }) => ({ name, quantity, price })),
     subtotal: order.subtotal,
     deliveryCharge: order.deliveryCharge ?? 0,
     discount: order.discount,

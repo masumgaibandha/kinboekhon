@@ -3,7 +3,7 @@ import { isValidObjectId, type Types } from "mongoose";
 import { dhakaDay } from "@/lib/dates";
 import { connectMongoose } from "@/lib/db";
 import { AdSpendModel, type AdSpendDocument } from "@/lib/models/AdSpend";
-import { ProductModel } from "@/lib/models/Product";
+import { productChoices } from "@/lib/products";
 import type { AdSpendInput } from "@/lib/validation/ad-spend";
 import { rangeFilter } from "@/lib/validation/report-range";
 
@@ -18,15 +18,6 @@ export interface AdSpendEntry {
 }
 
 type AdSpendRow = AdSpendDocument & { _id: Types.ObjectId; updatedAt?: Date };
-
-// Every product (active or not) as id and name, in the products list order.
-export async function productChoices(): Promise<{ id: string; name: string }[]> {
-  await connectMongoose();
-  const products = await ProductModel.find({}, { name: 1 })
-    .sort({ sortOrder: 1, createdAt: -1 })
-    .lean<{ _id: Types.ObjectId; name: string }[]>();
-  return products.map((product) => ({ id: String(product._id), name: product.name }));
-}
 
 function toEntry(row: AdSpendRow, names: Map<string, string>): AdSpendEntry {
   const productId = String(row.productId);

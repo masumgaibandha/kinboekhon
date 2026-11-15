@@ -13,14 +13,33 @@ const orderSchema = new Schema<OrderDocument>(
   {
     orderNumber: { type: String, required: true, unique: true },
     publicId: { type: String, required: true, unique: true },
-    product: {
-      productId: { type: Schema.Types.ObjectId, required: true },
-      name: { type: String, required: true },
-      slug: { type: String, required: true },
-      image: { type: String, default: null },
-      price: { type: Number, required: true },
+    items: {
+      type: [
+        {
+          _id: false,
+          productId: { type: Schema.Types.ObjectId, required: true },
+          name: { type: String, required: true },
+          slug: { type: String, required: true },
+          image: { type: String, default: null },
+          price: { type: Number, required: true },
+          quantity: { type: Number, required: true, min: 1 },
+        },
+      ],
+      default: undefined,
     },
-    quantity: { type: Number, required: true, min: 1 },
+    // Orders placed before multi-item orders: their one product and quantity. New orders use items.
+    product: {
+      type: {
+        _id: false,
+        productId: Schema.Types.ObjectId,
+        name: String,
+        slug: String,
+        image: { type: String, default: null },
+        price: Number,
+      },
+      default: undefined,
+    },
+    quantity: Number,
     subtotal: { type: Number, required: true },
     // Orders from the free delivery time have none, which reads as 0.
     deliveryCharge: { type: Number, default: 0 },
@@ -117,6 +136,7 @@ const orderSchema = new Schema<OrderDocument>(
   { timestamps: true },
 );
 
+orderSchema.index({ "customer.phone": 1, "items.productId": 1, createdAt: -1 });
 orderSchema.index({ "customer.phone": 1, "product.productId": 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ createdAt: -1 });

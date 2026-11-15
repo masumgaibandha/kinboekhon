@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 
 import { AdSpendForm } from "@/components/admin/ad-spend/AdSpendForm";
 import { DeleteAdSpendButton } from "@/components/admin/ad-spend/DeleteAdSpendButton";
-import { getAdSpendForAdmin, productChoices } from "@/lib/ad-spend/ad-spend-entries";
+import { getAdSpendForAdmin } from "@/lib/ad-spend/ad-spend-entries";
+import { productChoices } from "@/lib/products";
 import { requireAdmin } from "@/lib/admin-session";
 import { dhakaDay } from "@/lib/dates";
 

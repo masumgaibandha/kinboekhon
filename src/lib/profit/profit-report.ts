@@ -5,6 +5,7 @@ import { AdSpendModel } from "@/lib/models/AdSpend";
 import { OrderModel } from "@/lib/models/Order";
 import { ProductModel } from "@/lib/models/Product";
 import type { OrderStatus } from "@/lib/orders/enums";
+import { IS_MAIN_LINE, UNWIND_ITEMS, lineShare } from "@/lib/orders/order-items";
 import { startingCosts } from "@/lib/products";
 import { courierCostByProduct, parcelGroups } from "@/lib/profit/parcel-courier";
 import { NO_ORDERS, profitRow, totalOf, type OrderCounts, type ProfitNumbers, type ProfitRow } from "@/lib/profit/profit-math";
@@ -33,6 +34,16 @@ const keptAdvance = {
   ],
 };
 
+// The courier collects the due amount; lines split it like the total, or the main line keeps it when it is less than the products.
+const codLine = {
+  $cond: [
+    { $gte: ["$payment.dueOnDelivery", "$subtotal"] },
+    lineShare("$payment.dueOnDelivery"),
+    { $cond: [IS_MAIN_LINE, "$payment.dueOnDelivery", 0] },
+  ],
+};
+const onMain = (condition: object) => ({ $and: [IS_MAIN_LINE, condition] });
+
 type OrderRow = OrderCounts & { _id: Types.ObjectId; name: string };
 
 function orderCounts(start: Date | null, end: Date | null) {
@@ -40,17 +51,19 @@ function orderCounts(start: Date | null, end: Date | null) {
   return OrderModel.aggregate<OrderRow>([
     { $match: createdAt ? { createdAt } : {} },
     { $sort: { createdAt: -1 } },
+    ...UNWIND_ITEMS,
+    // Order counts go to the product the order was placed from (the ad's product); money and units go to every line.
     {
       $group: {
-        _id: "$product.productId",
-        name: { $first: "$product.name" },
-        orders: { $sum: 1 },
-        confirmed: when({ $in: ["$status", CONFIRMED] }, 1),
-        delivered: when(isStatus("delivered"), 1),
-        returned: when(isStatus("returned"), 1),
-        revenue: { $sum: { $cond: [isStatus("delivered"), "$total", keptAdvance] } },
-        deliveredQuantity: when(isStatus("delivered"), "$quantity"),
-        codCollected: when(isStatus("delivered"), "$payment.dueOnDelivery"),
+        _id: "$items.productId",
+        name: { $first: "$items.name" },
+        orders: when(IS_MAIN_LINE, 1),
+        confirmed: when(onMain({ $in: ["$status", CONFIRMED] }), 1),
+        delivered: when(onMain(isStatus("delivered")), 1),
+        returned: when(onMain(isStatus("returned")), 1),
+        revenue: { $sum: { $cond: [isStatus("delivered"), lineShare("$total"), { $cond: [IS_MAIN_LINE, keptAdvance, 0] }] } },
+        deliveredQuantity: when(isStatus("delivered"), "$items.quantity"),
+        codCollected: when(isStatus("delivered"), codLine),
       },
     },
   ]);

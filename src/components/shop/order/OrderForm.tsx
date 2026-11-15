@@ -4,21 +4,22 @@ import { useRef, useState, type FormEvent } from "react";
 
 import { LandingSection } from "@/components/shop/landing/LandingSection";
 import { CheckoutProduct } from "@/components/shop/order/CheckoutProduct";
-import { ContactFields } from "@/components/shop/order/ContactFields";
+import { AddressField, ContactFields } from "@/components/shop/order/ContactFields";
 import { LocationPicker } from "@/components/shop/order/LocationPicker";
-import { OrderField, fieldClass, labelClass } from "@/components/shop/order/OrderField";
+import { OrderBasket } from "@/components/shop/order/OrderBasket";
 import { OrderSubmit } from "@/components/shop/order/OrderSubmit";
 import { OrderSummary } from "@/components/shop/order/OrderSummary";
 import { PaymentSection } from "@/components/shop/order/PaymentSection";
-import { QuantityStepper } from "@/components/shop/order/QuantityStepper";
 import { useDraft } from "@/components/shop/order/use-draft";
+import { useExtras } from "@/components/shop/order/use-extras";
 import { useOrderSubmit, type OrderFields } from "@/components/shop/order/use-order-submit";
 import { usePaymentChoice } from "@/components/shop/order/use-payment-choice";
 import { useTurnstile } from "@/components/shop/order/use-turnstile";
 import { useInitiateCheckout } from "@/components/tracking/use-initiate-checkout";
+import type { ProductCardData } from "@/lib/catalog";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import type { PaymentAccount } from "@/lib/orders/payment-methods";
-import { deliveryChargeFor, isDhakaCity, type PricingSettings } from "@/lib/orders/pricing";
+import { deliveryChargeFor, isDhakaCity, itemsSubtotal, type PricingSettings } from "@/lib/orders/pricing";
 import type { ProductImage } from "@/lib/product-images";
 
 interface OrderFormProps {
@@ -28,17 +29,20 @@ interface OrderFormProps {
   price: number;
   pricing: PricingSettings;
   accounts: PaymentAccount[];
+  // "এটাও নিন" products for this page.
+  upsells: ProductCardData[];
 }
 
-export function OrderForm({ productId, name, image, price, pricing, accounts }: OrderFormProps) {
+export function OrderForm({ productId, name, image, price, pricing, accounts, upsells }: OrderFormProps) {
   const [quantity, setQuantity] = useState(1);
+  const extras = useExtras({ name, price, quantity }, upsells);
   const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
   const { ref: turnstileRef, failed: turnstileFailed, getToken, reset } = useTurnstile();
   // Until the place is picked, the summary uses the outside charge and shows both.
   const dhakaCity = location.upazilaId ? isDhakaCity(location.upazilaId) : null;
   const deliveryCharge = deliveryChargeFor(dhakaCity === true, pricing);
-  const payment = usePaymentChoice({ price, quantity, deliveryCharge, discounts: pricing, accounts, clearError });
+  const payment = usePaymentChoice({ subtotal: itemsSubtotal(extras.lines), deliveryCharge, discounts: pricing, accounts, clearError });
   const activeOption = payment.option;
   const formRef = useRef<HTMLFormElement>(null);
   const draft = useDraft(productId, () => (formRef.current ? collect(formRef.current) : null));
@@ -51,6 +55,7 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
     return {
       productId,
       quantity,
+      extras: extras.payload(),
       name: text("name"),
       phone: text("phone"),
       ...location,
@@ -70,14 +75,8 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
 
   // Phones show it above the payment options, desktop in the summary card.
   const basket = (
-    <div>
-      <p className={labelClass}>পরিমাণ</p>
-      <QuantityStepper value={quantity} onChange={setQuantity} />
-    </div>
+    <OrderBasket quantity={quantity} onQuantity={setQuantity} upsells={upsells} added={extras.added} onAdded={extras.change} />
   );
-
-  const invalid = (field: string) =>
-    errors[field] ? { "aria-invalid": true, "aria-describedby": `order-${field}-error` } : {};
 
   return (
     <LandingSection id="order" title="অর্ডার করতে ফর্মটি পূরণ করুন" className="scroll-mt-14 border-t-[3px] border-brand lg:scroll-mt-20">
@@ -101,17 +100,7 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
           </div>
 
           <div className="lg:col-span-2">
-            <OrderField id="order-address" label="ঠিকানা (বাড়ি, রাস্তা, এলাকা)" error={errors.address}>
-              <textarea
-                id="order-address"
-                name="address"
-                rows={2}
-                autoComplete="street-address"
-                placeholder="যেমন: বাড়ি নম্বর, রাস্তা, এলাকার নাম"
-                className={`${fieldClass} resize-none`}
-                {...invalid("address")}
-              />
-            </OrderField>
+            <AddressField errors={errors} />
           </div>
 
           <div className="lg:hidden">{basket}</div>
@@ -139,8 +128,7 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
           </div>
 
           <OrderSummary
-            price={price}
-            quantity={quantity}
+            lines={extras.lines}
             amounts={payment.amounts[activeOption]}
             option={activeOption}
             dhakaCity={dhakaCity}

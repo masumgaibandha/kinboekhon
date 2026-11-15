@@ -2,7 +2,7 @@ import type { AdminOrder } from "@/lib/orders/admin-order-detail";
 import { pathaoConfig } from "@/lib/pathao/config";
 import { guessLocation, type LocationGuess } from "@/lib/pathao/location-match";
 import { amountToCollect, parcelWeightKg } from "@/lib/pathao/parcel";
-import { unitWeightGrams } from "@/lib/pathao/parcel-weight";
+import { parcelGrams } from "@/lib/pathao/parcel-weight";
 import { getPathaoAreas, getPathaoCities, getPathaoZones, type PathaoPlace } from "@/lib/pathao/places";
 
 export interface PathaoFormData {
@@ -20,7 +20,7 @@ export async function getPathaoFormData(order: AdminOrder): Promise<PathaoFormDa
   const [guess, cities, grams] = await Promise.all([
     guessLocation(order.customer.location, order.courierLocation ?? undefined),
     getPathaoCities(),
-    unitWeightGrams(order.productId),
+    parcelGrams(order.items),
   ]);
   const [zones, areas] = await Promise.all([
     guess.city ? getPathaoZones(guess.city.id) : [],
@@ -31,7 +31,7 @@ export async function getPathaoFormData(order: AdminOrder): Promise<PathaoFormDa
     cities,
     zones,
     areas,
-    weightKg: parcelWeightKg(grams, order.quantity),
+    weightKg: parcelWeightKg(grams),
     amountToCollect: amountToCollect(order),
   };
 }

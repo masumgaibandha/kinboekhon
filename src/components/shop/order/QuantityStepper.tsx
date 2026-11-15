@@ -3,18 +3,23 @@ import { MAX_QUANTITY } from "@/lib/orders/limits";
 interface QuantityStepperProps {
   value: number;
   onChange: (value: number) => void;
+  // 0 lets the minus button take an added product off the order.
+  min?: number;
+  // Smaller buttons for the "এটাও নিন" rows.
+  compact?: boolean;
 }
 
-const stepButton =
-  "flex h-11 w-11 items-center justify-center rounded-md border border-line-strong bg-card text-xl font-bold text-body disabled:opacity-40";
+export function QuantityStepper({ value, onChange, min = 1, compact = false }: QuantityStepperProps) {
+  const stepButton = `flex items-center justify-center rounded-md border border-line-strong bg-card font-bold text-body disabled:opacity-40 ${
+    compact ? "h-9 w-9 text-lg" : "h-11 w-11 text-xl"
+  }`;
 
-export function QuantityStepper({ value, onChange }: QuantityStepperProps) {
   return (
-    <div className="flex items-center gap-3">
-      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= 1} aria-label="পরিমাণ কমান" className={stepButton}>
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
+      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label="পরিমাণ কমান" className={stepButton}>
         −
       </button>
-      <span aria-live="polite" className="min-w-8 text-center text-lg font-bold text-body">
+      <span aria-live="polite" className={`text-center font-bold text-body ${compact ? "min-w-5 text-base" : "min-w-8 text-lg"}`}>
         {value}
       </span>
       <button
@@ -26,7 +31,6 @@ export function QuantityStepper({ value, onChange }: QuantityStepperProps) {
       >
         +
       </button>
-      <input type="hidden" name="quantity" value={value} />
     </div>
   );
 }

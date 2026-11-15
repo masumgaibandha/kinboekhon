@@ -22,15 +22,17 @@ function Row({ label, value, strong, large }: RowProps) {
 export function ThankYouDetails({ order }: { order: ThankYouOrder }) {
   return (
     <dl className="space-y-2 text-[15px] text-desc">
-      <Row label="পণ্য" value={`${order.productName} × ${order.quantity}`} />
-      <Row
-        label={
-          <>
-            পণ্যের দাম (<Money amount={order.price} /> × {order.quantity})
-          </>
-        }
-        value={<Money amount={order.subtotal} />}
-      />
+      {order.items.map((item) => (
+        <Row
+          key={item.productId}
+          label={
+            <>
+              {item.name} (<Money amount={item.price} /> × {item.quantity})
+            </>
+          }
+          value={<Money amount={item.price * item.quantity} />}
+        />
+      ))}
       <Row label="ডেলিভারি চার্জ" value={order.deliveryCharge > 0 ? <Money amount={order.deliveryCharge} /> : "ফ্রি"} />
       {order.discount > 0 && (
         <Row

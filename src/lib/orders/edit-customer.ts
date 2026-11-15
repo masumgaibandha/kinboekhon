@@ -14,8 +14,7 @@ import type { CustomerEdit, CustomerFields } from "@/lib/validation/admin-order"
 
 interface EditDoc {
   status: OrderStatus;
-  quantity: number;
-  product: { price: number };
+  subtotal: number;
   deliveryCharge?: number;
   total: number;
   payment: { option: PaymentOption };
@@ -80,7 +79,7 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
   if (areaChanged) {
     // The new charge comes from the current Settings, like a new order.
     const charge = deliveryChargeFor(edit.location.kind === "dhaka_city", await getSettings());
-    const amounts = calculateOrder(order.product.price, order.quantity, charge);
+    const amounts = calculateOrder(order.subtotal, charge);
     Object.assign(set, {
       deliveryCharge: amounts.deliveryCharge,
       discount: amounts.discount,

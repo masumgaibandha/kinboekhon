@@ -1,8 +1,7 @@
-import type { Types } from "mongoose";
-
 import type { OrderLocation } from "@/lib/locations/types";
 import type { CourierLocation } from "@/lib/pathao/location-match";
 import type { CAPI_STATUSES, CallOutcome, OrderStatus, PaymentMethod, PaymentOption, PaymentStatus, ReturnReason } from "@/lib/orders/enums";
+import type { OrderItem } from "@/lib/orders/order-items";
 import type { TurnstileResult } from "@/lib/turnstile";
 
 export const HISTORY_KINDS = ["status", "edit", "payment", "call", "return_reason", "courier"] as const;
@@ -58,8 +57,10 @@ export interface OrderTracking {
 export interface OrderDocument {
   orderNumber: string;
   publicId: string;
-  product: { productId: Types.ObjectId; name: string; slug: string; image: string | null; price: number };
-  quantity: number;
+  // Missing on orders placed before multi-item orders, which have product and quantity instead; read both with orderItems().
+  items?: OrderItem[];
+  product?: Omit<OrderItem, "quantity">;
+  quantity?: number;
   subtotal: number;
   // Missing on orders placed while delivery was free.
   deliveryCharge?: number;

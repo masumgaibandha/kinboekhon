@@ -11,7 +11,8 @@ import { checkRepeatOrder } from "@/lib/orders/duplicate-check";
 import { ProductModel } from "@/lib/models/Product";
 import { nextOrderNumber } from "@/lib/orders/order-number";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
-import { calculateOrder, deliveryChargeFor } from "@/lib/orders/pricing";
+import type { OrderItem } from "@/lib/orders/order-items";
+import { calculateOrder, deliveryChargeFor, itemsSubtotal } from "@/lib/orders/pricing";
 import type { ProductImage } from "@/lib/product-images";
 import { getSettings } from "@/lib/settings";
 import type { OrderInput } from "@/lib/validation/order";
@@ -32,6 +33,7 @@ interface OrderProduct {
 
 const METHOD_OFF = "এই পেমেন্ট পদ্ধতি এখন বন্ধ। অন্য পদ্ধতি বা ক্যাশ অন ডেলিভারি বেছে নিন।";
 const DUPLICATE_TXID = "এই Transaction ID দিয়ে আগেই একটি অর্ডার হয়েছে। সঠিক Transaction ID লিখুন।";
+const EXTRA_GONE = "দুঃখিত, সঙ্গে নেওয়া একটি পণ্য এখন পাওয়া যাচ্ছে না। সেটি বাদ দিয়ে আবার চেষ্টা করুন।";
 const FIX_FIELDS = "চিহ্নিত ঘরগুলো ঠিক করুন।";
 
 const duplicateTransaction = (): CreateOrderResult => ({
@@ -58,16 +60,33 @@ export type OrderRequestInfo = Required<Pick<OrderTracking, "ip" | "ipHash" | "u
 
 export async function createOrder(input: OrderInput, request: OrderRequestInfo): Promise<CreateOrderResult> {
   await connectMongoose();
-  const product = await ProductModel.findOne(
-    { _id: input.productId, active: true },
+  const lines = [{ productId: input.productId, quantity: input.quantity }, ...input.extras];
+  const found = await ProductModel.find(
+    { _id: { $in: lines.map((line) => line.productId) }, active: true },
     { name: 1, slug: 1, price: 1, stock: 1, images: { $slice: 1 } },
-  ).lean<OrderProduct>();
+  ).lean<OrderProduct[]>();
+  const byId = new Map(found.map((item) => [String(item._id), item]));
+  const product = byId.get(input.productId);
   if (!product) return { ok: false, message: "দুঃখিত, পণ্যটি এখন পাওয়া যাচ্ছে না।" };
 
   const settings = await getSettings();
-  if (settings.hideOrderWhenOutOfStock && (product.stock ?? 0) <= 0) {
-    return { ok: false, message: "দুঃখিত, পণ্যটির স্টক এখন শেষ।" };
+  const items: OrderItem[] = [];
+  for (const line of lines) {
+    const item = byId.get(line.productId);
+    if (!item) return { ok: false, message: EXTRA_GONE };
+    if (settings.hideOrderWhenOutOfStock && (item.stock ?? 0) <= 0) {
+      return { ok: false, message: item === product ? "দুঃখিত, পণ্যটির স্টক এখন শেষ।" : `দুঃখিত, ${item.name} এর স্টক এখন শেষ। সেটি বাদ দিয়ে আবার চেষ্টা করুন।` };
+    }
+    items.push({
+      productId: item._id,
+      name: item.name,
+      slug: item.slug,
+      image: item.images?.[0]?.publicId ?? null,
+      price: item.price,
+      quantity: line.quantity,
+    });
   }
+
   const repeat = await checkRepeatOrder(input.phone, product._id, settings);
   if (repeat) return { ok: false, message: repeat };
 
@@ -77,7 +96,7 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
   }
 
   const deliveryCharge = deliveryChargeFor(input.location.kind === "dhaka_city", settings);
-  const amounts = calculateOrder(product.price, input.quantity, deliveryCharge, payment.option, settings);
+  const amounts = calculateOrder(itemsSubtotal(items), deliveryCharge, payment.option, settings);
   if (payment.option !== "cod" && amounts.advanceAmount <= 0) {
     return { ok: false, message: "এই অপশনে অগ্রিম পাঠানোর কিছু নেই। ক্যাশ অন ডেলিভারি বেছে নিন।" };
   }
@@ -97,14 +116,7 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
     await OrderModel.create({
       orderNumber,
       publicId,
-      product: {
-        productId: product._id,
-        name: product.name,
-        slug: product.slug,
-        image: product.images?.[0]?.publicId ?? null,
-        price: product.price,
-      },
-      quantity: input.quantity,
+      items,
       subtotal: amounts.subtotal,
       deliveryCharge: amounts.deliveryCharge,
       discount: amounts.discount,

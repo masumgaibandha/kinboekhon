@@ -13,6 +13,7 @@ import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getLandingBySlug, getLandingSlugs } from "@/lib/landing/landing-pages";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
 import { getSettings } from "@/lib/settings";
+import { getUpsellProducts } from "@/lib/upsell";
 
 // The page awaits params outside Suspense, so unlisted slugs may block on their first render; the route is still prerendered.
 export const instant = false;
@@ -40,6 +41,7 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
   const { product, landing } = found;
   const settings = await getSettings();
   const soldOut = settings.hideOrderWhenOutOfStock && !product.inStock;
+  const upsells = soldOut ? [] : await getUpsellProducts(product.id, product.upsellIds, product.categoryId);
 
   return (
     <div className="mx-auto w-full max-w-xl lg:max-w-shop lg:px-4 lg:pt-6">
@@ -79,6 +81,7 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
                 fullAdvanceDiscount: settings.fullAdvanceDiscount,
               }}
               accounts={enabledAccounts(settings)}
+              upsells={upsells}
             />
             <StickyOrderBar price={product.price} />
           </>
