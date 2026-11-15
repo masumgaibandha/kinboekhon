@@ -84,10 +84,19 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 - The Meta domain is verified by a DNS TXT record. Never remove it.
 - Upgrade Vercel to Pro before scaling ads. Watch ISR usage until then.
 
+## Dev and production data
+
+- Local dev uses its own database `kinboekhon_dev` on the same Atlas cluster: `MONGODB_URI` in `.env.local` ends in `/kinboekhon_dev`. Production is `kinboekhon` (a URI with no database path).
+- The production URI is kept in `.env.local` only as `MONGODB_URI_PROD`, read only by `npm run dev:clone`. The app never uses it.
+- `npm run dev:clone` copies settings and products from production to dev. It only reads production, never writes to it.
+- All tests (browser tests, test orders, scripts) use the dev database only. Log in with the dev admin (`DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD`, created by `npm run seed:dev-admin`). The dev admin must never exist in production.
+- Never delete orders or reset the order counter on production.
+- The admin header shows a red "DEV DATABASE" badge whenever the app is not on the production database.
+
 ## Admin auth (Better Auth)
 
 - Email and password login only, MongoDB adapter. No Auth.js / next-auth.
 - Public sign-up stays disabled. Never add a sign-up page, link or endpoint.
-- There is exactly one admin. It is created or updated only by `npm run seed:admin`, which reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local`.
+- There is exactly one admin. It is created or updated only by `npm run seed:admin`, which reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local`. It refuses to run on a dev database, so the owner runs it with `MONGODB_URI` set to the production URI for that one command (a shell variable wins over `.env.local`).
 - The admin `(panel)` layout and every admin page export `instant = false`: they read the session on each request, so their navigations are allowed to block.
 - `proxy.ts` is only a fast first check. Every admin page, admin API route and admin Server Action must also call `requireAdmin()` on the server before doing anything else.

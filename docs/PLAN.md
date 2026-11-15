@@ -518,11 +518,12 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 - Email and password only, stored by Better Auth in MongoDB through its MongoDB adapter. Better Auth hashes the password.
 - Public sign-up is disabled (`emailAndPassword.disableSignUp`). No sign-up page, no sign-up link.
 - Exactly one admin account. `scripts/seed-admin.ts` reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env.local` and creates the admin through Better Auth's own internal API (so the password hash matches). Run again: it updates the password of the same account. It never creates a second user.
-- Run with `npm run seed:admin`. `ADMIN_PASSWORD` is only needed on the machine that runs the seed, never on Vercel.
+- Run with `npm run seed:admin`. `ADMIN_PASSWORD` is only needed on the machine that runs the seed, never on Vercel. It refuses to run on a dev database; for production, set `MONGODB_URI` to the production URI in the shell for that one command. See decision 89.
+- Dev admin: `npm run seed:dev-admin` creates it in `kinboekhon_dev` from `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD`. It refuses to run on production, so the dev admin never exists there.
 - Admin password: at least 12 characters, checked by the seed script and by Better Auth.
 - Session cookie: httpOnly, secure in production, `SameSite=Lax`, 7 day expiry (Better Auth defaults).
 - Login rate limit: Better Auth's built-in limiter with database storage (works on Vercel serverless), on in all environments, 5 sign-in attempts per minute per IP.
-- Database name is set in code (`kinboekhon` in `src/lib/db.ts`), so the connection string does not need one.
+- Database name comes from the connection string path (`dbNameFromUri()` in `src/lib/db.ts`). With no path it is `kinboekhon` (production, as on Vercel). Local dev uses `.../kinboekhon_dev`. See decision 89.
 - Database: Atlas in AWS ap-south-1 (Mumbai); Vercel functions in `bom1` (`vercel.json`). See decision 56.
 
 ### Protecting the admin
@@ -542,11 +543,14 @@ With Cache Components on, session checks read request headers, so admin pages re
 ## 10. Environment variables (`.env.example`)
 
 ```
-MONGODB_URI=
+MONGODB_URI=           # local: .../kinboekhon_dev; Vercel: production URI, no database path
+MONGODB_URI_PROD=      # local only, read only by npm run dev:clone
 BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=https://kinboekhon.com
 ADMIN_EMAIL=          # seed script only
 ADMIN_PASSWORD=       # seed script only, never set on Vercel
+DEV_ADMIN_EMAIL=      # local only, npm run seed:dev-admin
+DEV_ADMIN_PASSWORD=   # local only
 NEXT_PUBLIC_SITE_URL=https://kinboekhon.com
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
@@ -716,3 +720,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 86. Policy pages (P1e, November 2026): return within 3 days of delivery with photo or video, only damaged, wrong or defective; replace or refund by bKash or Nagad within 7 days; we pay the return courier; no change of mind; a refused COD parcel is not a return. Privacy also states the saved unfinished order form, the IP and browser kept against fake orders, and Meta Pixel. Click-to-call on the admin order page is P3f, after the site is complete.
 87. Meta Pixel + CAPI (P1c, November 2026): ViewContent is browser only; the server sends InitiateCheckout and Purchase with the browser's event_id. Purchase user data adds hashed last name and district.
 88. Customer CRM (P2a, November 2026): a customer is one normalized phone. Spent counts delivered orders only. Tags are VIP, Risky and Blocked. A Blocked phone can still order: the order is saved Pending and marked "Blocked customer" in red, never refused.
+89. Dev and production data are separate (November 2026). Local dev uses the database `kinboekhon_dev` on the same Atlas cluster; production is `kinboekhon`. The production URI stays in `.env.local` as `MONGODB_URI_PROD`, read only by `npm run dev:clone`, which copies settings and products from production to dev and never writes to production. A dev-only admin (`npm run seed:dev-admin`) exists only in the dev database. The admin header shows a "DEV DATABASE" badge when not on production. All tests use the dev database; orders are never deleted and the counter is never reset on production.

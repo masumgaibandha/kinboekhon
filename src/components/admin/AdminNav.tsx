@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { logout } from "@/app/admin/(panel)/actions";
+import { DB_NAME, isProductionDb } from "@/lib/db";
 
 export function AdminNav() {
   return (
@@ -11,6 +12,14 @@ export function AdminNav() {
           <Image src="/brand/icon-circle.svg" alt="" width={28} height={28} className="h-7 w-7" />
           Admin
         </Link>
+        {!isProductionDb && (
+          <span
+            title={`Database: ${DB_NAME}`}
+            className="rounded bg-brand-dark px-2 py-1 text-xs font-bold tracking-wide text-white"
+          >
+            DEV DATABASE
+          </span>
+        )}
         <nav className="flex flex-1 items-center gap-4 text-sm font-medium text-desc">
           <Link href="/admin" className="hover:text-brand">
             Dashboard

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
+    "seed:dev-admin": "tsx --env-file=.env.local scripts/seed-dev-admin.ts",
+    "dev:clone": "tsx --env-file=.env.local scripts/dev-clone.ts",
     "backfill:customers": "tsx --env-file=.env.local scripts/backfill-customers.ts"
   },
   "dependencies": {
