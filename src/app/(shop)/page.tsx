@@ -28,7 +28,7 @@ export default async function HomePage() {
     <>
       <h1 className="sr-only">কিনবো এখন: দরকার যখন, কিনবো এখন</h1>
       <HeroBanners banners={banners} />
-      <div className="mx-auto max-w-5xl px-3 sm:px-4">
+      <div className="mx-auto max-w-shop px-3 sm:px-4">
         <TrustBar items={content.trust} />
 
         {categories.length > 0 && (

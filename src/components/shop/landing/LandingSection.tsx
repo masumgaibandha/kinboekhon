@@ -9,7 +9,7 @@ interface LandingSectionProps {
 
 export function LandingSection({ title, id, className = "", children }: LandingSectionProps) {
   return (
-    <section id={id} className={`mt-2.5 bg-card px-5 py-5 ${className}`}>
+    <section id={id} className={`mt-2.5 bg-card px-5 py-5 lg:mt-4 lg:rounded-lg lg:px-8 lg:py-7 ${className}`}>
       {title && <h2 className="mb-3 text-[22px] font-bold leading-snug text-heading">{title}</h2>}
       {children}
     </section>

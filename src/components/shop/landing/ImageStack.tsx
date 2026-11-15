@@ -10,10 +10,13 @@ interface ImageStackProps {
 // Shows each image at its own shape, so nothing is cropped.
 export function ImageStack({ images, alt, columns }: ImageStackProps) {
   if (images.length === 0) return null;
-  const sizes = columns === 2 ? "(min-width: 576px) 260px, calc(50vw - 30px)" : "(min-width: 576px) 536px, calc(100vw - 40px)";
+  const sizes =
+    columns === 2
+      ? "(min-width: 1024px) 380px, (min-width: 576px) 260px, calc(50vw - 30px)"
+      : "(min-width: 1024px) 580px, (min-width: 576px) 536px, calc(100vw - 40px)";
 
   return (
-    <div className={`mt-4 grid gap-3 ${columns === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+    <div className={`mt-4 grid gap-3 ${columns === 2 ? "grid-cols-2 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-2"}`}>
       {images.map((image, index) => (
         <CloudinaryImage
           key={image.publicId}

@@ -12,7 +12,7 @@ interface HeroMediaProps {
   alt: string;
 }
 
-const SIZES = "(min-width: 576px) 536px, calc(100vw - 40px)";
+const SIZES = "(min-width: 1024px) 640px, (min-width: 576px) 536px, calc(100vw - 40px)";
 
 // The video player loads only after a tap, so the page stays fast; until then the cover image shows.
 export function HeroMedia({ image, video, alt }: HeroMediaProps) {

@@ -12,7 +12,7 @@ interface GalleryProps {
   lazy?: boolean;
 }
 
-const SIZES = "(min-width: 576px) 536px, calc(100vw - 40px)";
+const SIZES = "(min-width: 1024px) 800px, (min-width: 576px) 536px, calc(100vw - 40px)";
 
 export function Gallery({ images, alt, lazy = false }: GalleryProps) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -51,18 +51,36 @@ export function Gallery({ images, alt, lazy = false }: GalleryProps) {
         ))}
       </div>
       {images.length > 1 && (
-        <div className="mt-3 flex justify-center gap-2">
-          {images.map((image, index) => (
-            <button
-              key={image.publicId}
-              type="button"
-              onClick={() => show(index)}
-              aria-label={`ছবি ${index + 1} দেখুন`}
-              aria-current={index === current}
-              className={`h-2 rounded-full transition-all ${index === current ? "w-5 bg-brand" : "w-2 bg-line-strong"}`}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-3 flex justify-center gap-2 lg:hidden">
+            {images.map((image, index) => (
+              <button
+                key={image.publicId}
+                type="button"
+                onClick={() => show(index)}
+                aria-label={`ছবি ${index + 1} দেখুন`}
+                aria-current={index === current}
+                className={`h-2 rounded-full transition-all ${index === current ? "w-5 bg-brand" : "w-2 bg-line-strong"}`}
+              />
+            ))}
+          </div>
+          <div className="mt-3 hidden flex-wrap gap-2.5 lg:flex">
+            {images.map((image, index) => (
+              <button
+                key={image.publicId}
+                type="button"
+                onClick={() => show(index)}
+                aria-label={`ছবি ${index + 1} দেখুন`}
+                aria-current={index === current}
+                className={`relative h-20 w-20 overflow-hidden rounded-md border-2 bg-card transition-colors ${
+                  index === current ? "border-brand" : "border-line hover:border-line-strong"
+                }`}
+              >
+                <CloudinaryImage publicId={image.publicId} alt="" fill sizes="80px" className="object-contain" />
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

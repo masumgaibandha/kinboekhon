@@ -32,7 +32,7 @@ export default async function CategoryPage({ params }: PageProps<"/c/[slug]">) {
   const products = await getCategoryProducts(category.id);
 
   return (
-    <div className="mx-auto max-w-5xl px-3 py-5 sm:px-4">
+    <div className="mx-auto max-w-shop px-3 py-5 sm:px-4">
       <h1 className="text-xl font-bold text-heading">{category.name}</h1>
       {products.length === 0 ? (
         <p className="mt-4 rounded-xl border border-line bg-card px-5 py-10 text-center text-desc">

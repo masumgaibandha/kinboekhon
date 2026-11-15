@@ -12,7 +12,7 @@ export async function Header() {
 
   return (
     <header className="sticky top-0 z-20 bg-brand text-white">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+      <div className="mx-auto flex h-14 max-w-shop items-center gap-3 px-4">
         <CategoryMenu categories={categories.map(({ id, name, slug }) => ({ id, name, slug }))} />
         <Link href="/" aria-label="কিনবো এখন, হোম পেজ" className="shrink-0">
           <Image

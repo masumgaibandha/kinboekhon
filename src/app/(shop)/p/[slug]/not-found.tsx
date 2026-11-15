@@ -9,7 +9,7 @@ export default async function ProductUnavailable() {
   const others = (await getActiveProducts()).slice(0, OTHER_PRODUCTS);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
+    <div className="mx-auto max-w-shop px-4 py-6">
       <section className="rounded-xl border border-line bg-card px-5 py-8 text-center">
         <h1 className="text-xl font-bold leading-snug text-heading">এই পণ্যটি এখন পাওয়া যাচ্ছে না</h1>
         <p className="mt-2 text-desc">পণ্যটি হয়তো আর বিক্রি হচ্ছে না, অথবা লিংকটি ভুল। আমাদের অন্য পণ্যগুলো দেখুন।</p>

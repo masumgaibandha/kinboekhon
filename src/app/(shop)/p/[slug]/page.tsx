@@ -43,36 +43,38 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
   const soldOut = settings.hideOrderWhenOutOfStock && !product.inStock;
 
   return (
-    <div className="mx-auto w-full max-w-xl">
+    <div className="mx-auto w-full max-w-xl lg:max-w-shop lg:px-4 lg:pt-6">
       <HookSection product={product} soldOut={soldOut} />
       <ProblemSection problem={product.problem} />
       <StorySection story={product.story} />
       <SolutionSection solution={product.solution} name={product.name} />
       <ProofSection proof={product.proof} />
       {hasProof(product.proof) && (
-        <div className="bg-card px-5 pb-5">
+        <div className="bg-card px-5 pb-5 lg:mx-auto lg:max-w-form lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
           <OrderButton soldOut={soldOut} />
         </div>
       )}
       <CtaSection product={product} soldOut={soldOut} />
-      {soldOut ? (
-        <SoldOutSection />
-      ) : (
-        <>
-          <OrderForm
-            productId={product.id}
-            price={product.price}
-            pricing={{
-              deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
-              deliveryChargeOutside: settings.deliveryChargeOutside,
-              advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
-              fullAdvanceDiscount: settings.fullAdvanceDiscount,
-            }}
-            accounts={enabledAccounts(settings)}
-          />
-          <StickyOrderBar price={product.price} />
-        </>
-      )}
+      <div className="lg:mx-auto lg:max-w-form">
+        {soldOut ? (
+          <SoldOutSection />
+        ) : (
+          <>
+            <OrderForm
+              productId={product.id}
+              price={product.price}
+              pricing={{
+                deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
+                deliveryChargeOutside: settings.deliveryChargeOutside,
+                advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
+                fullAdvanceDiscount: settings.fullAdvanceDiscount,
+              }}
+              accounts={enabledAccounts(settings)}
+            />
+            <StickyOrderBar price={product.price} />
+          </>
+        )}
+      </div>
       <ViewContentPixel productId={product.id} name={product.name} price={product.price} />
     </div>
   );

@@ -63,7 +63,7 @@ export function HeroSlider({ slides, sizes }: { slides: HeroSlide[]; sizes: stri
   }
 
   return (
-    <section aria-label="অফার" className="mx-auto max-w-5xl px-3 pt-3 sm:px-4">
+    <section aria-label="অফার" className="mx-auto max-w-shop px-3 pt-3 sm:px-4">
       <div
         ref={trackRef}
         onScroll={(event) => setCurrent(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}

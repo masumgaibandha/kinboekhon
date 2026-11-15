@@ -42,41 +42,45 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
   const soldOut = settings.hideOrderWhenOutOfStock && !product.inStock;
 
   return (
-    <div className="mx-auto w-full max-w-xl">
+    <div className="mx-auto w-full max-w-xl lg:max-w-shop lg:px-4 lg:pt-6">
       <AdHero product={product} landing={landing} soldOut={soldOut} />
-      <ProblemBlock problem={landing.problem} />
-      <SolutionBlock solution={landing.solution} />
-      <BenefitsBlock benefits={landing.benefits} />
-      <GalleryBlock gallery={landing.gallery} alt={product.name} />
-      <StepsBlock howTo={landing.howTo} />
-      <InBoxBlock inBox={landing.inBox} />
-      <SpecsBlock specs={landing.specs} />
-      <GuaranteeBlock text={landing.guarantee} />
-      <FaqBlock faq={landing.faq} />
-      <LandingSection>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[17px] font-semibold leading-snug text-heading">{product.name}</p>
-          <PriceTag price={product.price} size="lg" />
-        </div>
-      </LandingSection>
-      {soldOut ? (
-        <SoldOutSection />
-      ) : (
-        <>
-          <OrderForm
-            productId={product.id}
-            price={product.price}
-            pricing={{
-              deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
-              deliveryChargeOutside: settings.deliveryChargeOutside,
-              advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
-              fullAdvanceDiscount: settings.fullAdvanceDiscount,
-            }}
-            accounts={enabledAccounts(settings)}
-          />
-          <StickyOrderBar price={product.price} />
-        </>
-      )}
+      <div className="lg:mx-auto lg:max-w-column">
+        <ProblemBlock problem={landing.problem} />
+        <SolutionBlock solution={landing.solution} />
+        <BenefitsBlock benefits={landing.benefits} />
+        <GalleryBlock gallery={landing.gallery} alt={product.name} />
+        <StepsBlock howTo={landing.howTo} />
+        <InBoxBlock inBox={landing.inBox} />
+        <SpecsBlock specs={landing.specs} />
+        <GuaranteeBlock text={landing.guarantee} />
+        <FaqBlock faq={landing.faq} />
+      </div>
+      <div className="lg:mx-auto lg:max-w-form">
+        <LandingSection>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[17px] font-semibold leading-snug text-heading">{product.name}</p>
+            <PriceTag price={product.price} size="lg" />
+          </div>
+        </LandingSection>
+        {soldOut ? (
+          <SoldOutSection />
+        ) : (
+          <>
+            <OrderForm
+              productId={product.id}
+              price={product.price}
+              pricing={{
+                deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
+                deliveryChargeOutside: settings.deliveryChargeOutside,
+                advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
+                fullAdvanceDiscount: settings.fullAdvanceDiscount,
+              }}
+              accounts={enabledAccounts(settings)}
+            />
+            <StickyOrderBar price={product.price} />
+          </>
+        )}
+      </div>
       <ViewContentPixel productId={product.id} name={product.name} price={product.price} />
     </div>
   );

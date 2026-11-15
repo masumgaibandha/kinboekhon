@@ -57,7 +57,7 @@ export function SpecsBlock({ specs }: { specs: LandingValues["specs"] }) {
 export function GuaranteeBlock({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div className="mt-2.5 flex items-center gap-3 bg-brand-light px-5 py-4 text-[17px] font-semibold text-brand-dark">
+    <div className="mt-2.5 flex items-center gap-3 bg-brand-light px-5 py-4 lg:mt-4 lg:rounded-lg lg:px-8 text-[17px] font-semibold text-brand-dark">
       <BenefitIconSvg icon="shield" className="h-7 w-7 shrink-0" />
       {text}
     </div>

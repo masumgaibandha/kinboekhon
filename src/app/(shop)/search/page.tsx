@@ -12,7 +12,7 @@ const MAX_QUERY = 60;
 
 export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
-    <div className="mx-auto max-w-5xl px-3 py-5 sm:px-4">
+    <div className="mx-auto max-w-shop px-3 py-5 sm:px-4">
       <Suspense fallback={<p className="text-desc">খোঁজা হচ্ছে...</p>}>
         <SearchResults searchParams={searchParams} />
       </Suspense>
