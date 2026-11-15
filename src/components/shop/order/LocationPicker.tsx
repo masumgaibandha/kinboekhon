@@ -56,7 +56,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
   const placeholder = (text: string) => (data ? text : LOADING);
 
   return (
-    <div ref={ref} className="space-y-4">
+    <div ref={ref} className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0">
       <Select
         id="order-division"
         name="divisionId"
@@ -99,7 +99,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
       </Select>
 
       {failed && (
-        <p role="alert" className="text-sm font-medium text-brand-dark">
+        <p role="alert" className="text-sm font-medium text-brand-dark lg:col-span-3">
           এলাকার তালিকা লোড হয়নি। পেজটি আবার লোড করুন।
         </p>
       )}

@@ -55,8 +55,9 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
         <GuaranteeBlock text={landing.guarantee} />
         <FaqBlock faq={landing.faq} />
       </div>
-      <div className="lg:mx-auto lg:max-w-form">
-        <LandingSection>
+      <div className={`lg:mx-auto ${soldOut ? "lg:max-w-form" : "lg:max-w-checkout"}`}>
+        {/* From 1024px the order summary card shows the name and price instead. */}
+        <LandingSection className={soldOut ? "" : "lg:hidden"}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-[17px] font-semibold leading-snug text-heading">{product.name}</p>
             <PriceTag price={product.price} size="lg" />
@@ -68,6 +69,8 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
           <>
             <OrderForm
               productId={product.id}
+              name={product.name}
+              image={product.images[0] ?? null}
               price={product.price}
               pricing={{
                 deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,

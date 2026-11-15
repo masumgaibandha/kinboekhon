@@ -55,13 +55,15 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
         </div>
       )}
       <CtaSection product={product} soldOut={soldOut} />
-      <div className="lg:mx-auto lg:max-w-form">
+      <div className={`lg:mx-auto ${soldOut ? "lg:max-w-form" : "lg:max-w-checkout"}`}>
         {soldOut ? (
           <SoldOutSection />
         ) : (
           <>
             <OrderForm
               productId={product.id}
+              name={product.name}
+              image={product.images[0] ?? null}
               price={product.price}
               pricing={{
                 deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,

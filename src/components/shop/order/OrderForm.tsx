@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 
 import { LandingSection } from "@/components/shop/landing/LandingSection";
+import { CheckoutProduct } from "@/components/shop/order/CheckoutProduct";
 import { ContactFields } from "@/components/shop/order/ContactFields";
 import { LocationPicker } from "@/components/shop/order/LocationPicker";
 import { OrderField, fieldClass, labelClass } from "@/components/shop/order/OrderField";
@@ -18,15 +19,18 @@ import { useInitiateCheckout } from "@/components/tracking/use-initiate-checkout
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import type { PaymentAccount } from "@/lib/orders/payment-methods";
 import { deliveryChargeFor, isDhakaCity, type PricingSettings } from "@/lib/orders/pricing";
+import type { ProductImage } from "@/lib/product-images";
 
 interface OrderFormProps {
   productId: string;
+  name: string;
+  image: ProductImage | null;
   price: number;
   pricing: PricingSettings;
   accounts: PaymentAccount[];
 }
 
-export function OrderForm({ productId, price, pricing, accounts }: OrderFormProps) {
+export function OrderForm({ productId, name, image, price, pricing, accounts }: OrderFormProps) {
   const [quantity, setQuantity] = useState(1);
   const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
@@ -68,7 +72,7 @@ export function OrderForm({ productId, price, pricing, accounts }: OrderFormProp
     errors[field] ? { "aria-invalid": true, "aria-describedby": `order-${field}-error` } : {};
 
   return (
-    <LandingSection id="order" title="অর্ডার করতে ফর্মটি পূরণ করুন" className="scroll-mt-14 border-t-[3px] border-brand">
+    <LandingSection id="order" title="অর্ডার করতে ফর্মটি পূরণ করুন" className="scroll-mt-14 border-t-[3px] border-brand lg:scroll-mt-20">
       <form
         ref={formRef}
         onSubmit={handleSubmit}
@@ -78,57 +82,73 @@ export function OrderForm({ productId, price, pricing, accounts }: OrderFormProp
           clearError((event.target as HTMLInputElement).name);
         }}
         noValidate
-        className="space-y-4"
+        className="space-y-4 lg:grid lg:grid-cols-[58fr_42fr] lg:items-start lg:gap-8 lg:space-y-0"
       >
-        <ContactFields errors={errors} />
+        {/* Phone: one column. From 1024px: customer fields left, the summary card right. */}
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+          <ContactFields errors={errors} />
 
-        <LocationPicker value={location} onChange={setLocation} errors={errors} />
+          <div className="lg:col-span-2">
+            <LocationPicker value={location} onChange={setLocation} errors={errors} />
+          </div>
 
-        <OrderField id="order-address" label="ঠিকানা (বাড়ি, রাস্তা, এলাকা)" error={errors.address}>
-          <textarea
-            id="order-address"
-            name="address"
-            rows={2}
-            autoComplete="street-address"
-            placeholder="যেমন: বাড়ি নম্বর, রাস্তা, এলাকার নাম"
-            className={`${fieldClass} resize-none`}
-            {...invalid("address")}
-          />
-        </OrderField>
-        <div>
-          <p className={labelClass}>পরিমাণ</p>
-          <QuantityStepper value={quantity} onChange={setQuantity} />
+          <div className="lg:col-span-2">
+            <OrderField id="order-address" label="ঠিকানা (বাড়ি, রাস্তা, এলাকা)" error={errors.address}>
+              <textarea
+                id="order-address"
+                name="address"
+                rows={2}
+                autoComplete="street-address"
+                placeholder="যেমন: বাড়ি নম্বর, রাস্তা, এলাকার নাম"
+                className={`${fieldClass} resize-none`}
+                {...invalid("address")}
+              />
+            </OrderField>
+          </div>
         </div>
 
-        {accounts.length > 0 && (
-          <PaymentSection
+        {/* Desktop shows the totals before the payment options, phones after. */}
+        <div className="space-y-4 lg:sticky lg:top-20 lg:flex lg:flex-col lg:gap-4 lg:space-y-0 lg:rounded-lg lg:border lg:border-line-strong lg:p-5">
+          <CheckoutProduct name={name} image={image} price={price} />
+          <div>
+            <p className={labelClass}>পরিমাণ</p>
+            <QuantityStepper value={quantity} onChange={setQuantity} />
+          </div>
+
+          {accounts.length > 0 && (
+            <div className="lg:order-1">
+              <PaymentSection
+                option={activeOption}
+                onOption={payment.changeOption}
+                method={payment.method}
+                onMethod={payment.changeMethod}
+                accounts={accounts}
+                amounts={payment.amounts}
+                offered={payment.offered}
+                errors={errors}
+              />
+            </div>
+          )}
+
+          <OrderSummary
+            price={price}
+            quantity={quantity}
+            amounts={payment.amounts[activeOption]}
             option={activeOption}
-            onOption={payment.changeOption}
-            method={payment.method}
-            onMethod={payment.changeMethod}
-            accounts={accounts}
-            amounts={payment.amounts}
-            offered={payment.offered}
-            errors={errors}
+            dhakaCity={dhakaCity}
+            charges={{ dhakaCity: pricing.deliveryChargeDhakaCity, outside: pricing.deliveryChargeOutside }}
           />
-        )}
 
-        <OrderSummary
-          price={price}
-          quantity={quantity}
-          amounts={payment.amounts[activeOption]}
-          option={activeOption}
-          dhakaCity={dhakaCity}
-          charges={{ dhakaCity: pricing.deliveryChargeDhakaCity, outside: pricing.deliveryChargeOutside }}
-        />
-
-        <OrderSubmit
-          message={message}
-          checkFailed={turnstileFailed}
-          turnstileRef={turnstileRef}
-          pending={pending}
-          advance={activeOption !== "cod"}
-        />
+          <div className="contents space-y-4 lg:order-2 lg:block">
+            <OrderSubmit
+              message={message}
+              checkFailed={turnstileFailed}
+              turnstileRef={turnstileRef}
+              pending={pending}
+              advance={activeOption !== "cod"}
+            />
+          </div>
+        </div>
       </form>
     </LandingSection>
   );
