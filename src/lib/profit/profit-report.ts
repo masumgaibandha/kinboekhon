@@ -40,6 +40,7 @@ function orderCounts(start: Date | null, end: Date | null) {
         returned: when(isStatus("returned"), 1),
         revenue: when(isStatus("delivered"), "$total"),
         deliveredQuantity: when(isStatus("delivered"), "$quantity"),
+        codCollected: when(isStatus("delivered"), "$payment.dueOnDelivery"),
       },
     },
   ]);
@@ -81,6 +82,7 @@ export async function getProfitReport(start: Date | null, end: Date | null): Pro
         spend.get(id) ?? 0,
         startingCosts(defaults, product?.costs),
         ads.maxCpa,
+        defaults.codPercent,
       );
     })
     .sort((a, b) => b.adSpend - a.adSpend || b.orders - a.orders);

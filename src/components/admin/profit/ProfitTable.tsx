@@ -15,6 +15,7 @@ const COLUMNS = [
   "Product cost",
   "Courier",
   "Packaging",
+  "COD charge",
   "Net profit",
   "ROAS",
 ] as const;
@@ -33,6 +34,7 @@ function cells(numbers: ProfitNumbers): ReactNode[] {
     <Money key="product" amount={numbers.productCost} />,
     <Money key="courier" amount={numbers.courierCost} />,
     <Money key="packaging" amount={numbers.packagingCost} />,
+    <Money key="cod" amount={numbers.codCost} />,
     <SignedMoney key="profit" amount={numbers.netProfit} bold />,
     formatRoas(numbers.roas),
   ];

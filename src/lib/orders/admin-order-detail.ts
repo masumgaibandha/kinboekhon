@@ -27,6 +27,7 @@ export interface AdminOrder {
   product: { name: string; slug: string; price: number };
   quantity: number;
   subtotal: number;
+  deliveryCharge: number;
   discount: number;
   total: number;
   payment: AdminPayment;
@@ -69,6 +70,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     product: { name: doc.product.name, slug: doc.product.slug, price: doc.product.price },
     quantity: doc.quantity,
     subtotal: doc.subtotal,
+    deliveryCharge: doc.deliveryCharge ?? 0,
     discount: doc.discount,
     total: doc.total,
     payment: {

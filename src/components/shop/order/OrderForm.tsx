@@ -17,20 +17,24 @@ import { useTurnstile } from "@/components/shop/order/use-turnstile";
 import { useInitiateCheckout } from "@/components/tracking/use-initiate-checkout";
 import { EMPTY_LOCATION, type LocationSelection } from "@/lib/locations/types";
 import type { PaymentAccount } from "@/lib/orders/payment-methods";
+import { deliveryChargeFor, isDhakaCity, type PricingSettings } from "@/lib/orders/pricing";
 
 interface OrderFormProps {
   productId: string;
   price: number;
-  fullAdvanceDiscount: number;
+  pricing: PricingSettings;
   accounts: PaymentAccount[];
 }
 
-export function OrderForm({ productId, price, fullAdvanceDiscount, accounts }: OrderFormProps) {
+export function OrderForm({ productId, price, pricing, accounts }: OrderFormProps) {
   const [quantity, setQuantity] = useState(1);
   const [location, setLocation] = useState<LocationSelection>(EMPTY_LOCATION);
   const { submit, pending, errors, message, clearError } = useOrderSubmit();
   const { ref: turnstileRef, failed: turnstileFailed, getToken, reset } = useTurnstile();
-  const payment = usePaymentChoice({ price, quantity, fullAdvanceDiscount, accounts, clearError });
+  // Until the place is picked, the summary uses the outside charge and shows both.
+  const dhakaCity = location.upazilaId ? isDhakaCity(location.upazilaId) : null;
+  const deliveryCharge = deliveryChargeFor(dhakaCity === true, pricing);
+  const payment = usePaymentChoice({ price, quantity, deliveryCharge, discounts: pricing, accounts, clearError });
   const activeOption = payment.option;
   const formRef = useRef<HTMLFormElement>(null);
   const draft = useDraft(productId, () => (formRef.current ? collect(formRef.current) : null));
@@ -104,6 +108,7 @@ export function OrderForm({ productId, price, fullAdvanceDiscount, accounts }: O
             onMethod={payment.changeMethod}
             accounts={accounts}
             amounts={payment.amounts}
+            offered={payment.offered}
             errors={errors}
           />
         )}
@@ -112,7 +117,9 @@ export function OrderForm({ productId, price, fullAdvanceDiscount, accounts }: O
           price={price}
           quantity={quantity}
           amounts={payment.amounts[activeOption]}
-          advance={activeOption !== "cod"}
+          option={activeOption}
+          dhakaCity={dhakaCity}
+          charges={{ dhakaCity: pricing.deliveryChargeDhakaCity, outside: pricing.deliveryChargeOutside }}
         />
 
         <OrderSubmit

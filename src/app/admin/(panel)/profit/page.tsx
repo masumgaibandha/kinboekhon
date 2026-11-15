@@ -49,11 +49,12 @@ export default async function ProfitPage({ searchParams }: PageProps<"/admin/pro
       <div className="space-y-1 text-sm text-desc">
         <p>
           Orders count by the day they were placed, ad spend by its date. Confirmed counts orders now confirmed, shipped,
-          delivered or returned. Revenue counts delivered orders only.
+          delivered or returned. Revenue counts delivered orders only, delivery charge included.
         </p>
         <p>
           Costs come from each product&apos;s price calculator: landed product cost for delivered items, courier and
-          packaging for delivered and returned parcels.
+          packaging for delivered and returned parcels. COD charge is the Settings COD % of the cash the courier
+          collected on delivered orders.
         </p>
         <p>
           Rows with ad spend and a cost per confirmed order above the max CPA (<Money amount={maxCpa} />) are highlighted.{" "}

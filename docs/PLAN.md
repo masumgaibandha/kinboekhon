@@ -192,12 +192,13 @@ Any landing section left empty is simply not rendered.
 | product | `{ productId, name, slug, image, price }` | snapshot at order time |
 | quantity | number | 1 to 5 (`MAX_QUANTITY`) |
 | subtotal | number | price x quantity |
-| discount | number | `fullAdvanceDiscount` from Settings for a full advance payment, 0 for COD, never more than subtotal |
-| total | number | subtotal - discount |
+| deliveryCharge | number | from Settings at order time by area: Dhaka City (a city corporation, `location.kind: dhaka_city`) or everywhere else (decision 92). Missing on orders from the free delivery time, read as 0 |
+| discount | number | one discount only: `advanceDeliveryDiscount` off the delivery charge for `advance_delivery` (never more than the charge), `fullAdvanceDiscount` off the total for `advance_full`, 0 for COD |
+| total | number | subtotal + deliveryCharge - discount |
 | customer | `{ name, phone, address, location }` | phone as `01XXXXXXXXX`; `address` is the typed part (house, road, area); `location` always has `divisionId, division, districtId, district`, plus `kind`. `kind: dhaka_city` (a Dhaka city corporation was chosen): `cityCorporation` (`dncc` | `dscc`), `cityCorporationName`. `kind: outside_dhaka` (any upazila or city thana, also Dhaka district's upazilas): `upazilaId, upazila, upazilaType: upazila | city_thana`. Bangla names, for courier booking later |
 | status | `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled` | starts `pending` |
 | statusHistory | `{ kind, status, at, note, outcome }[]` | every change, for audit. `kind: status` for a status change (the first entry is the order being placed), `kind: edit` for a customer edit, `kind: payment` for a payment review or a switch to cash on delivery, `kind: call` for a call (P1b, with `outcome`) and `kind: return_reason` for a return reason change (P2c, the note is the reason or "Cleared"). For all but `status`, `status` is the status at that moment and `note` says what happened |
-| payment.option | `cod` \| `advance_full` | see section 6, "Payment options" |
+| payment.option | `cod` \| `advance_delivery` \| `advance_full` | see section 6, "Payment options" |
 | payment.method | `cod` \| `bkash` \| `nagad` \| `rocket` \| `bank` | `cod` only with option `cod` |
 | payment.status | `cod` \| `submitted` \| `verified` \| `rejected` | `cod` for cash on delivery |
 | payment.advanceAmount | number | amount the customer sends now (0 for COD) |
@@ -241,6 +242,9 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 ### Settings (single document, `key: "main"`)
 | Field | Notes |
 |---|---|
+| deliveryChargeDhakaCity | number, default 80: delivery charge for Dhaka North and Dhaka South city corporations (decision 92) |
+| deliveryChargeOutside | number, default 150: delivery charge everywhere else |
+| advanceDeliveryDiscount | number, default 20: taken off the delivery charge when only the delivery charge is paid in advance |
 | fullAdvanceDiscount | number, default 50: taken off the order total when the full amount is paid in advance |
 | bkash, nagad, rocket | `{ enabled, number, accountType: personal\|merchant }`; agent accounts are not offered (decision 63) |
 | bank | `{ enabled, bankName, accountName, accountNumber, branch, routingNumber }` |
@@ -249,7 +253,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | duplicateWindowHours | default 24 |
 | costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, courier: 120, codPercent: 1, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
 | ads | `{ usdRate: 125, maxCpa: 300 }` (P2d), admin only: `usdRate` is taka per US dollar (up to 2 decimals), the starting rate of a new ad spend entry; `maxCpa` is the highest ad cost per confirmed order (whole taka) before a product is highlighted in the profit report. `getSettings()` leaves them out; the admin reads them with `getAdSettings()` (uncached) |
-| fraud | `{ minRecords: 3, checkFailPercent: 20, highMinFailed: 3, highFailPercent: 40, bookingMoney: 200 }` (P2c), admin only: risk label thresholds and the booking money asked from a High risk customer. `getSettings()` leaves them out; the admin reads them with `getFraudSettings()` (uncached) |
+| fraud | `{ minRecords: 3, checkFailPercent: 20, highMinFailed: 3, highFailPercent: 40 }` (P2c), admin only: risk label thresholds. `getSettings()` leaves them out; the admin reads them with `getFraudSettings()` (uncached) |
 
 Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
 
@@ -303,18 +307,18 @@ Index: `{ phone, source }` unique, so each source keeps one row per phone.
 ### Customer site (Bangla)
 | Route | What it shows |
 |---|---|
-| `/` | Logo header, notice strip (সারা দেশে ফ্রি ডেলিভারি, ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
+| `/` | Logo header, notice strip (সারা দেশে হোম ডেলিভারি, ক্যাশ অন ডেলিভারি), grid of active products (image, name, price, order button) |
 | `/p/[slug]` | Landing page, see below |
-| `/thank-you/[publicId]` | Thank-you message, order number, product, delivery free, total, discount, advance paid (with "payment under review" note) and amount due on delivery, support phone |
+| `/thank-you/[publicId]` | Thank-you message, order number, product, delivery charge, discount, total, advance paid (with "payment under review" note) and amount due on delivery, support phone |
 | `/privacy`, `/terms`, `/return-policy` | Static Bangla text (P1e), linked in the footer and from a line under the order button; contact phone and WhatsApp from Settings, each hidden when empty |
 
 Landing page `/p/[slug]`, top to bottom. Visual reference: `docs/design/landing-design-d.html` (design D), rebuilt with Tailwind and brand tokens; its placeholder header is not used. Single column, `max-w-xl`, white sections with a 10px gap on the grey page:
-1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price with a "সারা দেশে ফ্রি ডেলিভারি" tag next to it, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি ডেলিভারি, পণ্য দেখে টাকা দিন).
+1. **Hook**: headline, subheadline, big main image (swipe gallery if more images), price, big "এখনই অর্ডার করুন" button that scrolls to the form, three trust badges (ক্যাশ অন ডেলিভারি, সারা দেশে হোম ডেলিভারি, পণ্য দেখে টাকা দিন).
 2. **Problem**: title + list of pain points.
 3. **Story**: short paragraph.
 4. **Solution**: benefit list with check icons + images.
 5. **Proof**: review screenshots + short text reviews, then an "এখনই অর্ডার করুন" button that scrolls to the form (only when the proof section shows).
-6. **CTA**: final push text + price again (with the free delivery tag).
+6. **CTA**: final push text + price again.
 7. **Order form** (see below).
 8. Sticky bottom bar on mobile with price and order button, hidden when the form is on screen or scrolled past.
 
@@ -357,11 +361,12 @@ Order form fields:
 - ঠিকানা (বাড়ি, রাস্তা, এলাকা) (required, textarea, 3 to 200 characters)
 - পরিমাণ (stepper, 1 to MAX_QUANTITY)
 - বিভাগ, জেলা, উপজেলা / থানা (Dhaka: city corporations first)
-- পেমেন্ট অপশন, two cards, each showing its total:
-  - ক্যাশ অন ডেলিভারি (default, no discount)
-  - পুরো টাকা অগ্রিম (৳50 ছাড় off the total)
+- পেমেন্ট অপশন, three cards in this order, each showing its total (decision 92):
+  - ডেলিভারি চার্জ অগ্রিম (default, marked "সবচেয়ে জনপ্রিয়"): ৳20 ছাড় off the delivery charge, product price on delivery
+  - পুরো টাকা অগ্রিম: normal delivery charge, ৳50 ছাড় off the total
+  - ক্যাশ অন ডেলিভারি: normal delivery charge, no discount
 - For an advance option: choose বিকাশ / নগদ / রকেট / ব্যাংক (only enabled ones), see our account number with a copy button and the exact amount to send, then fill sender number and Transaction ID.
-- Live summary: product price x quantity, "ডেলিভারি চার্জ: ফ্রি", "অগ্রিম পেমেন্ট ছাড়" (brand-dark minus line, full advance only), total, "এখন অগ্রিম পাঠাবেন" (advance amount) and "ডেলিভারির সময় দেবেন" (due on delivery). Updates instantly when quantity or payment option changes.
+- Live summary: product price x quantity, "ডেলিভারি চার্জ (ঢাকা সিটি)" or "(ঢাকা সিটির বাইরে)", the one discount (brand-dark minus line: "ডেলিভারি চার্জে ছাড়" or "পুরো টাকা অগ্রিমে ছাড়"), total, then in a highlighted box "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন" (shown for every option). Before the place is picked it uses the outside charge and a line shows both charges. Updates instantly when quantity, place or payment option changes.
 - Turnstile widget (invisible or managed mode).
 - Button: অর্ডার কনফার্ম করুন.
 
@@ -379,12 +384,13 @@ Order form fields:
 | `/admin/ad-spend` | Ad spend entries (P2d) for a period (default this month), newest day first, each with Edit and Delete; an add form (date, product, USD amount, rate, live taka amount) |
 | `/admin/ad-spend/[id]` | Edit one ad spend entry, with Delete |
 | `/admin/profit` | Profit and ad spend report (P2d) with a period switch and a custom date range |
-| `/admin/settings` | Full advance discount, payment accounts, support phone, duplicate window, price calculator defaults (no delivery charges), dollar rate and max CPA (P2d), fraud check thresholds and booking money (P2c) |
+| `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c) |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight (grams), air shipping (taka per kg), agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Money inputs are whole taka; percents allow one decimal (COD 0 to 20, return 0 to 90); China price and weight may be empty (0). Results update live as the admin types, including the Price field:
 - Landed cost = China price + weight / 1000 x shipping per kg + agent fee.
-- Profit per order = (1 - return %) x (price - price x COD % - landed cost) - courier - packaging - ad cost. Returned orders earn nothing but still pay courier, packaging and ads.
-- Suggested price = the lowest price ending in 90 at or above ((target profit + courier + packaging + ad cost) / (1 - return %) + landed cost) / (1 - COD %).
+- Profit per order = (1 - return %) x (price - price x COD % - landed cost) - packaging - ad cost. The customer pays the delivery charge, so the courier is not in the product price math (decision 92). Returned orders earn nothing but still pay packaging and ads.
+- Suggested price = the lowest price ending in 90 at or above ((target profit + packaging + ad cost) / (1 - return %) + landed cost) / (1 - COD %).
+- Delivery income minus courier, a separate line for Dhaka City and for outside: the Settings delivery charge minus the courier charge.
 - Results show rounded to whole taka (`price-calculator.ts` keeps exact values). Inputs are saved with the product (`costs`) and validated by Zod on the server. The suggested price is never written to Price on its own.
 
 Dashboard definitions (dates in Asia/Dhaka, decision 80):
@@ -439,7 +445,7 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - `publicId`: 12 random bytes as base64url (16 characters).
 - The order saves a product snapshot (id, name, slug, main image `publicId`, price). `tracking` stays empty until M10 and P1c.
 - The form blocks a second submit while one is running (a ref, so a double tap sends one request), keeps typed values on errors, and clears a field's error when it is edited.
-- Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, "ডেলিভারি চার্জ: ফ্রি", discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
+- Thank-you page: rendered per request (`await connection()` inside `<Suspense>`), `noindex`. Shows the order number, product and quantity, price, delivery charge ("ফ্রি" on old orders without one), discount and advance when present, total, amount due on delivery, a call line with the support phone when set, and "আরও পণ্য দেখুন". It never shows the address or phone.
 11. After the response (`after()` from `next/server`), send Purchase to CAPI and save the result in `capiPurchase`.
 
 ### Fake order protection (M10)
@@ -466,7 +472,7 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 - Detail: `/admin/orders/KE10001`. Customer (with a Call button `tel:`), product and amounts, status, admin note, history (newest first).
 - Status moves (`src/lib/orders/status.ts`): pending to confirmed or cancelled; confirmed to shipped or cancelled; shipped to delivered or returned; cancelled can be reopened to pending; delivered and returned are final. The form lists only allowed moves; Zod refuses any other move. Every change pushes a history entry with the optional note.
 - Stale protection: the status form sends the status it was loaded with and the update matches on it (`findOneAndUpdate({ orderNumber, status: from })`). The note form sends the note it was loaded with. The customer form sends all loaded values (`initialValues`) and writes only changed fields, each matched against its loaded value. Any miss shows "This order was changed since you opened it. Reload the page." Every form is keyed on the order's `updatedAt`, and each action calls `revalidatePath("/admin", "layout")` after a change, which re-renders the open page and drops the admin pages the browser kept, so the orders list and dashboard are fresh on the next click.
-- Customer edit: name, phone, typed address and location, with the same rules as the shop form (division, district, then city corporation, upazila or thana) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. A location change changes no amount (decision 76). Each save pushes a `kind: edit` history entry listing old and new values.
+- Customer edit: name, phone, typed address and location, with the same rules as the shop form (division, district, then city corporation, upazila or thana) and the same server check (`src/lib/validation/location-fields.ts`), with English messages. Allowed only while pending or confirmed. A change between Dhaka City and outside on a cash on delivery order sets the delivery charge from the current Settings and works out the total again; on an advance payment order it is refused (the customer paid for this area) (decision 92). Each save pushes a `kind: edit` history entry listing old and new values.
 
 ### Call outcome (P1b)
 - Order detail: a "Call outcome" card with four choices (Agreed to wait, Declined, No answer, Call later), an optional note (up to 300 characters) and "Save call". Zod checks the outcome on the server.
@@ -482,18 +488,19 @@ Built in M7 (steps 1, 4, 5, 8 for COD, 9 without the draft delete, 10):
 ### Payment options
 One function in `src/lib/orders/pricing.ts` does this math. The order form uses it for the live summary and the server uses it again to save the order.
 
-Delivery is free everywhere; its cost is built into the product price (decision 76).
+The customer pays a delivery charge by area (decision 92): Dhaka City (`deliveryChargeDhakaCity`, default 80) when a city corporation is picked, else `deliveryChargeOutside` (default 150). Only one discount applies per order.
 
 | Option | Discount | Paid now (advance) | Due on delivery |
 |---|---|---|---|
+| `advance_delivery` | `advanceDeliveryDiscount` (default 20) off the delivery charge | deliveryCharge - discount | subtotal |
+| `advance_full` | `fullAdvanceDiscount` (default 50) off the total | total | 0 |
 | `cod` | 0 | 0 | total |
-| `advance_full` | `fullAdvanceDiscount` (default 50) | total | 0 |
 
-- subtotal = price x quantity; total = subtotal - discount.
-- The discount is capped at the subtotal, so the total is never negative. When the total would be 0 the full advance option is hidden.
-- Example, product ৳850, quantity 2:
-  - COD: total ৳1,700, pay now ৳0, due ৳1,700.
-  - Full advance: total ৳1,650, pay now ৳1,650, due ৳0.
+- subtotal = price x quantity; total = subtotal + deliveryCharge - discount.
+- The delivery discount is capped at the delivery charge and the full advance discount at the total. An advance option whose pay-now amount is 0 is hidden.
+- Example, product ৳850, quantity 1:
+  - Dhaka City: delivery advance total ৳910 (pay now ৳60, due ৳850); full advance ৳880 (pay now ৳880); COD ৳930.
+  - Outside: delivery advance total ৳980 (pay now ৳130, due ৳850); full advance ৳950 (pay now ৳950); COD ৳1,000.
 
 ### Payment verification
 - Approve: atomic update only when `payment.status` is `submitted`. Sets `verified`, note, time, and moves order `pending` to `confirmed`.
@@ -501,8 +508,8 @@ Delivery is free everywhere; its cost is built into the product price (decision 
 - A second click on an already reviewed payment changes nothing and shows "Already reviewed".
 
 ### Advance payment (M9)
-- `calculateOrder(price, quantity, option, fullAdvanceDiscount)` in `pricing.ts` does all money math for the form summary, the saved order and the switch to cash on delivery. The discount comes from Settings (`fullAdvanceDiscount`).
-- Shop form: after the quantity, a "পেমেন্ট" picker with two cards (ক্যাশ অন ডেলিভারি, পুরো টাকা অগ্রিম), each with its discount and total. An advance option whose pay-now amount is 0 is hidden. Choosing an advance option picks the first enabled method; the customer can pick another. The account box shows the number and account type (wallets: পার্সোনাল means সেন্ড মানি, মার্চেন্ট means পেমেন্ট) or the bank details, then "পাঠাবেন" with the exact pay-now amount. The number, bank account number and amount each have a copy button (`navigator.clipboard`). Then the sender number (bank: sender account number, 6 to 20 digits; Rocket may have 12 digits) and the Transaction ID. The summary adds the discount, "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন".
+- `calculateOrder(price, quantity, deliveryCharge, option, discounts)` in `pricing.ts` does all money math for the form summary, the saved order, the customer edit and the switch to cash on delivery. `deliveryChargeFor()` picks the charge by area; the discounts come from Settings. The switch to cash on delivery keeps the delivery charge saved at order time and removes only the discount.
+- Shop form: after the quantity, a "পেমেন্ট" picker with three cards (ডেলিভারি চার্জ অগ্রিম, chosen first and marked "সবচেয়ে জনপ্রিয়"; পুরো টাকা অগ্রিম; ক্যাশ অন ডেলিভারি), each with its discount and total. An advance option whose pay-now amount is 0 is hidden. Choosing an advance option picks the first enabled method; the customer can pick another. The account box shows the number and account type (wallets: পার্সোনাল means সেন্ড মানি, মার্চেন্ট means পেমেন্ট) or the bank details, then "পাঠাবেন" with the exact pay-now amount. The number, bank account number and amount each have a copy button (`navigator.clipboard`). Then the sender number (bank: sender account number, 6 to 20 digits; Rocket may have 12 digits) and the Transaction ID. The summary adds the discount, "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন".
 - Only methods enabled in Settings with a number (bank: with an account number) are shown (`enabledAccounts()`). With none, the form shows no payment picker: cash on delivery only, as before.
 - Server (`/api/orders`): Zod checks the option, method, sender number and Transaction ID (`src/lib/validation/order-payment.ts`, Bangla messages). `createOrder()` then refuses a method that is no longer enabled (error on the method field) and a Transaction ID already used (checked first; the unique partial index on `payment.transactionIdNormalized` catches a race). The order saves `payment.status: submitted` with the sender and both Transaction ID forms. The thank-you page says the advance will be checked before the order is confirmed.
 - `/admin/payments`: one card per `submitted` payment, oldest first, with expected advance, method, option, sender, Transaction ID, order total, customer and product, an optional note, and Approve and Reject. Approve on a pending order also confirms it in the same guarded update and adds a `payment` and a `status` history entry. Approve on an order that is no longer pending only verifies the payment and shows a warning toast. Reject keeps the status and adds a `payment` history entry.
@@ -518,9 +525,10 @@ Delivery is free everywhere; its cost is built into the product price (decision 
   - Ad spend = sum of `amountBdt`.
   - Orders = all orders placed. Confirmed = orders now `confirmed`, `shipped`, `delivered` or `returned`. Delivered = orders now `delivered`.
   - Cost per order = ad spend / orders; cost per confirmed = ad spend / confirmed (whole taka, "-" with nothing to divide by).
-  - Revenue = sum of `total` of delivered orders.
+  - Revenue = sum of `total` of delivered orders (delivery charge included).
   - Costs from the product's price calculator inputs (its saved `costs` over the Settings `costDefaults`, today's values): product cost = landed cost x quantity of delivered orders; courier and packaging = per order for delivered and returned orders (a returned parcel still paid both). Each is rounded to whole taka.
-  - Net profit = revenue - product cost - courier - packaging - ad spend. ROAS = revenue / ad spend, two decimals with "x", "-" without ad spend.
+  - COD charge = Settings `costDefaults.codPercent` of the cash the courier collected (`payment.dueOnDelivery`) on delivered orders, rounded to whole taka (decision 92).
+  - Net profit = revenue - product cost - courier - packaging - COD charge - ad spend. ROAS = revenue / ad spend, two decimals with "x", "-" without ad spend.
 - Highlight: a product row with ad spend whose cost per confirmed order is above Settings `ads.maxCpa`, or with ad spend and no confirmed order, gets the light orange background and an "Above max CPA" label.
 - Dashboard: an "Ad spend & profit" card for the dashboard period (all time included): ad spend, revenue, net profit, ROAS and the number of products above max CPA, linking to the report.
 
@@ -536,7 +544,7 @@ Delivery is free everywhere; its cost is built into the product price (decision 
 - Providers (`src/lib/fraud/providers/`): each source is a `FraudProvider` (`id`, `label`, `connected()`, `check(phone)`) in the `FRAUD_PROVIDERS` list; a new source is one more file in that list (its id joins `PROVIDER_IDS`). First provider: Steadfast official API courier score, `GET https://portal.packzy.com/api/v1/fraud_check/<phone>` with `Api-Key` and `Secret-Key` headers, reading `total_delivered`, `total_cancelled` and `total_parcels`, 8 second timeout. The path was not in Steadfast's public docs in November 2026: confirm it when the keys arrive (one constant in `steadfast.ts`). Without `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY` the row shows "Not connected" and the check button is off. Never log in to a courier panel or scrape one.
 - "Check delivery history" runs every connected provider. A good result (found or no history) is reused for 24 hours; a failed one can be tried again at once and keeps the last good counts. The phone is read from the order on the server, never from the form.
 - Manual entry (fallback, for example from the Pathao merchant panel): delivered and cancelled or returned counts (both or neither, 0 to 9,999), a Pathao rating (free text up to 40 characters, shown only, not used for the label) and a note; at least the counts or a rating. One per phone, a new one replaces it.
-- Risk label from the sum of all sources' counts (failed = cancelled or returned), thresholds from Settings `fraud`: no counts = Unknown; failed at least `highMinFailed` and failed percent at least `highFailPercent` = High; fewer than `minRecords` parcels or failed percent at least `checkFailPercent` = Check; else Low. High shows "Ask booking money" with `bookingMoney` from Settings.
+- Risk label from the sum of all sources' counts (failed = cancelled or returned), thresholds from Settings `fraud`: no counts = Unknown; failed at least `highMinFailed` and failed percent at least `highFailPercent` = High; fewer than `minRecords` parcels or failed percent at least `checkFailPercent` = Check; else Low. High shows "Ask delivery charge in advance" with that order's delivery charge (decision 92).
 - The sum and label are saved on the phone's Customer record (`risk`) after each check or manual entry. Changing a threshold in Settings works out every saved label again.
 - Orders list: a Risk column (badge, or "Not checked") and a Risk filter (`risk` in the URL: unknown, low, check, high) that matches orders whose phone has that label.
 - Return reason: on a cancelled or returned order, a "Return reason" card (Not set, Refused, Unreachable, Wrong address, Courier delay, Damaged, Wrong item, Fake order). The form sends the reason it was loaded with and the save matches on it and on the status; each change adds a `kind: return_reason` history entry.
@@ -557,7 +565,7 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 - Built in P1c: the snippet in `src/components/tracking/MetaPixel.tsx` fires `ke:pixel-ready` after `fbq` exists, so events from early effects wait for it. It sets `fbq.disablePushState` and `fbq.allowDuplicatePageViews`, so every PageView is an explicit `fbq('track', 'PageView')`: the snippet sends the first, `PixelPageViews` one per client navigation. `_fbp`, `_fbc`, the page URL (from `Referer`, same origin only), `utm_source` and `utm_campaign` are saved in the order `tracking`. The order form stores the new `publicId` in sessionStorage before opening the thank-you page; the page sends the browser Purchase only when it finds and removes that value, so a refresh or a later visit sends nothing. The server Purchase runs in `after()` and writes `capiPurchase` (`pending` on create, then `sent` or `failed`).
 - `META_TEST_EVENT_CODE` env var sends events to Events Manager "Test events" while testing; when it is empty no test code is sent.
 - No cookie consent banner: the audience is in Bangladesh (owner confirmed).
-- Purchase fires when the order is placed, for COD and advance orders alike (owner decision). `value` is the order total after discount.
+- Purchase fires when the order is placed, for COD and advance orders alike (owner decision). `value` is the product total only (price x quantity), without delivery charge or discount (decision 92), in the browser and server events.
 
 ## 8. Fake order protection
 
@@ -651,7 +659,7 @@ Modules M0 to M12 are done. The rest is built in three phases (decision 81), one
 
 | # | Module | Browser test |
 |---|---|---|
-| P1a | **Price calculator** in the admin product form: China price, weight, air shipping rate per kg, agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Shows the suggested selling price and the profit per order. Default rates live in Settings. Delivery stays free for the customer (decision 76), so the courier charge is a cost inside the price | Enter test values: suggested price and profit match a hand calculation; change a default in Settings and the form starts with the new value |
+| P1a | **Price calculator** in the admin product form: China price, weight, air shipping rate per kg, agent fee, packaging, courier charge, COD charge %, return rate %, ad cost per order, target profit. Shows the suggested selling price and the profit per order. Default rates live in Settings. Since decision 92 the customer pays the delivery charge, so the courier is shown on its own line (delivery income minus courier) | Enter test values: suggested price and profit match a hand calculation; change a default in Settings and the form starts with the new value |
 | P1b | **Call outcome** on each order: agreed to wait, declined, no answer, call later, each saved with a note and the time. Agreed to wait confirms, declined cancels (not once shipped). Orders list filter by call outcome | Save "No answer" with a note on an order, see it with the time on the order page; filter the list by it and see only that order |
 | P1c | **Meta Pixel + CAPI** (was M14): base pixel, ViewContent, InitiateCheckout, Purchase, `/api/track` | Meta Pixel Helper shows events with event IDs; Events Manager Test events shows browser and server events deduplicated |
 | P1d | **Launch** (was M16): Vercel project, env vars, Atlas network access, run `npm run seed:admin` once against the production database, domain kinboekhon.com, Turnstile hostname, Meta domain verification, Lighthouse mobile check | Live site at kinboekhon.com, real test order end to end, then delete it |
@@ -678,7 +686,7 @@ P2a is done (November 2026): customer records by phone, `/admin/customers` list 
 
 P2d is done (November 2026), built before P2b and P2c at the owner's request (decision 90): `/admin/ad-spend` (add, edit, delete entries in USD with a taka rate), `/admin/profit` report, dollar rate and max CPA in Settings, and the dashboard "Ad spend & profit" card.
 
-P2c is done (November 2026), before P2b at the owner's request (decision 91): the order page Delivery history card with the Steadfast provider ("Not connected" until the keys are set) and manual entry, risk labels with thresholds and booking money in Settings, the orders list risk badge and filter, and the return reason on cancelled or returned orders.
+P2c is done (November 2026), before P2b at the owner's request (decision 91): the order page Delivery history card with the Steadfast provider ("Not connected" until the keys are set) and manual entry, risk labels with thresholds in Settings, the orders list risk badge and filter, and the return reason on cancelled or returned orders.
 
 ### Phase 3: after launch
 
@@ -751,7 +759,7 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 52. The payment method and payment status filters are hidden until M9. The CSV export button is hidden until P2h.
 53. The order detail URL uses the order number: `/admin/orders/KE10001`.
 54. Orders list: 25 per page, newest first. Search finds the order number (KE10001 or 10001), phone by prefix, or name (contains, ignoring case).
-55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing the location changes no amount (decision 76). Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
+55. The admin can edit the customer's name, phone, typed address and location while the order is pending or confirmed, with the shop form's rules. Changing between Dhaka City and outside recalculates a cash on delivery order and is refused on an advance order (decision 92). Every edit adds a history entry saying what changed. Stale protection as in CLAUDE.md.
 56. Hosting region (replaces decision 18): MongoDB Atlas runs in AWS ap-south-1 (Mumbai), in its own Atlas project, and the Vercel function region is `bom1` (Mumbai), set in `vercel.json`, so the server sits next to the database and close to Bangladeshi customers. Moved in November 2026 by copying the whole `kinboekhon` database (all collections, documents and indexes; counts and indexes checked on both sides). The old Virginia cluster is kept untouched as a backup; its connection string stays only in the local `.env.local` as `MONGODB_URI_OLD_VIRGINIA` and is never set on Vercel.
 57. Approving a payment on an order that is no longer pending only verifies the payment and shows a warning toast.
 58. After a rejected payment the admin can switch the order to cash on delivery: the total becomes the subtotal without the discount, pay-now becomes 0, and a history entry is added.
@@ -772,14 +780,14 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 73. `/admin/incomplete` has Call, Mark contacted (time and badge) and Delete. No convert to order.
 74. Placing an order deletes the draft with the same `draftKey` and all drafts with the same phone and product.
 75. One `draftKey` per product in the visitor's browser.
-76. Free delivery everywhere in Bangladesh (November 2026). The delivery cost is built into the product price, so the customer sees one price and "সারা দেশে ফ্রি ডেলিভারি" (price tag, trust badge, notice strip; the summary and thank-you page show "ডেলিভারি চার্জ: ফ্রি"). Delivery charges are removed from Settings, `pricing.ts`, the order summary, the thank-you page and the admin order pages. The ঢাকার ভিতরে / ঢাকার বাইরে picker was later removed (decision 79). Orders no longer store `deliveryCharge`; `deliveryDiscount` became `discount`. The old Settings fields were unset in the database.
-77. Advance payment: the "delivery charge in advance" option is removed. Options are cash on delivery and full advance. Full advance gets a fixed discount off the total, `fullAdvanceDiscount` in Settings (default ৳50).
+76. Replaced by decision 92. Free delivery everywhere in Bangladesh (November 2026). The delivery cost is built into the product price, so the customer sees one price and "সারা দেশে ফ্রি ডেলিভারি" (price tag, trust badge, notice strip; the summary and thank-you page show "ডেলিভারি চার্জ: ফ্রি"). Delivery charges are removed from Settings, `pricing.ts`, the order summary, the thank-you page and the admin order pages. The ঢাকার ভিতরে / ঢাকার বাইরে picker was later removed (decision 79). Orders no longer store `deliveryCharge`; `deliveryDiscount` became `discount`. The old Settings fields were unset in the database.
+77. Replaced by decision 92. Advance payment: the "delivery charge in advance" option is removed. Options are cash on delivery and full advance. Full advance gets a fixed discount off the total, `fullAdvanceDiscount` in Settings (default ৳50).
 78. Old orders keep their saved amounts unchanged; no order is recalculated. When decisions 76 and 77 were made the database held 0 orders, so no order needed a migration.
 79. No ঢাকার ভিতরে / ঢাকার বাইরে picker (November 2026). Every customer picks বিভাগ, জেলা, উপজেলা / থানা. When জেলা is ঢাকা, the third list shows ঢাকা উত্তর and ঢাকা দক্ষিণ সিটি কর্পোরেশন first, then Dhaka's upazilas; Chattogram city thanas stay as before. The order still saves the city corporation when one is chosen (`kind: dhaka_city`), so courier booking works. Orders and drafts no longer store `deliveryArea`, and drafts no longer store `cityCorporation` (it is the `upazilaId`). When জেলা is ঢাকা a hint line under the list names well-known areas: "উত্তর সিটি: উত্তরা, মিরপুর, গুলশান, বনানী, বাড্ডা, মোহাম্মদপুর। দক্ষিণ সিটি: ধানমন্ডি, মতিঝিল, পুরান ঢাকা, যাত্রাবাড়ী, লালবাগ, খিলগাঁও।" (`CITY_CORPORATION_HINT`). In November 2026 dncc.gov.bd and dscc.gov.bd were reachable but publish no usable ward or area list (DNCC ward pages are empty and its linked PDF is an unrelated 2016 tax gazette; DSCC has no ward pages), so the earlier Wikipedia check stands: খিলগাঁও is mostly DSCC (DNCC ward 23 also covers part), পুরান ঢাকা is a common name. The admin customer edit form and the server check follow the same rules.
 80. Dashboard (M12, November 2026): the week starts on Saturday. Total sales leave out cancelled and returned orders; delivered value is the sum for delivered orders. Incomplete orders and advance payments waiting are live counts, each linking to its admin page. Orders per product shows count and sales, most orders first.
 81. Build order after M12 (November 2026): three phases. Phase 1 before the test campaign: price calculator, call outcome, Meta Pixel + CAPI, launch. Phase 2 while the stock ships (about 20 days): customer CRM, Steadfast API, fraud check, profit report with ad spend, stock count, COD payout reconciliation, order SMS, print and CSV exports. Phase 3 after launch: repeat-customer promo codes, blog and info pages, editable notices and offers, SEO and share previews with the policy pages, staff logins. Steadfast, SMS, stock tracking, coupons, blog and more than one admin are no longer "not planned".
 82. Policy pages move to Phase 1 as P1e (November 2026): Bangla privacy, terms and return policy, linked in the footer. Return policy: 3 days, only for damaged, wrong or defective products.
-83. Price calculator (P1a, November 2026): landed cost = China price + weight x air shipping rate + agent fee; profit per order = (1 - return rate) x (price - price x COD % - landed cost) - courier - packaging - ad cost; the suggested price reaches the target profit, rounded up to end in 90. Defaults in Settings: air shipping ৳710/kg, agent fee ৳0, packaging ৳10, courier ৳120, COD 1%, return rate 15%, ad cost ৳250 per order, target profit ৳150. The inputs are saved per product, admin only, never shown in the shop.
+83. Price calculator (P1a, November 2026): landed cost = China price + weight x air shipping rate + agent fee; profit per order = (1 - return rate) x (price - price x COD % - landed cost) - packaging - ad cost (courier moved to its own line by decision 92); the suggested price reaches the target profit, rounded up to end in 90. Defaults in Settings: air shipping ৳710/kg, agent fee ৳0, packaging ৳10, courier ৳120, COD 1%, return rate 15%, ad cost ৳250 per order, target profit ৳150. The inputs are saved per product, admin only, never shown in the shop.
 84. Call outcome sets the status (P1b, November 2026): Agreed to wait confirms a pending order, Declined cancels a pending or confirmed order; No answer and Call later keep it pending with a badge in the list. Shipped or later orders keep their status.
 85. Dashboard Calls card (P1b, November 2026): to-do counts for pending orders (not called, No answer, Call later) linking to the filtered list, call results with their own period switch and confirm rate (orders agreed out of orders called), and the 5 oldest pending orders still needing a call.
 86. Policy pages (P1e, November 2026): return within 3 days of delivery with photo or video, only damaged, wrong or defective; replace or refund by bKash or Nagad within 7 days; we pay the return courier; no change of mind; a refused COD parcel is not a return. Privacy also states the saved unfinished order form, the IP and browser kept against fake orders, and Meta Pixel. Click-to-call on the admin order page is P3f, after the site is complete.
@@ -787,4 +795,5 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 88. Customer CRM (P2a, November 2026): a customer is one normalized phone. Spent counts delivered orders only. Tags are VIP, Risky and Blocked. A Blocked phone can still order: the order is saved Pending and marked "Blocked customer" in red, never refused.
 89. Dev and production data are separate (November 2026). Local dev uses the database `kinboekhon_dev` on the same Atlas cluster; production is `kinboekhon`. The production URI stays in `.env.local` as `MONGODB_URI_PROD`, read only by `npm run dev:clone`, which copies settings and products from production to dev and never writes to production. A dev-only admin (`npm run seed:dev-admin`) exists only in the dev database. The admin header shows a "DEV DATABASE" badge when not on production. All tests use the dev database; orders are never deleted and the counter is never reset on production.
 90. Profit report (P2d, November 2026), built before P2b and P2c at the owner's request: ad spend is entered per product per day in US dollars with a taka rate (default from Settings), and the taka amount is saved with it. The report covers Today, This week, This month or a custom range; revenue counts delivered orders only; costs come from the price calculator inputs; products whose ad cost per confirmed order is above the max CPA in Settings are highlighted. The dashboard shows a small summary card.
-91. Fraud check (P2c, November 2026), built before P2b: delivery history by phone from pluggable sources, first the Steadfast official API courier score (keys in `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY`, "Not connected" until set), with a manual entry fallback (counts or a Pathao rating with a note). Never log in to a courier panel or scrape. Each good check is reused for 24 hours. Risk labels Unknown, Low, Check and High come from thresholds in Settings; High shows an "Ask booking money" hint with the amount from Settings. A label never cancels or changes an order. Cancelled and returned orders get a return reason: refused, unreachable, wrong address, courier delay, damaged, wrong item or fake order.
+91. Fraud check (P2c, November 2026), built before P2b: delivery history by phone from pluggable sources, first the Steadfast official API courier score (keys in `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY`, "Not connected" until set), with a manual entry fallback (counts or a Pathao rating with a note). Never log in to a courier panel or scrape. Each good check is reused for 24 hours. Risk labels Unknown, Low, Check and High come from thresholds in Settings; High shows an "Ask delivery charge in advance" hint with the order's delivery charge (decision 92; the booking money setting was removed). A label never cancels or changes an order. Cancelled and returned orders get a return reason: refused, unreachable, wrong address, courier delay, damaged, wrong item or fake order.
+92. Delivery charge is back (November 2026), replacing decisions 76 and 77. The customer pays it by area: Dhaka City (Dhaka North or South city corporation, already known from the address list) ৳80, everywhere else ৳150, both in Settings. Three payment options, one discount per order: delivery charge in advance with the product price on delivery (chosen first, marked "সবচেয়ে জনপ্রিয়"), ৳20 off the delivery charge (so ৳60 and ৳130; the old `advanceDeliveryDiscount` value from before commit 6c0145c), in Settings; full advance with the normal charge and ৳50 off the total; cash on delivery with the normal charge and no discount. The form shows product, delivery charge, discount, total, pay now and pay on delivery. Orders store `deliveryCharge`; old orders without it read as 0 and are not recalculated. The price calculator leaves the courier out of the product price math and shows delivery income minus courier on its own line. The profit report counts the Settings COD % on the cash the courier collected. The Meta Purchase value is the product total only. The P2c High hint asks for the order's delivery charge in advance; the booking money setting is removed. The shop no longer says free delivery anywhere.

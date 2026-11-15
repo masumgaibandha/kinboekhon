@@ -1,4 +1,4 @@
-import { adminFail, type AdminActionResult } from "@/lib/admin-result";
+import { FIX_FIELDS, adminFail, type AdminActionResult } from "@/lib/admin-result";
 import { syncCustomer } from "@/lib/customers/sync-customer";
 import { connectMongoose } from "@/lib/db";
 import { cityCorporationOf } from "@/lib/locations/dhaka";
@@ -6,16 +6,28 @@ import { formatLocation } from "@/lib/locations/format";
 import type { OrderLocation } from "@/lib/locations/types";
 import { OrderModel } from "@/lib/models/Order";
 import { missOrStale, ORDER_NOT_FOUND } from "@/lib/orders/change-status";
-import type { OrderStatus } from "@/lib/orders/enums";
+import type { OrderStatus, PaymentOption } from "@/lib/orders/enums";
+import { calculateOrder, deliveryChargeFor } from "@/lib/orders/pricing";
 import { CUSTOMER_EDITABLE_STATUSES, canEditCustomer } from "@/lib/orders/status";
+import { getSettings } from "@/lib/settings";
 import type { CustomerEdit, CustomerFields } from "@/lib/validation/admin-order";
 
 interface EditDoc {
   status: OrderStatus;
+  quantity: number;
+  product: { price: number };
+  deliveryCharge?: number;
+  total: number;
+  payment: { option: PaymentOption };
   customer: { name: string; phone: string; address: string; location: OrderLocation };
 }
 
 const LOCATION_KEYS = ["divisionId", "districtId", "upazilaId"] as const;
+const money = (amount: number) => amount.toLocaleString("en-IN");
+const areaName = (location: OrderLocation) => (location.kind === "dhaka_city" ? "Dhaka City" : "outside Dhaka City");
+
+export const AREA_LOCKED =
+  "Dhaka City and outside have different delivery charges, and the customer paid in advance for this one. Cancel the order and place a new one instead.";
 
 // The stored location ids the form was loaded with, so a stale form cannot overwrite a newer location.
 function locationGuard(initial: CustomerFields): Record<string, string> {
@@ -43,7 +55,12 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
   if (!canEditCustomer(order.status)) {
     return adminFail("Customer details can be edited only while the order is pending or confirmed.");
   }
+  const areaChanged = changed.location && edit.location.kind !== order.customer.location.kind;
+  if (areaChanged && order.payment.option !== "cod") return adminFail(FIX_FIELDS, { upazilaId: AREA_LOCKED });
+
   const guard: Record<string, unknown> = { orderNumber: edit.orderNumber, status: { $in: CUSTOMER_EDITABLE_STATUSES } };
+  // The amounts are worked out as cash on delivery, so the option must not have changed meanwhile.
+  if (areaChanged) guard["payment.option"] = "cod";
   const set: Record<string, unknown> = {};
   const notes: string[] = [];
 
@@ -58,6 +75,23 @@ export async function editOrderCustomer(edit: CustomerEdit, initial: CustomerFie
     Object.assign(guard, locationGuard(initial));
     set["customer.location"] = edit.location;
     notes.push(`Location: ${formatLocation(order.customer.location)} to ${formatLocation(edit.location)}`);
+  }
+
+  if (areaChanged) {
+    // The new charge comes from the current Settings, like a new order.
+    const charge = deliveryChargeFor(edit.location.kind === "dhaka_city", await getSettings());
+    const amounts = calculateOrder(order.product.price, order.quantity, charge);
+    Object.assign(set, {
+      deliveryCharge: amounts.deliveryCharge,
+      discount: amounts.discount,
+      total: amounts.total,
+      "payment.advanceAmount": amounts.advanceAmount,
+      "payment.dueOnDelivery": amounts.dueOnDelivery,
+    });
+    notes.push(
+      `Delivery: ${areaName(order.customer.location)} to ${areaName(edit.location)}, ` +
+        `charge ${money(order.deliveryCharge ?? 0)} to ${money(charge)}, total ${money(order.total)} to ${money(amounts.total)}`,
+    );
   }
 
   const updated = await OrderModel.findOneAndUpdate(

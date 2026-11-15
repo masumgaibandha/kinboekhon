@@ -30,6 +30,9 @@ function withReviewedWallets<T extends Settings>(settings: T, keys: WalletKey[],
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  deliveryChargeDhakaCity: 80,
+  deliveryChargeOutside: 150,
+  advanceDeliveryDiscount: 20,
   fullAdvanceDiscount: 50,
   bkash: emptyWallet,
   nagad: emptyWallet,

@@ -31,7 +31,7 @@ export function ThankYouDetails({ order }: { order: ThankYouOrder }) {
         }
         value={<Money amount={order.subtotal} />}
       />
-      <Row label="ডেলিভারি চার্জ" value="ফ্রি" />
+      <Row label="ডেলিভারি চার্জ" value={order.deliveryCharge > 0 ? <Money amount={order.deliveryCharge} /> : "ফ্রি"} />
       {order.discount > 0 && (
         <Row
           label="অগ্রিম পেমেন্ট ছাড়"

@@ -11,11 +11,13 @@ import { failPercent } from "@/lib/fraud/risk";
 interface DeliveryHistoryCardProps {
   history: DeliveryHistory;
   orderNumber: string;
+  // This order's delivery charge, asked in advance from a High risk customer.
+  deliveryCharge: number;
   formKey: string;
 }
 
 // Courier delivery history of the order's phone. It only informs: nothing here changes the order.
-export function DeliveryHistoryCard({ history, orderNumber, formKey }: DeliveryHistoryCardProps) {
+export function DeliveryHistoryCard({ history, orderNumber, deliveryCharge, formKey }: DeliveryHistoryCardProps) {
   const { counts, risk } = history;
   const manual = history.rows.find((row) => row.source === "manual");
 
@@ -24,7 +26,7 @@ export function DeliveryHistoryCard({ history, orderNumber, formKey }: DeliveryH
       {risk === "high" && (
         <div className="mb-3 rounded-lg border border-brand bg-brand-light p-3 text-sm text-body">
           <p className="font-semibold text-brand-dark">
-            Ask booking money: <Money amount={history.bookingMoney} />
+            Ask delivery charge in advance: <Money amount={deliveryCharge} />
           </p>
           <p className="mt-0.5 text-desc">Many cancelled or returned parcels. Ask for it before confirming.</p>
         </div>

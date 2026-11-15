@@ -28,9 +28,11 @@ export function OrderAmounts({ order }: { order: AdminOrder }) {
         <Row label="Subtotal">
           <Money amount={order.subtotal} />
         </Row>
-        <Row label="Delivery">Free</Row>
+        <Row label={`Delivery (${order.customer.location.kind === "dhaka_city" ? "Dhaka City" : "outside Dhaka City"})`}>
+          {order.deliveryCharge > 0 ? <Money amount={order.deliveryCharge} /> : "Free"}
+        </Row>
         {order.discount > 0 && (
-          <Row label="Full advance discount">
+          <Row label={order.payment.option === "advance_delivery" ? "Delivery charge advance discount" : "Full advance discount"}>
             - <Money amount={order.discount} />
           </Row>
         )}

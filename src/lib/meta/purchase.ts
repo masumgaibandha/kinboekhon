@@ -9,7 +9,7 @@ interface PurchaseOrder {
   orderNumber: string;
   product: { productId: Types.ObjectId; name: string };
   quantity: number;
-  total: number;
+  subtotal: number;
   customer: { name: string; phone: string; location: { districtId: string } };
   tracking?: OrderTracking;
   createdAt: Date;
@@ -22,7 +22,7 @@ export async function sendPurchaseEvent(publicId: string): Promise<void> {
   await connectMongoose();
   const order = await OrderModel.findOne(
     { publicId },
-    { orderNumber: 1, product: 1, quantity: 1, total: 1, customer: 1, tracking: 1, createdAt: 1 },
+    { orderNumber: 1, product: 1, quantity: 1, subtotal: 1, customer: 1, tracking: 1, createdAt: 1 },
   ).lean<PurchaseOrder>();
   if (!order) return;
 
@@ -42,7 +42,8 @@ export async function sendPurchaseEvent(publicId: string): Promise<void> {
       content_name: order.product.name,
       content_type: "product",
       currency: "BDT",
-      value: order.total,
+      // Product total only: no delivery charge, no discount.
+      value: order.subtotal,
       num_items: order.quantity,
     },
   });

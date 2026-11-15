@@ -8,6 +8,7 @@ import { createProduct, updateProduct } from "@/app/admin/(panel)/products/actio
 import { Section, TextArea, TextField, Toggle } from "@/components/admin/form/fields";
 import { ImageUploader, UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { LandingFields } from "@/components/admin/products/LandingFields";
+import type { DeliveryCharges } from "@/components/admin/products/CostResults";
 import { PriceCalculator } from "@/components/admin/products/PriceCalculator";
 import { ACTIVE_INITIAL_FIELD } from "@/lib/product-form";
 import type { ProductCosts } from "@/lib/validation/costs";
@@ -17,9 +18,10 @@ interface ProductFormProps {
   productId?: string;
   product: ProductInput;
   costs: ProductCosts;
+  charges: DeliveryCharges;
 }
 
-export function ProductForm({ productId, product, costs }: ProductFormProps) {
+export function ProductForm({ productId, product, costs, charges }: ProductFormProps) {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -112,7 +114,7 @@ export function ProductForm({ productId, product, costs }: ProductFormProps) {
         </div>
       </Section>
 
-      <PriceCalculator costs={costs} price={price} errors={errors} />
+      <PriceCalculator costs={costs} price={price} charges={charges} errors={errors} />
 
       <Section title="Images">
         <ImageUploader

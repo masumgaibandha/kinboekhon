@@ -7,7 +7,7 @@ const FIELDS: Record<CostKey, { label: string; decimal?: boolean; hint?: string 
   shippingPerKg: { label: "Air shipping (taka per kg)" },
   agentFee: { label: "Agent fee (taka)" },
   packaging: { label: "Packaging (taka)" },
-  courier: { label: "Courier charge (taka)", hint: "Delivery is free for the customer, so this is our cost." },
+  courier: { label: "Courier charge (taka)", hint: "What the courier takes per parcel. The customer pays the delivery charge." },
   codPercent: { label: "COD charge (%)", decimal: true },
   returnPercent: { label: "Return rate (%)", decimal: true },
   adCost: { label: "Ad cost per order (taka)" },

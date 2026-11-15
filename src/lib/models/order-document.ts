@@ -41,6 +41,8 @@ export interface OrderDocument {
   product: { productId: Types.ObjectId; name: string; slug: string; image: string | null; price: number };
   quantity: number;
   subtotal: number;
+  // Missing on orders placed while delivery was free.
+  deliveryCharge?: number;
   discount: number;
   total: number;
   customer: { name: string; phone: string; address: string; location: OrderLocation };

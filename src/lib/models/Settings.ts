@@ -31,13 +31,16 @@ const bankSchema = new Schema(
 const adsSchema = new Schema({ usdRate: Number, maxCpa: Number }, { _id: false });
 
 const fraudSchema = new Schema(
-  { minRecords: Number, checkFailPercent: Number, highMinFailed: Number, highFailPercent: Number, bookingMoney: Number },
+  { minRecords: Number, checkFailPercent: Number, highMinFailed: Number, highFailPercent: Number },
   { _id: false },
 );
 
 const settingsSchema = new Schema<SettingsDocument>(
   {
     key: { type: String, required: true, unique: true },
+    deliveryChargeDhakaCity: { type: Number, min: 0 },
+    deliveryChargeOutside: { type: Number, min: 0 },
+    advanceDeliveryDiscount: { type: Number, min: 0 },
     fullAdvanceDiscount: { type: Number, min: 0 },
     bkash: walletSchema,
     nagad: walletSchema,

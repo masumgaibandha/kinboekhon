@@ -11,7 +11,7 @@ import { checkRepeatOrder } from "@/lib/orders/duplicate-check";
 import { ProductModel } from "@/lib/models/Product";
 import { nextOrderNumber } from "@/lib/orders/order-number";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
-import { calculateOrder } from "@/lib/orders/pricing";
+import { calculateOrder, deliveryChargeFor } from "@/lib/orders/pricing";
 import type { ProductImage } from "@/lib/product-images";
 import { getSettings } from "@/lib/settings";
 import type { OrderInput } from "@/lib/validation/order";
@@ -72,7 +72,8 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
     return { ok: false, message: FIX_FIELDS, fieldErrors: { paymentMethod: METHOD_OFF } };
   }
 
-  const amounts = calculateOrder(product.price, input.quantity, payment.option, settings.fullAdvanceDiscount);
+  const deliveryCharge = deliveryChargeFor(input.location.kind === "dhaka_city", settings);
+  const amounts = calculateOrder(product.price, input.quantity, deliveryCharge, payment.option, settings);
   if (payment.option !== "cod" && amounts.advanceAmount <= 0) {
     return { ok: false, message: "এই অপশনে অগ্রিম পাঠানোর কিছু নেই। ক্যাশ অন ডেলিভারি বেছে নিন।" };
   }
@@ -101,6 +102,7 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
       },
       quantity: input.quantity,
       subtotal: amounts.subtotal,
+      deliveryCharge: amounts.deliveryCharge,
       discount: amounts.discount,
       total: amounts.total,
       customer: { name: input.name, phone: input.phone, address: input.address, location: input.location },

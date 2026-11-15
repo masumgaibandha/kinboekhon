@@ -54,7 +54,7 @@ export function OrderPayment({ order }: { order: AdminOrder }) {
         <SwitchToCodForm
           key={order.version}
           orderNumber={order.orderNumber}
-          newTotal={calculateOrder(order.product.price, order.quantity).total}
+          newTotal={calculateOrder(order.product.price, order.quantity, order.deliveryCharge).total}
         />
       )}
     </div>

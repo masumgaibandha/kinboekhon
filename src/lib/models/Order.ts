@@ -22,6 +22,8 @@ const orderSchema = new Schema<OrderDocument>(
     },
     quantity: { type: Number, required: true, min: 1 },
     subtotal: { type: Number, required: true },
+    // Orders from the free delivery time have none, which reads as 0.
+    deliveryCharge: { type: Number, default: 0 },
     discount: { type: Number, required: true, default: 0 },
     total: { type: Number, required: true },
     customer: {

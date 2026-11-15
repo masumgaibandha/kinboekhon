@@ -16,7 +16,6 @@ export const fraudSettingsSchema = z.object({
   checkFailPercent: whole(100, PERCENT),
   highMinFailed: whole(1000, "Enter a whole number, 0 to 1,000."),
   highFailPercent: whole(100, PERCENT),
-  bookingMoney: whole(999999, "Enter a whole amount in taka, 0 or more."),
 });
 
-export const FRAUD_SETTING_KEYS = ["minRecords", "checkFailPercent", "highMinFailed", "highFailPercent", "bookingMoney"] as const;
+export const FRAUD_SETTING_KEYS = ["minRecords", "checkFailPercent", "highMinFailed", "highFailPercent"] as const;

@@ -65,7 +65,7 @@ async function ThankYou({ params }: Pick<PageProps<"/thank-you/[publicId]">, "pa
         orderNumber={order.orderNumber}
         productId={order.productId}
         productName={order.productName}
-        total={order.total}
+        value={order.subtotal}
         quantity={order.quantity}
       />
 

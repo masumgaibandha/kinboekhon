@@ -12,19 +12,20 @@ interface PaymentSectionProps {
   onMethod: (method: AdvanceMethod) => void;
   accounts: PaymentAccount[];
   amounts: Record<PaymentOption, OrderAmounts>;
+  offered: (option: PaymentOption) => boolean;
   errors: Record<string, string>;
 }
 
 const invalid = (errors: Record<string, string>, field: string) =>
   errors[field] ? { "aria-invalid": true, "aria-describedby": `order-${field}-error` } : {};
 
-export function PaymentSection({ option, onOption, method, onMethod, accounts, amounts, errors }: PaymentSectionProps) {
+export function PaymentSection({ option, onOption, method, onMethod, accounts, amounts, offered, errors }: PaymentSectionProps) {
   const account = accounts.find((item) => item.method === method);
   const bank = method === "bank";
 
   return (
     <div className="space-y-4">
-      <PaymentOptionPicker value={option} onChange={onOption} amounts={amounts} labelClass={labelClass} />
+      <PaymentOptionPicker value={option} onChange={onOption} amounts={amounts} offered={offered} labelClass={labelClass} />
 
       {option !== "cod" && (
         <>

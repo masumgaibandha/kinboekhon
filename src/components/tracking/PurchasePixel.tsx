@@ -10,16 +10,17 @@ interface PurchasePixelProps {
   orderNumber: string;
   productId: string;
   productName: string;
-  total: number;
+  // Product total only, as in the server Purchase.
+  value: number;
   quantity: number;
 }
 
 // Same event_id as the server Purchase, so Meta counts the order once.
-export function PurchasePixel({ publicId, orderNumber, productId, productName, total, quantity }: PurchasePixelProps) {
+export function PurchasePixel({ publicId, orderNumber, productId, productName, value, quantity }: PurchasePixelProps) {
   useEffect(() => {
     if (!takeNewOrder(publicId)) return;
-    trackPixel("Purchase", productData(productId, total, quantity, productName), `purchase_${orderNumber}`);
-  }, [publicId, orderNumber, productId, productName, total, quantity]);
+    trackPixel("Purchase", productData(productId, value, quantity, productName), `purchase_${orderNumber}`);
+  }, [publicId, orderNumber, productId, productName, value, quantity]);
 
   return null;
 }

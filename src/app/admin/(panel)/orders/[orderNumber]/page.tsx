@@ -57,7 +57,12 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
             <OrderCustomer key={key} order={order} />
           </OrderCard>
           <CustomerSummaryCard summary={summary} />
-          <DeliveryHistoryCard history={history} orderNumber={order.orderNumber} formKey={key} />
+          <DeliveryHistoryCard
+            history={history}
+            orderNumber={order.orderNumber}
+            deliveryCharge={order.deliveryCharge}
+            formKey={key}
+          />
           <OrderCard title="Product and amounts">
             <OrderAmounts order={order} />
           </OrderCard>

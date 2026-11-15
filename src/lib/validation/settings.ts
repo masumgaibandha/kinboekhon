@@ -55,6 +55,9 @@ const bankSchema = z
 const MOBILE_MESSAGE = "Enter a valid 11 digit mobile number.";
 
 export const settingsSchema = z.object({
+  deliveryChargeDhakaCity: amount,
+  deliveryChargeOutside: amount,
+  advanceDeliveryDiscount: amount,
   fullAdvanceDiscount: amount,
   bkash: walletSchema(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
   nagad: walletSchema(BD_MOBILE_PATTERN, MOBILE_MESSAGE),

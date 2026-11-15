@@ -27,7 +27,6 @@ export interface DeliveryHistory {
   counts: HistoryCounts | null;
   // Null until some source has counts.
   risk: RiskLabel | null;
-  bookingMoney: number;
   anyConnected: boolean;
   // When the newest good lookup can be run again.
   nextCheckAt: Date | null;
@@ -76,7 +75,6 @@ export async function getDeliveryHistory(phone: string): Promise<DeliveryHistory
     rows,
     counts,
     risk: counts ? riskLabel(counts, settings) : null,
-    bookingMoney: settings.bookingMoney,
     anyConnected: FRAUD_PROVIDERS.some((provider) => provider.connected()),
     nextCheckAt: lastGood ? new Date(lastGood + CHECK_CACHE_MS) : null,
   };

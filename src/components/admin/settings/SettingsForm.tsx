@@ -14,7 +14,12 @@ import type { WalletKey } from "@/lib/settings";
 import { COST_DEFAULT_KEYS } from "@/lib/validation/costs";
 import type { AdminSettingsValues } from "@/lib/validation/settings";
 
-type NumberKey = "fullAdvanceDiscount" | "duplicateWindowHours";
+type NumberKey =
+  | "deliveryChargeDhakaCity"
+  | "deliveryChargeOutside"
+  | "advanceDeliveryDiscount"
+  | "fullAdvanceDiscount"
+  | "duplicateWindowHours";
 
 interface SettingsFormProps {
   settings: AdminSettingsValues;
@@ -64,10 +69,16 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <input type="hidden" name={INITIAL_VALUES_FIELD} value={JSON.stringify(saved)} />
       <Section
-        title="Advance payment discount"
-        description="Delivery is free everywhere. This whole taka amount is taken off the order total when the customer pays the full amount in advance."
+        title="Delivery charges"
+        description="Whole taka, paid by the customer. Dhaka City is Dhaka North and Dhaka South city corporations."
       >
-        {amount("fullAdvanceDiscount", "Full amount paid in advance")}
+        {amount("deliveryChargeDhakaCity", "Dhaka City")}
+        {amount("deliveryChargeOutside", "Everywhere else")}
+      </Section>
+
+      <Section title="Advance payment discounts" description="Only one discount applies to an order.">
+        {amount("advanceDeliveryDiscount", "Delivery charge paid in advance", "Taken off the delivery charge. The product price is paid on delivery.")}
+        {amount("fullAdvanceDiscount", "Full amount paid in advance", "Taken off the order total.")}
       </Section>
 
       <Section title="Mobile wallets">

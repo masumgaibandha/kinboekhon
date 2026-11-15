@@ -4,12 +4,13 @@ import { useState } from "react";
 
 import { CostFields } from "@/components/admin/costs/CostFields";
 import { Section } from "@/components/admin/form/fields";
-import { CostResults } from "@/components/admin/products/CostResults";
+import { CostResults, type DeliveryCharges } from "@/components/admin/products/CostResults";
 import { PRODUCT_COST_KEYS, type CostKey, type ProductCosts } from "@/lib/validation/costs";
 
 interface PriceCalculatorProps {
   costs: ProductCosts;
   price: string;
+  charges: DeliveryCharges;
   errors: Record<string, string>;
 }
 
@@ -35,7 +36,7 @@ function toNumbers(values: Record<CostKey, string>): ProductCosts | null {
   return Object.values(costs).every(Number.isFinite) ? costs : null;
 }
 
-export function PriceCalculator({ costs, price, errors }: PriceCalculatorProps) {
+export function PriceCalculator({ costs, price, charges, errors }: PriceCalculatorProps) {
   const [values, setValues] = useState(() => toStrings(costs));
 
   return (
@@ -50,7 +51,7 @@ export function PriceCalculator({ costs, price, errors }: PriceCalculatorProps) 
         errors={errors}
         onChange={(key, value) => setValues((previous) => ({ ...previous, [key]: value }))}
       />
-      <CostResults costs={toNumbers(values)} price={readNumber(price)} />
+      <CostResults costs={toNumbers(values)} price={readNumber(price)} charges={charges} />
     </Section>
   );
 }

@@ -26,6 +26,9 @@ function readForm(formData: FormData) {
   });
 
   return {
+    deliveryChargeDhakaCity: text("deliveryChargeDhakaCity"),
+    deliveryChargeOutside: text("deliveryChargeOutside"),
+    advanceDeliveryDiscount: text("advanceDeliveryDiscount"),
     fullAdvanceDiscount: text("fullAdvanceDiscount"),
     bkash: wallet("bkash"),
     nagad: wallet("nagad"),
@@ -69,7 +72,7 @@ export async function saveSettings(formData: FormData): Promise<SaveSettingsResu
     await connectMongoose();
     await SettingsModel.updateOne({ key: SETTINGS_KEY }, { $set: changes }, { upsert: true });
     // New thresholds give every checked phone a fresh risk label.
-    if (Object.keys(changes).some((path) => path.startsWith("fraud.") && path !== "fraud.bookingMoney")) {
+    if (Object.keys(changes).some((path) => path.startsWith("fraud."))) {
       await relabelAllCustomers(parsed.data.fraud);
     }
   } catch {

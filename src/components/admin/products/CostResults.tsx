@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
 
 import { Money } from "@/components/ui/Money";
-import { landedCost, profitPerOrder, suggestedPrice } from "@/lib/price-calculator";
+import { deliveryMargin, landedCost, profitPerOrder, suggestedPrice } from "@/lib/price-calculator";
 import type { ProductCosts } from "@/lib/validation/costs";
+
+export interface DeliveryCharges {
+  dhakaCity: number;
+  outside: number;
+}
 
 interface CostResultsProps {
   costs: ProductCosts | null;
   price: number;
+  charges: DeliveryCharges;
 }
 
 function Amount({ value }: { value: number }) {
@@ -32,7 +38,7 @@ function Row({ label, note, children }: { label: string; note?: string; children
   );
 }
 
-export function CostResults({ costs, price }: CostResultsProps) {
+export function CostResults({ costs, price, charges }: CostResultsProps) {
   const hasPrice = Number.isFinite(price) && price > 0;
 
   return (
@@ -45,8 +51,14 @@ export function CostResults({ costs, price }: CostResultsProps) {
           <Row label="Suggested price" note="Reaches the target profit, rounded up to end in 90">
             <Amount value={suggestedPrice(costs)} />
           </Row>
-          <Row label="Profit per order" note={hasPrice ? "At the current price" : "Enter a price above to see it"}>
+          <Row label="Profit per order" note={hasPrice ? "At the current price, delivery not included" : "Enter a price above to see it"}>
             {hasPrice ? <Amount value={profitPerOrder(price, costs)} /> : <span>-</span>}
+          </Row>
+          <Row label="Delivery income minus courier, Dhaka City" note="Delivery charge from Settings minus the courier charge above">
+            <Amount value={deliveryMargin(charges.dhakaCity, costs)} />
+          </Row>
+          <Row label="Delivery income minus courier, outside" note="Per delivered parcel, before any advance discount">
+            <Amount value={deliveryMargin(charges.outside, costs)} />
           </Row>
         </dl>
       ) : (

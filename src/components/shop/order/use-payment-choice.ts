@@ -4,28 +4,31 @@ import { useState } from "react";
 
 import { PAYMENT_OPTIONS, type PaymentOption } from "@/lib/orders/enums";
 import type { AdvanceMethod, PaymentAccount } from "@/lib/orders/payment-methods";
-import { calculateOrder, type OrderAmounts } from "@/lib/orders/pricing";
+import { calculateOrder, type Discounts, type OrderAmounts } from "@/lib/orders/pricing";
 
 const PAYMENT_FIELDS = ["paymentMethod", "senderNumber", "transactionId"];
 
 interface PaymentChoiceArgs {
   price: number;
   quantity: number;
-  fullAdvanceDiscount: number;
+  deliveryCharge: number;
+  discounts: Discounts;
   accounts: PaymentAccount[];
   clearError: (field: string) => void;
 }
 
 // The chosen payment option and method, and the amounts of every option for the live summary.
-export function usePaymentChoice({ price, quantity, fullAdvanceDiscount, accounts, clearError }: PaymentChoiceArgs) {
-  const [chosen, setChosen] = useState<PaymentOption>("cod");
-  const [method, setMethod] = useState<AdvanceMethod | "">("");
+// Delivery charge in advance starts chosen; without an advance account only cash on delivery is offered.
+export function usePaymentChoice({ price, quantity, deliveryCharge, discounts, accounts, clearError }: PaymentChoiceArgs) {
+  const [chosen, setChosen] = useState<PaymentOption>("advance_delivery");
+  const [method, setMethod] = useState<AdvanceMethod | "">(accounts[0]?.method ?? "");
 
   const amounts = Object.fromEntries(
-    PAYMENT_OPTIONS.map((item) => [item, calculateOrder(price, quantity, item, fullAdvanceDiscount)]),
+    PAYMENT_OPTIONS.map((item) => [item, calculateOrder(price, quantity, deliveryCharge, item, discounts)]),
   ) as Record<PaymentOption, OrderAmounts>;
   // An option with nothing to send in advance is not offered.
-  const option = chosen !== "cod" && amounts[chosen].advanceAmount <= 0 ? "cod" : chosen;
+  const offered = (item: PaymentOption) => item === "cod" || (accounts.length > 0 && amounts[item].advanceAmount > 0);
+  const option = offered(chosen) ? chosen : "cod";
 
   // The first enabled method is picked for the customer when they choose to pay in advance.
   function changeOption(next: PaymentOption) {
@@ -39,5 +42,5 @@ export function usePaymentChoice({ price, quantity, fullAdvanceDiscount, account
     clearError("paymentMethod");
   }
 
-  return { option, method, amounts, changeOption, changeMethod };
+  return { option, method, amounts, offered, changeOption, changeMethod };
 }

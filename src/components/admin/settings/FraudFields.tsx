@@ -22,13 +22,12 @@ export function FraudFields({ fraud, errors }: FraudFieldsProps) {
   return (
     <Section
       title="Fraud check"
-      description="Admin only. No history is Unknown. High comes first, then Check, else Low. A label never cancels an order."
+      description="Admin only. No history is Unknown. High comes first, then Check, else Low. High asks for the delivery charge in advance. A label never cancels an order."
     >
       {field("highMinFailed", "High: at least this many failed parcels", "Cancelled or returned, from all sources together.")}
       {field("highFailPercent", "High: and at least this failed percent", "0 to 100.")}
       {field("minRecords", "Check: fewer parcels than this", "Too little history to trust.")}
       {field("checkFailPercent", "Check: failed percent at or above", "0 to 100. Mixed history.")}
-      {field("bookingMoney", "Booking money to ask (taka)", "Shown on High risk orders.")}
     </Section>
   );
 }

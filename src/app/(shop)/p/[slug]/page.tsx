@@ -56,7 +56,12 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
       <OrderForm
         productId={product.id}
         price={product.price}
-        fullAdvanceDiscount={settings.fullAdvanceDiscount}
+        pricing={{
+          deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
+          deliveryChargeOutside: settings.deliveryChargeOutside,
+          advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
+          fullAdvanceDiscount: settings.fullAdvanceDiscount,
+        }}
         accounts={enabledAccounts(settings)}
       />
       <StickyOrderBar price={product.price} />

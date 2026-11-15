@@ -8,28 +8,35 @@ interface PaymentOptionPickerProps {
   value: PaymentOption;
   onChange: (option: PaymentOption) => void;
   amounts: Record<PaymentOption, OrderAmounts>;
+  offered: (option: PaymentOption) => boolean;
   labelClass: string;
 }
 
+// Shown in this order.
 const TITLES: Record<PaymentOption, string> = {
-  cod: "ক্যাশ অন ডেলিভারি",
+  advance_delivery: "ডেলিভারি চার্জ অগ্রিম",
   advance_full: "পুরো টাকা অগ্রিম",
+  cod: "ক্যাশ অন ডেলিভারি",
 };
 
 function detail(option: PaymentOption, amounts: OrderAmounts): ReactNode {
-  if (option === "cod") return "পণ্য হাতে পেয়ে টাকা দিন";
+  if (option === "cod") return "পণ্য হাতে পেয়ে সব টাকা দিন";
+  if (option === "advance_delivery") {
+    return (
+      <>
+        ডেলিভারি চার্জে <Money amount={amounts.discount} /> ছাড়, পণ্যের দাম ডেলিভারির সময়
+      </>
+    );
+  }
   return (
     <>
-      <Money amount={amounts.discount} /> ছাড়
+      মোট দামে <Money amount={amounts.discount} /> ছাড়
     </>
   );
 }
 
-export function PaymentOptionPicker({ value, onChange, amounts, labelClass }: PaymentOptionPickerProps) {
-  // An advance option with nothing to send now is not offered.
-  const options = (Object.keys(TITLES) as PaymentOption[]).filter(
-    (option) => option === "cod" || amounts[option].advanceAmount > 0,
-  );
+export function PaymentOptionPicker({ value, onChange, amounts, offered, labelClass }: PaymentOptionPickerProps) {
+  const options = (Object.keys(TITLES) as PaymentOption[]).filter(offered);
 
   return (
     <fieldset>
@@ -51,7 +58,12 @@ export function PaymentOptionPicker({ value, onChange, amounts, labelClass }: Pa
               className="mt-1 accent-brand"
             />
             <span className="flex-1">
-              <span className="block text-[15px] font-semibold text-body">{TITLES[option]}</span>
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-body">
+                {TITLES[option]}
+                {option === "advance_delivery" && (
+                  <span className="rounded bg-brand px-1.5 py-0.5 text-xs font-semibold text-white">সবচেয়ে জনপ্রিয়</span>
+                )}
+              </span>
               <span className="mt-0.5 block text-sm text-desc">{detail(option, amounts[option])}</span>
             </span>
             <span className="text-right text-sm text-desc">

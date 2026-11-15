@@ -16,8 +16,6 @@ export interface FraudSettings {
   // At least this many failures and at least highFailPercent is "High".
   highMinFailed: number;
   highFailPercent: number;
-  // Booking money to ask from a High risk customer, whole taka.
-  bookingMoney: number;
 }
 
 export const DEFAULT_FRAUD_SETTINGS: FraudSettings = {
@@ -25,7 +23,6 @@ export const DEFAULT_FRAUD_SETTINGS: FraudSettings = {
   checkFailPercent: 20,
   highMinFailed: 3,
   highFailPercent: 40,
-  bookingMoney: 200,
 };
 
 export interface HistoryCounts {
