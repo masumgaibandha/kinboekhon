@@ -68,6 +68,14 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
     void submit(collect(event.currentTarget), { getToken, reset }, draft.finish);
   }
 
+  // Phones show it above the payment options, desktop in the summary card.
+  const basket = (
+    <div>
+      <p className={labelClass}>পরিমাণ</p>
+      <QuantityStepper value={quantity} onChange={setQuantity} />
+    </div>
+  );
+
   const invalid = (field: string) =>
     errors[field] ? { "aria-invalid": true, "aria-describedby": `order-${field}-error` } : {};
 
@@ -84,7 +92,7 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
         noValidate
         className="space-y-4 lg:grid lg:grid-cols-[58fr_42fr] lg:items-start lg:gap-8 lg:space-y-0"
       >
-        {/* Phone: one column. From 1024px: customer fields left, the summary card right. */}
+        {/* Phone: one column. From 1024px: customer fields and payment left, the summary card right. */}
         <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           <ContactFields errors={errors} />
 
@@ -105,18 +113,11 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
               />
             </OrderField>
           </div>
-        </div>
 
-        {/* Desktop shows the totals before the payment options, phones after. */}
-        <div className="space-y-4 lg:sticky lg:top-20 lg:flex lg:flex-col lg:gap-4 lg:space-y-0 lg:rounded-lg lg:border lg:border-line-strong lg:p-5">
-          <CheckoutProduct name={name} image={image} price={price} />
-          <div>
-            <p className={labelClass}>পরিমাণ</p>
-            <QuantityStepper value={quantity} onChange={setQuantity} />
-          </div>
+          <div className="lg:hidden">{basket}</div>
 
           {accounts.length > 0 && (
-            <div className="lg:order-1">
+            <div className="lg:col-span-2">
               <PaymentSection
                 option={activeOption}
                 onOption={payment.changeOption}
@@ -129,6 +130,13 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
               />
             </div>
           )}
+        </div>
+
+        <div className="space-y-4 lg:sticky lg:top-20 lg:rounded-lg lg:border lg:border-line-strong lg:p-5">
+          <div className="hidden space-y-4 lg:block">
+            <CheckoutProduct name={name} image={image} price={price} />
+            {basket}
+          </div>
 
           <OrderSummary
             price={price}
@@ -139,15 +147,13 @@ export function OrderForm({ productId, name, image, price, pricing, accounts }: 
             charges={{ dhakaCity: pricing.deliveryChargeDhakaCity, outside: pricing.deliveryChargeOutside }}
           />
 
-          <div className="contents space-y-4 lg:order-2 lg:block">
-            <OrderSubmit
-              message={message}
-              checkFailed={turnstileFailed}
-              turnstileRef={turnstileRef}
-              pending={pending}
-              advance={activeOption !== "cod"}
-            />
-          </div>
+          <OrderSubmit
+            message={message}
+            checkFailed={turnstileFailed}
+            turnstileRef={turnstileRef}
+            pending={pending}
+            advance={activeOption !== "cod"}
+          />
         </div>
       </form>
     </LandingSection>

@@ -8,10 +8,10 @@ interface CheckoutProductProps {
   price: number;
 }
 
-// The product line at the top of the desktop order summary card; phones already see the product above the form.
+// The product line at the top of the desktop order summary card.
 export function CheckoutProduct({ name, image, price }: CheckoutProductProps) {
   return (
-    <div className="hidden items-center gap-3 lg:flex">
+    <div className="flex items-center gap-3">
       <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-line bg-page">
         {image && <CloudinaryImage publicId={image.publicId} alt={name} fill sizes="64px" className="object-cover" />}
       </div>

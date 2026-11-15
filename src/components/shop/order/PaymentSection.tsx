@@ -76,7 +76,7 @@ export function PaymentSection({ option, onOption, method, onMethod, accounts, a
               {...invalid(errors, "senderNumber")}
             />
           </OrderField>
-          <OrderField id="order-transactionId" label="Transaction ID" error={errors.transactionId}>
+          <OrderField id="order-transactionId" label="ট্রানজ্যাকশন আইডি (TrxID)" error={errors.transactionId}>
             <input
               id="order-transactionId"
               name="transactionId"

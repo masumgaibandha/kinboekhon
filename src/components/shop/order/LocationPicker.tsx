@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LocationSelect as Select } from "@/components/shop/order/LocationSelect";
+import { useDesktop } from "@/components/shop/order/use-desktop";
 import { CITY_CORPORATION_HINT, cityGroupOf } from "@/lib/locations/dhaka";
 import type { LocationData, LocationSelection, Place } from "@/lib/locations/types";
 
@@ -54,6 +55,8 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
   const group = district ? cityGroupOf(district) : null;
   const groupLabel = group?.kind === "city_corporation" ? "সিটি কর্পোরেশন" : district?.cityLabel;
   const placeholder = (text: string) => (data ? text : LOADING);
+  // From 1024px the three lists sit in one row, so their first lines stay short.
+  const desktop = useDesktop();
 
   return (
     <div ref={ref} className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0">
@@ -79,7 +82,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         disabled={!division}
         onChange={(districtId) => onChange({ ...value, districtId, upazilaId: "" })}
       >
-        <option value="">{placeholder(division ? "জেলা বেছে নিন" : "আগে বিভাগ বেছে নিন")}</option>
+        <option value="">{placeholder(division || desktop ? "জেলা বেছে নিন" : "আগে বিভাগ বেছে নিন")}</option>
         {division && options(division.districts)}
       </Select>
 
@@ -93,7 +96,9 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         disabled={!district}
         onChange={(upazilaId) => onChange({ ...value, upazilaId })}
       >
-        <option value="">{placeholder(district ? "উপজেলা বা থানা বেছে নিন" : "আগে জেলা বেছে নিন")}</option>
+        <option value="">
+          {placeholder(desktop ? "থানা বেছে নিন" : district ? "উপজেলা বা থানা বেছে নিন" : "আগে জেলা বেছে নিন")}
+        </option>
         {group && <optgroup label={groupLabel}>{options(group.places)}</optgroup>}
         {district && (group ? <optgroup label="উপজেলা">{options(district.upazilas)}</optgroup> : options(district.upazilas))}
       </Select>
