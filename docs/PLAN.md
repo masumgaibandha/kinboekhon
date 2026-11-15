@@ -73,6 +73,7 @@ kinboekhon/
    │  │     ├─ orders/[orderNumber]/page.tsx   detail: /admin/orders/KE10001
    │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
    │  │     ├─ orders/history-actions.ts       checkDeliveryHistory, saveManualDeliveryHistory (P2c)
+   │  │     ├─ orders/pathao-actions.ts        sendToPathao, bulkSendToPathao, refreshPathao, clearPathaoSend, savePathaoLocation (P2b)
    │  │     ├─ customers/page.tsx              customer list, search, tag filter, sort (P2a)
    │  │     ├─ customers/[phone]/page.tsx      customer: orders, calls, tags, notes
    │  │     ├─ customers/actions.ts            updateCustomerTags, saveCustomerNote
@@ -95,6 +96,7 @@ kinboekhon/
    │     ├─ orders/route.ts               POST create order
    │     ├─ drafts/route.ts               POST save incomplete order
    │     ├─ track/route.ts                POST CAPI for InitiateCheckout
+   │     ├─ pathao/webhook/route.ts       POST Pathao status updates (P2b)
    │     └─ admin/
    │        ├─ upload-signature/route.ts  POST Cloudinary signature
    │        └─ orders-export/route.ts     GET CSV
@@ -145,6 +147,8 @@ kinboekhon/
       ├─ cloudinary/             sign.ts (upload signature, server only), folder.ts, image-url.ts (URL + next/image loader)
       ├─ auth.ts                 Better Auth server config (MongoDB adapter, email + password, sign-up off)
       ├─ admin-session.ts        requireAdmin() for pages, actions and admin API routes
+      ├─ pathao/                 P2b: config, token (stored access token), client, places (cached cities, zones, areas), name-match,
+      │                          location-match (guess and remember), parcel, send-order, apply-update, refresh-status, status-map
       └─ meta/
          ├─ capi.ts              send one event to Conversions API
          └─ user-data.ts         hash + build user_data
@@ -211,6 +215,8 @@ Any landing section left empty is simply not rendered.
 | adminNote | string | free note |
 | customerBlocked | boolean | the phone was tagged Blocked when the order was placed (P2a); shown as a red "Blocked customer" badge |
 | returnReason | `refused` \| `unreachable` \| `wrong_address` \| `courier_delay` \| `damaged` \| `wrong_item` \| `fake_order` | set by the admin on a cancelled or returned order (P2c); not set until then |
+| courier | `{ provider: pathao, state, startedAt, consignmentId, deliveryFee, status, statusAt, error }` (P2b). `state`: `sending` (request out, the lock that stops a second send), `sent`, `unknown` (no clear answer: the admin checks the Pathao panel, then clears it). `deliveryFee` is Pathao's fee in whole taka; `status` is Pathao's latest status slug (like `in-transit`) |
+| courierLocation | `{ cityId, cityName, zoneId, zoneName, areaId, areaName }` (P2b): the Pathao place saved by the admin, or used when sent |
 | lastCall | `{ outcome, at, note }` | the newest call (P1b), for the orders list column and filter. `outcome`: `agreed_to_wait` \| `declined` \| `no_answer` \| `call_later` |
 | tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
@@ -224,6 +230,7 @@ Indexes:
 - `{ "payment.status": 1, createdAt: 1 }` for the payment queue
 - `{ "lastCall.outcome": 1, createdAt: -1 }` for the latest call filter
 - `payment.transactionIdNormalized` unique, partial (only when it is a string), so one TxID cannot be used twice
+- `courier.consignmentId` unique, partial, for Pathao status updates
 
 ### IncompleteOrder
 | Field | Type | Notes |
@@ -293,6 +300,11 @@ Indexes: `{ day: 1, productId: 1 }` unique (one entry per product per day: a sec
 | pathaoRating, note | manual entry only |
 
 Index: `{ phone, source }` unique, so each source keeps one row per phone.
+
+### Pathao (P2b)
+- PathaoToken: `{ account, accessToken, refreshToken, expiresAt }`, one per base URL + client id, server only. Reused until a day before it expires, then refreshed (or issued again from the account login).
+- PathaoList: `{ key, items: { id, name }[], fetchedAt }`: Pathao's cities, zones of a city and areas of a zone, fetched again after 7 days (an old copy is kept if Pathao cannot be reached).
+- PathaoMatch: `{ key, pathaoId, name }`: admin corrections kept for later orders, `city:<districtId>` and `zone:<districtId>:<upazilaId>` (never for a Dhaka city corporation, which spans many zones).
 
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
@@ -411,6 +423,7 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 |---|---|---|---|
 | `/api/orders` | POST | Create order | Same-origin check, Turnstile, rate limit, Zod, duplicate check |
 | `/api/drafts` | POST | Upsert incomplete order by `draftKey` | Rate limit (60 per 10 minutes per hashed IP, every request), same-origin check, Zod, 4 KB size limit |
+| `/api/pathao/webhook` | POST | Pathao status updates (P2b) | `X-PATHAO-Signature` must equal `PATHAO_WEBHOOK_SECRET`, Zod, 8 KB size limit |
 | `/api/track` | POST | Send InitiateCheckout to CAPI with the browser's event_id | Rate limit (30 per 10 minutes per hashed IP), same-origin check, 1 KB size limit, Zod with an allow-list of event names |
 | `/api/auth/[...all]` | GET/POST | Better Auth handler (sign in, sign out, session) | Sign-up disabled, login rate limited |
 | `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | `proxy.ts` + `requireAdmin()` |
@@ -424,6 +437,7 @@ Server Actions (each calls `requireAdmin()` first):
 - products: `createProduct`, `updateProduct`, `setProductActive` (no delete in v1, deactivate instead)
 - incomplete: `markDraftContacted`, `deleteIncompleteOrder`
 - customers: `updateCustomerTags`, `saveCustomerNote`
+- Pathao (P2b): `sendToPathao`, `bulkSendToPathao`, `refreshPathao`, `clearPathaoSend`, `savePathaoLocation`
 - settings: `saveSettings`
 
 ### Create order flow (`POST /api/orders`)
@@ -526,9 +540,9 @@ The customer pays a delivery charge by area (decision 92): Dhaka City (`delivery
   - Ad spend = sum of `amountBdt`.
   - Orders = all orders placed. Confirmed = orders now `confirmed`, `shipped`, `delivered` or `returned`. Delivered = orders now `delivered`.
   - Cost per order = ad spend / orders; cost per confirmed = ad spend / confirmed (whole taka, "-" with nothing to divide by).
-  - Revenue = sum of `total` of delivered orders (delivery charge included).
+  - Revenue = sum of `total` of delivered orders (delivery charge included), plus on returned orders the approved advance up to the delivery charge (`min(advanceAmount, deliveryCharge)` when `payment.status` is `verified`): a refused parcel's advance delivery charge is not refunded (terms page, decision 94).
   - Costs from the product's price calculator inputs (its saved `costs` over the Settings `costDefaults`, today's values): product cost = landed cost x quantity of delivered orders; packaging = per order for delivered and returned orders. Each is rounded to whole taka.
-  - Courier = per order from Settings `courier` (today's values, decision 93): the rate for the order's area (Dhaka City when `customer.location.kind` is `dhaka_city`) and the weight slab of the product weight x quantity, for delivered orders; the same plus the return fee for returned orders. Rounded per product to whole taka.
+  - Courier = per order Pathao's own `courier.deliveryFee` when the order was sent through the Pathao API (decision 94), else from Settings `courier` (today's values, decision 93): the rate for the order's area (Dhaka City when `customer.location.kind` is `dhaka_city`) and the weight slab of the product weight x quantity, for delivered orders; the same plus the return fee for returned orders. Rounded per product to whole taka.
   - COD charge = Settings `courier.codPercent` of the cash the courier collected (`payment.dueOnDelivery`) on delivered orders, rounded to whole taka (decision 92).
   - Net profit = revenue - product cost - courier - packaging - COD charge - ad spend. ROAS = revenue / ad spend, two decimals with "x", "-" without ad spend.
 - Highlight: a product row with ad spend whose cost per confirmed order is above Settings `ads.maxCpa`, or with ad spend and no confirmed order, gets the light orange background and an "Above max CPA" label.
@@ -633,6 +647,13 @@ META_CAPI_ACCESS_TOKEN=
 META_TEST_EVENT_CODE=
 STEADFAST_API_KEY=     # Steadfast merchant API key; empty shows "Not connected"
 STEADFAST_SECRET_KEY=
+PATHAO_BASE_URL=       # sandbox https://courier-api-sandbox.pathao.com, live https://api-hermes.pathao.com
+PATHAO_CLIENT_ID=
+PATHAO_CLIENT_SECRET=
+PATHAO_USERNAME=
+PATHAO_PASSWORD=
+PATHAO_STORE_ID=       # pickup store id
+PATHAO_WEBHOOK_SECRET= # same value in the Pathao panel webhook Secret
 ```
 
 ## 11. Build order
@@ -676,7 +697,7 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 | # | Module | Browser test |
 |---|---|---|
 | P2a | **Customer CRM** by phone number: all orders, total spent, delivered and returned counts, call history, notes, tags, blacklist | Open a customer from an order: their orders and totals match a hand count; add a note and a tag; a blacklisted phone is flagged on its next order |
-| P2b | **Steadfast API**: book an order, save the tracking code, sync the delivery status | Book a test order, see the tracking code on the order; a status change at Steadfast shows on the order after sync |
+| P2b | **Pathao courier API** (decision 94, replaces Steadfast booking): send confirmed orders, save the consignment and Pathao's fee, sync the status by webhook and a Refresh button | Send 2 sandbox orders (one from the order page, one by bulk send), see consignment, fee and tracking link; Refresh status works; a signed webhook moves an order to Delivered |
 | P2c | **Fraud check** by phone before confirming (service to be chosen) | Check a phone from the order page and see the result before confirming |
 | P2d | **Profit report**: profit per order and daily ad spend entry, with a daily profit report | Enter a day's ad spend: the report's profit matches a hand calculation for that day's orders |
 | P2e | **Stock count** with a low-stock alert | Set stock and a low-stock level; place orders until the alert shows |
@@ -689,6 +710,14 @@ P2a is done (November 2026): customer records by phone, `/admin/customers` list 
 P2d is done (November 2026), built before P2b and P2c at the owner's request (decision 90): `/admin/ad-spend` (add, edit, delete entries in USD with a taka rate), `/admin/profit` report, dollar rate and max CPA in Settings, and the dashboard "Ad spend & profit" card.
 
 P2c is done (November 2026), before P2b at the owner's request (decision 91): the order page Delivery history card with the Steadfast provider ("Not connected" until the keys are set) and manual entry, risk labels with thresholds in Settings, the orders list risk badge and filter, and the return reason on cancelled or returned orders.
+
+P2b is done (November 2026) with Pathao (decision 94):
+- Order page "Pathao courier" card. Before sending (pending or confirmed): City, Zone and optional Area selects. The starting choice is the one saved on the order, else a remembered correction, else a match by English name (district to city, upazila or thana to zone; small spelling differences allowed). A Dhaka city corporation gets the city only: the admin picks the zone. "Save location" saves it on the order and remembers it. The card shows the weight and the amount to collect.
+- "Send to Pathao" only on Confirmed orders (checked on the server). Refused when the advance payment is not approved, over 10 kg, or without city and zone. merchant_order_id = order number; weight = product weight with packaging x quantity, rounded up to 0.1 kg, at least 0.5 kg; amount_to_collect = total minus the approved advance; normal delivery, parcel, 1 item. Never twice: the order is locked (`courier.state: sending`) before the request. Pathao refusing (4xx) unlocks it with Pathao's message; no clear answer (timeout, network, 5xx) leaves it `unknown` with a "Not in Pathao: clear" button for after the admin checks the Pathao panel. A send stuck in `sending` for 2 minutes counts as unknown.
+- On success: consignment id, Pathao's delivery fee, status Shipped with a history entry. The card then shows the consignment (link to Pathao's tracking page), fee, Pathao status and time, and "Refresh status".
+- Orders list: a tick box on confirmed orders not sent yet and "Send ticked to Pathao" (up to 25, sent one by one, each with its own checks and lock; failures are listed in the toast).
+- Status sync: `/api/pathao/webhook` (set the URL and secret in the Pathao panel webhook page; it replies 202 with the `X-Pathao-Merchant-Webhook-Integration-Secret` header) and "Refresh status" (order info API; its `updated_at` is Dhaka time). Each new Pathao status adds a `kind: courier` history entry ("Pathao: In transit"); an update older than the saved one is ignored. Delivered and Partial delivery move a shipped order to Delivered; Return, Returned, Paid return and Returned to merchant move it to Returned, each with a status history entry. A webhook `delivery_fee` updates the saved fee.
+- Sandbox store "Kinbo Ekhon Sandbox" (Gaibandha Sadar) was created with the store API; its id is `PATHAO_STORE_ID` in `.env.local`. Live keys and the live store id are set on Vercel by the owner.
 
 ### Phase 3: after launch
 
@@ -703,7 +732,7 @@ P2c is done (November 2026), before P2b at the owner's request (decision 91): th
 
 ## 12. Not planned
 
-Cart, customer accounts, product variants, Pathao courier API, email notifications, online payment gateway, search.
+Cart, customer accounts, product variants, email notifications, online payment gateway, search.
 
 ## 13. Owner decisions
 
@@ -800,3 +829,4 @@ Cart, customer accounts, product variants, Pathao courier API, email notificatio
 91. Fraud check (P2c, November 2026), built before P2b: delivery history by phone from pluggable sources, first the Steadfast official API courier score (keys in `STEADFAST_API_KEY` and `STEADFAST_SECRET_KEY`, "Not connected" until set), with a manual entry fallback (counts or a Pathao rating with a note). Never log in to a courier panel or scrape. Each good check is reused for 24 hours. Risk labels Unknown, Low, Check and High come from thresholds in Settings; High shows an "Ask delivery charge in advance" hint with the order's delivery charge (decision 92; the booking money setting was removed). A label never cancels or changes an order. Cancelled and returned orders get a return reason: refused, unreachable, wrong address, courier delay, damaged, wrong item or fake order.
 92. Delivery charge is back (November 2026), replacing decisions 76 and 77. The customer pays it by area: Dhaka City (Dhaka North or South city corporation, already known from the address list) ৳80, everywhere else ৳150, both in Settings. Three payment options, one discount per order: delivery charge in advance with the product price on delivery (chosen first, marked "সবচেয়ে জনপ্রিয়"), ৳20 off the delivery charge (so ৳60 and ৳130; the old `advanceDeliveryDiscount` value from before commit 6c0145c), in Settings; full advance with the normal charge and ৳50 off the total; cash on delivery with the normal charge and no discount. The form shows product, delivery charge, discount, total, pay now and pay on delivery. Orders store `deliveryCharge`; old orders without it read as 0 and are not recalculated. The price calculator leaves the courier out of the product price math and shows delivery income minus courier on its own line. The profit report counts the Settings COD % on the cash the courier collected. The Meta Purchase value is the product total only. The P2c High hint asks for the order's delivery charge in advance; the booking money setting is removed. The shop no longer says free delivery anywhere.
 93. Courier cost and the Dhaka delivery loss (November 2026). The delivery charges stay (Dhaka City ৳80, ৳60 with the advance; outside ৳150, ৳130 with the advance). We ship from Gaibandha, so a Dhaka City order pays the courier more than the customer pays for delivery: that loss is covered in the product price, never by raising the Dhaka charge. Settings keep the real courier cost by weight slab (with packaging) for Dhaka City and outside, prefilled with Pathao rates from Gaibandha: Dhaka 110 / 130 / 170, outside 120 / 145 / 180 for up to 0.5 / 1 / 2 kg; the return fee is 50% of the delivery cost; the COD charge is 1%. These replace the price calculator courier charge and COD %. The price calculator shows profit for Dhaka City and outside, each with cash on delivery and delivery charge in advance, and suggests the price that reaches the target profit in the worst of the 4. The profit report counts each order's courier cost by its area and weight, plus the return fee on returns.
+94. Pathao courier API (P2b, November 2026) instead of Steadfast booking: send confirmed orders one by one or in bulk, consignment and Pathao's delivery fee saved, status by webhook and a Refresh button. Pathao places are matched by name and the admin's corrections are remembered. The profit report uses Pathao's real fee when there is one, and counts the approved advance delivery charge of a returned (refused) parcel as income. Terms page: "পার্সেল গ্রহণ না করলে অগ্রিম ডেলিভারি চার্জ ফেরতযোগ্য নয়।"

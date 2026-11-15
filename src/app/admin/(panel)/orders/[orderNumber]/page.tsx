@@ -16,6 +16,7 @@ import { ReturnReasonForm } from "@/components/admin/orders/ReturnReasonForm";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
+import { PathaoCard } from "@/components/admin/pathao/PathaoCard";
 import { requireAdmin } from "@/lib/admin-session";
 import { getCustomerSummary } from "@/lib/customers/customer-summary";
 import { formatDhakaDateTime } from "@/lib/dates";
@@ -82,6 +83,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
               paymentWaiting={order.payment.status === "submitted"}
             />
           </OrderCard>
+          <PathaoCard order={order} formKey={key} />
           {failed && (
             <OrderCard title="Return reason">
               <ReturnReasonForm key={key} orderNumber={order.orderNumber} reason={order.returnReason} />

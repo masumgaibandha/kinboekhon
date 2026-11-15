@@ -24,6 +24,8 @@ export interface OrderListItem {
   customerBlocked: boolean;
   // Null until the phone has a delivery history check or manual entry.
   risk: RiskLabel | null;
+  // Confirmed and not sent to Pathao yet.
+  canSendToPathao: boolean;
 }
 
 export interface OrderListPage {
@@ -43,6 +45,7 @@ interface ListDoc {
   status: OrderStatus;
   lastCall?: OrderCall;
   customerBlocked?: boolean;
+  courier?: { state: string };
 }
 
 // "KE10001" or "10001" finds an order number, a number starting with 0 finds phones by prefix, anything else a name.
@@ -92,6 +95,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     status: 1,
     lastCall: 1,
     customerBlocked: 1,
+    "courier.state": 1,
   })
     .sort({ createdAt: -1 })
     .skip((page - 1) * ORDERS_PER_PAGE)
@@ -117,6 +121,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     lastCall: doc.lastCall?.outcome ? { outcome: doc.lastCall.outcome, at: doc.lastCall.at, note: doc.lastCall.note ?? "" } : null,
     customerBlocked: doc.customerBlocked === true,
     risk: riskByPhone.get(doc.customer.phone) ?? null,
+    canSendToPathao: doc.status === "confirmed" && !doc.courier,
   }));
   return { items, total, page, pageCount };
 }

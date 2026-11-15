@@ -31,7 +31,7 @@ export function ProfitSummaryCard({ report, href }: { report: ProfitReport; href
         <Figure label="Ad spend">
           <Money amount={total.adSpend} bold />
         </Figure>
-        <Figure label="Revenue (delivered)">
+        <Figure label="Revenue">
           <Money amount={total.revenue} bold />
         </Figure>
         <Figure label="Net profit">

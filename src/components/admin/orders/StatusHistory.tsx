@@ -7,6 +7,7 @@ function titleOf(entry: OrderHistoryEntry & { placed: boolean }): string {
   if (entry.kind === "edit") return "Customer details edited";
   if (entry.kind === "payment") return "Payment";
   if (entry.kind === "return_reason") return "Return reason";
+  if (entry.kind === "courier") return "Courier";
   if (entry.kind === "call") return entry.outcome ? `Call: ${CALL_OUTCOME_LABELS[entry.outcome]}` : "Call";
   return entry.placed ? "Order placed" : `Status: ${STATUS_LABELS[entry.status]}`;
 }

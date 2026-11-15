@@ -24,6 +24,15 @@ const CONFIRMED: OrderStatus[] = ["confirmed", "shipped", "delivered", "returned
 const when = (condition: object, value: unknown) => ({ $sum: { $cond: [condition, value, 0] } });
 const isStatus = (status: OrderStatus) => ({ $eq: ["$status", status] });
 
+// A refused parcel keeps the approved advance up to the delivery charge: it is not refunded (terms page).
+const keptAdvance = {
+  $cond: [
+    { $and: [isStatus("returned"), { $eq: ["$payment.status", "verified"] }] },
+    { $min: ["$payment.advanceAmount", { $ifNull: ["$deliveryCharge", 0] }] },
+    0,
+  ],
+};
+
 type OrderRow = OrderCounts & { _id: Types.ObjectId; name: string };
 
 function orderCounts(start: Date | null, end: Date | null) {
@@ -39,7 +48,7 @@ function orderCounts(start: Date | null, end: Date | null) {
         confirmed: when({ $in: ["$status", CONFIRMED] }, 1),
         delivered: when(isStatus("delivered"), 1),
         returned: when(isStatus("returned"), 1),
-        revenue: when(isStatus("delivered"), "$total"),
+        revenue: { $sum: { $cond: [isStatus("delivered"), "$total", keptAdvance] } },
         deliveredQuantity: when(isStatus("delivered"), "$quantity"),
         codCollected: when(isStatus("delivered"), "$payment.dueOnDelivery"),
       },

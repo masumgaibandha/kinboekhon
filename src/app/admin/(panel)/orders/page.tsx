@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { OrderFilters } from "@/components/admin/orders/OrderFilters";
 import { OrdersTable } from "@/components/admin/orders/OrdersTable";
 import { Pagination } from "@/components/admin/orders/Pagination";
+import { BulkSendForm } from "@/components/admin/pathao/BulkSendForm";
 import { requireAdmin } from "@/lib/admin-session";
 import { listOrdersForAdmin } from "@/lib/orders/admin-order-list";
+import { pathaoConfig } from "@/lib/pathao/config";
 import { listProductsForAdmin } from "@/lib/products";
 import { filtersQuery, readOrderFilters } from "@/lib/validation/order-filters";
 
@@ -12,11 +14,14 @@ export const metadata: Metadata = { title: "Orders" };
 
 export const instant = false;
 
+const BULK_SEND_FORM_ID = "pathao-bulk-send";
+
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
   await requireAdmin();
   const filters = readOrderFilters(await searchParams);
   const [result, products] = await Promise.all([listOrdersForAdmin(filters), listProductsForAdmin()]);
   const filtered = filtersQuery({ ...filters, page: 1 }) !== "";
+  const bulkSend = pathaoConfig() !== null && result.items.some((order) => order.canSendToPathao);
 
   return (
     <div className="space-y-4">
@@ -40,7 +45,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
           {filtered ? "No orders match these filters." : "No orders yet."}
         </p>
       ) : (
-        <OrdersTable orders={result.items} />
+        <>
+          {bulkSend && <BulkSendForm formId={BULK_SEND_FORM_ID} />}
+          <OrdersTable orders={result.items} bulkFormId={bulkSend ? BULK_SEND_FORM_ID : undefined} />
+        </>
       )}
 
       <Pagination

@@ -1,13 +1,13 @@
 import { Schema } from "mongoose";
 
 import { appDb } from "@/lib/db";
-import { HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
+import { COURIER_STATES, HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
 import { CALL_OUTCOMES, CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES, RETURN_REASONS } from "@/lib/orders/enums";
 import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
 import { TURNSTILE_RESULTS } from "@/lib/turnstile";
 
 export { HISTORY_KINDS } from "@/lib/models/order-document";
-export type { OrderCall, OrderDocument, OrderHistoryEntry, OrderTracking } from "@/lib/models/order-document";
+export type { OrderCall, OrderCourier, OrderDocument, OrderHistoryEntry, OrderTracking } from "@/lib/models/order-document";
 
 const orderSchema = new Schema<OrderDocument>(
   {
@@ -70,6 +70,32 @@ const orderSchema = new Schema<OrderDocument>(
     customerBlocked: { type: Boolean, default: false },
     returnReason: { type: String, enum: RETURN_REASONS },
     lastCall: { outcome: { type: String, enum: CALL_OUTCOMES }, at: Date, note: String },
+    courier: {
+      type: {
+        _id: false,
+        provider: { type: String, enum: ["pathao"], required: true },
+        state: { type: String, enum: COURIER_STATES, required: true },
+        startedAt: { type: Date, required: true },
+        consignmentId: String,
+        deliveryFee: Number,
+        status: String,
+        statusAt: Date,
+        error: String,
+      },
+      default: undefined,
+    },
+    courierLocation: {
+      type: {
+        _id: false,
+        cityId: { type: Number, required: true },
+        cityName: { type: String, required: true },
+        zoneId: { type: Number, required: true },
+        zoneName: { type: String, required: true },
+        areaId: Number,
+        areaName: String,
+      },
+      default: undefined,
+    },
     tracking: {
       ip: String,
       ipHash: String,
@@ -94,6 +120,11 @@ orderSchema.index({ "tracking.ipHash": 1, createdAt: -1 });
 orderSchema.index({ "payment.status": 1, createdAt: 1 });
 // Orders by their latest call outcome, for the orders list filter.
 orderSchema.index({ "lastCall.outcome": 1, createdAt: -1 });
+// Pathao status updates find the order by its consignment.
+orderSchema.index(
+  { "courier.consignmentId": 1 },
+  { unique: true, partialFilterExpression: { "courier.consignmentId": { $type: "string" } } },
+);
 orderSchema.index(
   { "payment.transactionIdNormalized": 1 },
   { unique: true, partialFilterExpression: { "payment.transactionIdNormalized": { $type: "string" } } },

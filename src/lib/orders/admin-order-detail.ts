@@ -1,6 +1,7 @@
 import { connectMongoose } from "@/lib/db";
 import type { OrderLocation } from "@/lib/locations/types";
-import { OrderModel, type OrderDocument, type OrderHistoryEntry } from "@/lib/models/Order";
+import { OrderModel, type OrderCourier, type OrderDocument, type OrderHistoryEntry } from "@/lib/models/Order";
+import type { CourierLocation } from "@/lib/pathao/location-match";
 import type { OrderStatus, PaymentMethod, PaymentOption, PaymentStatus, ReturnReason } from "@/lib/orders/enums";
 import type { TurnstileResult } from "@/lib/turnstile";
 
@@ -37,6 +38,9 @@ export interface AdminOrder {
   customerBlocked: boolean;
   returnReason: ReturnReason | "";
   tracking: AdminTracking;
+  productId: string;
+  courier: OrderCourier | null;
+  courierLocation: CourierLocation | null;
 }
 
 export interface AdminTracking {
@@ -100,6 +104,9 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrder 
     adminNote: doc.adminNote ?? "",
     customerBlocked: doc.customerBlocked === true,
     returnReason: doc.returnReason ?? "",
+    productId: String(doc.product.productId),
+    courier: doc.courier ?? null,
+    courierLocation: doc.courierLocation ?? null,
     tracking: {
       ipHash,
       userAgent: doc.tracking?.userAgent ?? "",

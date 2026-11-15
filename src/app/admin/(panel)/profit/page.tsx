@@ -35,7 +35,7 @@ export default async function ProfitPage({ searchParams }: PageProps<"/admin/pro
         <StatCard label="Ad spend">
           <Money amount={total.adSpend} bold />
         </StatCard>
-        <StatCard label="Revenue (delivered)">
+        <StatCard label="Revenue">
           <Money amount={total.revenue} bold />
         </StatCard>
         <StatCard label="Net profit">
@@ -49,12 +49,14 @@ export default async function ProfitPage({ searchParams }: PageProps<"/admin/pro
       <div className="space-y-1 text-sm text-desc">
         <p>
           Orders count by the day they were placed, ad spend by its date. Confirmed counts orders now confirmed, shipped,
-          delivered or returned. Revenue counts delivered orders only, delivery charge included.
+          delivered or returned. Revenue counts delivered orders, delivery charge included, plus the approved advance (up to
+          the delivery charge) kept on returned orders, since it is not refunded.
         </p>
         <p>
           Costs come from each product&apos;s price calculator: landed product cost for delivered items, packaging for
-          delivered and returned parcels. Courier is the Settings courier cost by area and weight (unit weight x
-          quantity) for each delivered parcel, plus the return fee on returned ones. COD charge is the Settings COD % of
+          delivered and returned parcels. Courier is Pathao&apos;s own delivery fee for parcels sent through the Pathao API,
+          else the Settings courier cost by area and weight (unit weight x quantity), for each delivered parcel, plus the
+          return fee on returned ones. COD charge is the Settings COD % of
           the cash the courier collected on delivered orders.
         </p>
         <p>

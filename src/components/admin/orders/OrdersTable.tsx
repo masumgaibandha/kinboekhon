@@ -8,12 +8,18 @@ import { Money } from "@/components/ui/Money";
 import { formatDhakaDateTime } from "@/lib/dates";
 import type { OrderListItem } from "@/lib/orders/admin-order-list";
 
-export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
+// With `bulkFormId`, confirmed orders not sent yet get a tick box for that bulk send form.
+export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; bulkFormId?: string }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-card">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-line text-muted">
           <tr>
+            {bulkFormId && (
+              <th className="w-10 px-4 py-3 font-medium">
+                <span className="sr-only">Send to Pathao</span>
+              </th>
+            )}
             <th className="px-4 py-3 font-medium">Order</th>
             <th className="px-4 py-3 font-medium">Placed</th>
             <th className="px-4 py-3 font-medium">Customer</th>
@@ -28,6 +34,20 @@ export function OrdersTable({ orders }: { orders: OrderListItem[] }) {
         <tbody>
           {orders.map((order) => (
             <tr key={order.orderNumber} className="border-b border-line last:border-0">
+              {bulkFormId && (
+                <td className="px-4 py-3">
+                  {order.canSendToPathao && (
+                    <input
+                      type="checkbox"
+                      form={bulkFormId}
+                      name="orderNumbers"
+                      value={order.orderNumber}
+                      aria-label={`Send ${order.orderNumber} to Pathao`}
+                      className="h-4 w-4 accent-brand"
+                    />
+                  )}
+                </td>
+              )}
               <td className="px-4 py-3 font-semibold">
                 <Link href={`/admin/orders/${order.orderNumber}`} className="text-heading hover:text-brand hover:underline">
                   {order.orderNumber}
