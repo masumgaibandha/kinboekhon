@@ -83,6 +83,7 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 - Hosted on Vercel Hobby, project `kinboekhon`. Real Turnstile keys are set there.
 - The Meta domain is verified by a DNS TXT record. Never remove it.
 - Upgrade Vercel to Pro before scaling ads. Watch ISR usage until then.
+- Never use the Vercel CLI or change Vercel settings. Masum handles Vercel in the browser. To check a deploy, wait 2 minutes after the push, then curl the live URL.
 
 ## Dev and production data
 
