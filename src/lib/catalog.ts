@@ -51,7 +51,8 @@ export function productTag(slug: string): string {
   return `product-${slug}`;
 }
 
-export type LandingProduct = ProductInput & { id: string };
+// `inStock` is false at 0 stock, when Settings can hide the order button.
+export type LandingProduct = ProductInput & { id: string; inStock: boolean };
 
 // Landing page data for an active product, or null for an inactive or unknown slug.
 export async function getProductBySlug(slug: string): Promise<LandingProduct | null> {
@@ -61,8 +62,8 @@ export async function getProductBySlug(slug: string): Promise<LandingProduct | n
 
   if (!SLUG_PATTERN.test(slug)) return null;
   await connectMongoose();
-  const doc = await ProductModel.findOne({ slug, active: true }).lean<ProductDoc>();
-  return doc ? { ...toProductInput(doc), id: String(doc._id) } : null;
+  const doc = await ProductModel.findOne({ slug, active: true }).lean<ProductDoc & { stock?: number }>();
+  return doc ? { ...toProductInput(doc), id: String(doc._id), inStock: (doc.stock ?? 0) > 0 } : null;
 }
 
 export async function getActiveSlugs(): Promise<string[]> {

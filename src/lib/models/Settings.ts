@@ -63,6 +63,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     supportPhone: String,
     whatsappNumber: String,
     duplicateWindowHours: { type: Number, min: 1 },
+    hideOrderWhenOutOfStock: Boolean,
     courier: courierSchema,
     costDefaults: costsSchema,
     ads: adsSchema,

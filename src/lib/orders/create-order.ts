@@ -27,6 +27,7 @@ interface OrderProduct {
   slug: string;
   price: number;
   images?: ProductImage[];
+  stock?: number;
 }
 
 const METHOD_OFF = "এই পেমেন্ট পদ্ধতি এখন বন্ধ। অন্য পদ্ধতি বা ক্যাশ অন ডেলিভারি বেছে নিন।";
@@ -59,11 +60,14 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
   await connectMongoose();
   const product = await ProductModel.findOne(
     { _id: input.productId, active: true },
-    { name: 1, slug: 1, price: 1, images: { $slice: 1 } },
+    { name: 1, slug: 1, price: 1, stock: 1, images: { $slice: 1 } },
   ).lean<OrderProduct>();
   if (!product) return { ok: false, message: "দুঃখিত, পণ্যটি এখন পাওয়া যাচ্ছে না।" };
 
   const settings = await getSettings();
+  if (settings.hideOrderWhenOutOfStock && (product.stock ?? 0) <= 0) {
+    return { ok: false, message: "দুঃখিত, পণ্যটির স্টক এখন শেষ।" };
+  }
   const repeat = await checkRepeatOrder(input.phone, product._id, settings);
   if (repeat) return { ok: false, message: repeat };
 

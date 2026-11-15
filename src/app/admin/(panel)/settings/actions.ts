@@ -45,6 +45,7 @@ function readForm(formData: FormData) {
     supportPhone: text("supportPhone"),
     whatsappNumber: text("whatsappNumber"),
     duplicateWindowHours: text("duplicateWindowHours"),
+    hideOrderWhenOutOfStock: checked("hideOrderWhenOutOfStock"),
     courier: Object.fromEntries(COURIER_SETTING_KEYS.map((key) => [key, text(`courier.${key}`)])),
     costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
     ads: { usdRate: text("ads.usdRate"), maxCpa: text("ads.maxCpa") },

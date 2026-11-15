@@ -108,6 +108,8 @@ const orderSchema = new Schema<OrderDocument>(
       utmCampaign: String,
     },
     capiPurchase: { status: { type: String, enum: CAPI_STATUSES }, error: String },
+    stockOut: Number,
+    stockBack: Number,
   },
   { timestamps: true },
 );

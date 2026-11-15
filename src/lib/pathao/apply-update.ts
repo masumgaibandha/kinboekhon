@@ -2,6 +2,7 @@ import { connectMongoose } from "@/lib/db";
 import { OrderModel, type OrderDocument } from "@/lib/models/Order";
 import { canMoveStatus } from "@/lib/orders/status";
 import { courierStatusLabel, orderStatusFor } from "@/lib/pathao/status-map";
+import { syncReturnedStock } from "@/lib/stock/order-stock";
 
 export interface PathaoUpdate {
   consignmentId: string;
@@ -51,6 +52,9 @@ export async function applyPathaoUpdate(update: PathaoUpdate, attempt = 0): Prom
       ...(history.length > 0 && { $push: { statusHistory: { $each: history } } }),
     },
   );
-  if (result.modifiedCount > 0) return "applied";
+  if (result.modifiedCount > 0) {
+    if (move === "returned") await syncReturnedStock(order.orderNumber);
+    return "applied";
+  }
   return attempt < 2 ? applyPathaoUpdate(update, attempt + 1) : "same";
 }

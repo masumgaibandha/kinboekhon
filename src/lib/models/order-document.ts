@@ -89,6 +89,10 @@ export interface OrderDocument {
   courierLocation?: CourierLocation;
   tracking?: OrderTracking;
   capiPurchase?: { status: (typeof CAPI_STATUSES)[number]; error?: string };
+  // Units taken from stock when the order was sent to the courier.
+  stockOut?: number;
+  // Units put back in stock when the parcel came back (not when it is marked damaged).
+  stockBack?: number;
   createdAt: Date;
   updatedAt: Date;
 }

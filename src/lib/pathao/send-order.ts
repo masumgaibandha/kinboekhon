@@ -8,6 +8,7 @@ import { guessLocation, type CourierLocation } from "@/lib/pathao/location-match
 import { parcelBody, parcelProblem, parcelWeightKg } from "@/lib/pathao/parcel";
 import { unitWeightGrams } from "@/lib/pathao/parcel-weight";
 import { statusSlug } from "@/lib/pathao/status-map";
+import { takeOrderStock } from "@/lib/stock/order-stock";
 
 export const ALREADY_SENT = "This order was already sent to Pathao.";
 
@@ -50,13 +51,14 @@ async function saveSent(orderNumber: string, data: Record<string, unknown>, loca
     },
   );
   const feeText = Number.isFinite(deliveryFee) ? `, delivery fee ৳${deliveryFee}` : "";
-  await OrderModel.updateOne(
+  const shipped = await OrderModel.updateOne(
     { orderNumber, status: "confirmed" },
     {
       $set: { status: "shipped" },
       $push: { statusHistory: { kind: "status", status: "shipped", at: now, note: `Sent to Pathao: consignment ${consignmentId}${feeText}.` } },
     },
   );
+  if (shipped.modifiedCount > 0) await takeOrderStock(orderNumber);
   return { ok: true, message: `${orderNumber} sent to Pathao.` };
 }
 

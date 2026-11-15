@@ -85,12 +85,14 @@ kinboekhon/
    │  │     ├─ products/new/page.tsx
    │  │     ├─ products/[id]/page.tsx
    │  │     ├─ products/actions.ts
+   │  │     ├─ products/stock-actions.ts       addPurchase, addAdjustment, updateLowStockLevel (P2e)
    │  │     ├─ ad-spend/page.tsx               ad spend entries for a period, add form (P2d)
    │  │     ├─ ad-spend/[id]/page.tsx          edit one entry
    │  │     ├─ ad-spend/actions.ts             createAdSpend, updateAdSpend, deleteAdSpend
    │  │     ├─ profit/page.tsx                 profit and ad spend report (P2d)
    │  │     ├─ settings/page.tsx
    │  │     └─ settings/actions.ts
+   │  │  └─ print/invoices/page.tsx   A5 invoices for `?orderNumbers=` (P2h), outside the panel layout
    │  └─ api/
    │     ├─ auth/[...all]/route.ts         Better Auth handler
    │     ├─ orders/route.ts               POST create order
@@ -120,7 +122,7 @@ kinboekhon/
       ├─ db.ts                   cached Mongoose connection
       ├─ env.ts                  reads and checks env vars with Zod
       ├─ models/                 Product.ts, Order.ts, IncompleteOrder.ts,
-      │                          Settings.ts, Counter.ts, RateLimit.ts, order-document.ts (Order types)
+      │                          Settings.ts, Counter.ts, RateLimit.ts, StockMove.ts, order-document.ts (Order types)
       ├─ validation/             order.ts, location-fields.ts (shared location check), admin-order.ts,
       │                          order-payment.ts, order-filters.ts, dashboard-period.ts, draft.ts, product.ts, settings.ts (Zod schemas)
       ├─ orders/                 enums.ts, limits.ts (MAX_QUANTITY), pricing.ts, create-order.ts,
@@ -128,7 +130,8 @@ kinboekhon/
       │                          admin-order-list.ts, admin-order-detail.ts, change-status.ts (status + admin note),
       │                          edit-customer.ts, payment-methods.ts (enabled accounts, labels), transaction-id.ts,
       │                          payment-queue.ts, payment-review.ts (approve, reject, switch to COD),
-      │                          duplicate-check.ts, stats.ts (dashboard numbers), csv.ts
+      │                          duplicate-check.ts, stats.ts (dashboard numbers), order-query.ts (list and export filter),
+      │                          orders-csv.ts, invoice.ts, print-path.ts
       ├─ drafts/                 save-draft.ts (save, delete on order), draft-place.ts, admin-draft-list.ts
       ├─ customers/              tags.ts, sync-customer.ts (record from newest order, blocked check), customer-stats.ts,
       │                          admin-customer-list.ts, admin-customer-detail.ts, customer-summary.ts, edit-customer-record.ts
@@ -147,6 +150,8 @@ kinboekhon/
       ├─ cloudinary/             sign.ts (upload signature, server only), folder.ts, image-url.ts (URL + next/image loader)
       ├─ auth.ts                 Better Auth server config (MongoDB adapter, email + password, sign-up off)
       ├─ admin-session.ts        requireAdmin() for pages, actions and admin API routes
+      ├─ stock/                  P2e: record-move (atomic stock change + log), order-stock (ship and return), product-stock, stock-alerts
+      ├─ csv.ts                  CSV text with a UTF-8 BOM, formula guard, phone kept as text
       ├─ pathao/                 P2b: config, token (stored access token), client, places (cached cities, zones, areas), name-match,
       │                          location-match (guess and remember), parcel, send-order, apply-update, refresh-status, status-map
       └─ meta/
@@ -175,6 +180,8 @@ All documents have `createdAt` and `updatedAt` (Mongoose timestamps). Money is w
 | active | boolean | only active products are shown or orderable; new products start inactive (the create form's Active box starts unchecked). Saving the edit form writes `active` only when the admin changed the box: the form sends the value it was loaded with (`activeInitial`), and the edit form is keyed on the product's `updatedAt`, so a page restored from navigation history always shows fresh values |
 | sortOrder | number | home page order |
 | costs | `{ chinaPrice, weightGrams, shippingPerKg, agentFee, packaging, returnPercent, adCost, targetProfit }` | price calculator inputs (P1a), admin only. `weightGrams` is the weight with packaging, used for air shipping and the courier weight slab. Courier cost and COD % come from Settings `courier` (decision 93); old saved `courier` and `codPercent` values are ignored. `toProductInput()` leaves them out, so the shop never reads them. A product without `costs` starts the form with China price and weight empty and the rates from Settings `costDefaults` |
+| stock | number, default 0 (P2e): units in stock. Changed only by a logged stock move (`recordStockMove`, one atomic `$inc`), never by the product form. Can go below 0 when more is shipped than was counted. Stock writes skip `updatedAt`, so the open product form is not reset |
+| lowStockLevel | number, default 5 (P2e): the dashboard lists an active product when stock is this or less |
 
 Index: `slug` unique, `{ active, sortOrder }`.
 Any landing section left empty is simply not rendered.
@@ -220,6 +227,8 @@ Any landing section left empty is simply not rendered.
 | lastCall | `{ outcome, at, note }` | the newest call (P1b), for the orders list column and filter. `outcome`: `agreed_to_wait` \| `declined` \| `no_answer` \| `call_later` |
 | tracking | `{ ip, ipHash, userAgent, turnstile, fbp, fbc, sourceUrl, utmSource, utmCampaign }` | `ip` is kept for CAPI (P1c); the admin sees only `ipHash` (HMAC with `IP_HASH_SECRET`). `turnstile`: `passed` or `unverified` |
 | capiPurchase | `{ status: pending\|sent\|failed, error }` | result of server Purchase event |
+| stockOut | number | P2e: units taken from stock when the order became Shipped (by the status form or a Pathao send); set once. Orders shipped before P2e have none and never touch stock |
+| stockBack | number | P2e: units put back when the order became Returned, unless its return reason is Damaged. Setting Damaged later takes them out again; changing it away from Damaged puts them back |
 
 Indexes:
 - `orderNumber` unique, `publicId` unique
@@ -258,6 +267,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | supportPhone | shown in header and thank-you page |
 | whatsappNumber | shown to customers |
 | duplicateWindowHours | default 24 |
+| hideOrderWhenOutOfStock | boolean, default false (P2e): when on, a product with 0 stock shows "স্টক শেষ" instead of its order buttons and form, and `/api/orders` refuses it |
 | courier | `{ dhakaHalfKg: 110, dhakaOneKg: 130, dhakaTwoKg: 170, outsideHalfKg: 120, outsideOneKg: 145, outsideTwoKg: 180, returnFeePercent: 50, codPercent: 1 }` (decision 93), admin only: what the courier charges us per parcel from Gaibandha (Pathao rates) by area and weight slab (up to 0.5, 1 and 2 kg; above 2 kg the 2 kg rate is used), the return fee as a percent of the delivery cost (a returned parcel pays delivery cost plus the fee) and the COD charge on the cash collected. `getSettings()` leaves it out; the admin reads it with `getCourierSettings()` (uncached) |
 | costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
 | ads | `{ usdRate: 125, maxCpa: 300 }` (P2d), admin only: `usdRate` is taka per US dollar (up to 2 decimals), the starting rate of a new ad spend entry; `maxCpa` is the highest ad cost per confirmed order (whole taka) before a product is highlighted in the profit report. `getSettings()` leaves them out; the admin reads them with `getAdSettings()` (uncached) |
@@ -305,6 +315,19 @@ Index: `{ phone, source }` unique, so each source keeps one row per phone.
 - PathaoToken: `{ account, accessToken, refreshToken, expiresAt }`, one per base URL + client id, server only. Reused until a day before it expires, then refreshed (or issued again from the account login).
 - PathaoList: `{ key, items: { id, name }[], fetchedAt }`: Pathao's cities, zones of a city and areas of a zone, fetched again after 7 days (an old copy is kept if Pathao cannot be reached).
 - PathaoMatch: `{ key, pathaoId, name }`: admin corrections kept for later orders, `city:<districtId>` and `zone:<districtId>:<upazilaId>` (never for a Dhaka city corporation, which spans many zones).
+
+### StockMove (P2e)
+| Field | Notes |
+|---|---|
+| productId | the product |
+| kind | `purchase` (in), `shipped` (out), `returned` (back in), `damaged` (a returned parcel marked damaged after it was put back: out), `adjustment` (manual, plus or minus) |
+| change | units added (positive) or taken out (negative) |
+| balance | the product's stock right after the move |
+| unitCost | whole taka per unit, purchases only |
+| note | purchase note, the adjustment reason, or what happened to the order |
+| orderNumber | for order moves |
+
+Index: `{ productId, createdAt: -1 }`. Only `createdAt` (no `updatedAt`). A move that takes stock to 0 or back above it refreshes the landing page tag `product-<slug>` (`revalidateTag(..., "max")`, also from the Pathao webhook).
 
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
@@ -387,13 +410,14 @@ Order form fields:
 | Route | What it does |
 |---|---|
 | `/admin/login` | Email + password |
-| `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting; Calls card (P1b) |
-| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9; latest call outcome in P1b; risk in P2c), a latest call column, a risk column (P2c), 25 per page newest first, CSV export button using the same filters (added in P2h) |
+| `/admin` | Dashboard: period switch (today, this week, this month, all time); orders count; count per status; total sales; delivered value; return %; cancel %; orders per product; incomplete orders count; advance payments waiting; Calls card (P1b); Low stock card (P2e: active products at or below their level, lowest first, each linking to its product page) |
+| `/admin/orders` | Table with search (order number, phone, name), filters (status, product, date range; payment method and payment status come in M9; latest call outcome in P1b; risk in P2c), a latest call column, a risk column (P2c), 25 per page newest first, an Export CSV button using the same filters (P2h), a tick box on every order with "Print ticked invoices" and "Send ticked to Pathao" (P2b; only ticked confirmed orders not sent yet are sent), an "Out of stock" badge on pending and confirmed orders whose product has 0 stock or less, and a warning when confirmed orders need more units of a product than are in stock (P2e) |
 | `/admin/orders/[orderNumber]` | Full order, status change with optional note, status history, admin note, call button (`tel:`), call outcome form (P1b), customer edit while pending or confirmed, Delivery history card and Return reason on cancelled or returned orders (P2c) |
 | `/admin/payments` | Queue of advance payments with `submitted` status, oldest first: payment option, advance amount expected, method, sender number, TxID, customer. Approve or Reject, each with a note |
 | `/admin/incomplete` | Incomplete orders, newest 100 by last change: phone, name, product and quantity, payment option, place, address, last typed time; Call (`tel:`), Mark contacted (badge with the time), Delete |
 | `/admin/products` | List with main image thumbnail (placeholder when none), name and edit link opening the edit page, active toggle, view link |
-| `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, price calculator, images (upload, reorder, remove), landing sections, active |
+| `/admin/products/new`, `/admin/products/[id]` | Product form: basics, price, price calculator, images (upload, reorder, remove), landing sections, active. The edit page starts with a Stock card (P2e): units in stock with a Low stock or Out of stock badge, the low-stock level, a purchase form (units, cost per unit, note), a manual adjustment form (plus or minus units with a required reason) and the last 100 stock moves |
+| `/admin/print/invoices` | A5 invoices in Bangla, one per page (P2h), for `?orderNumbers=KE10001&orderNumbers=...` (up to 100): logo, slogan, order number, date, customer, phone, address, product line, product price, delivery charge, discount, total, paid in advance (an approved advance only), amount to collect, return policy line, support phone and WhatsApp from Settings. Opened in a new tab from the order page ("Print invoice") or the orders list; a Print button opens the browser print dialog. Outside the panel layout, still `requireAdmin()` |
 | `/admin/ad-spend` | Ad spend entries (P2d) for a period (default this month), newest day first, each with Edit and Delete; an add form (date, product, USD amount, rate, live taka amount) |
 | `/admin/ad-spend/[id]` | Edit one ad spend entry, with Delete |
 | `/admin/profit` | Profit and ad spend report (P2d) with a period switch and a custom date range |
@@ -427,7 +451,7 @@ Customer-facing writes are Route Handlers (JSON). Admin writes are Server Action
 | `/api/track` | POST | Send InitiateCheckout to CAPI with the browser's event_id | Rate limit (30 per 10 minutes per hashed IP), same-origin check, 1 KB size limit, Zod with an allow-list of event names |
 | `/api/auth/[...all]` | GET/POST | Better Auth handler (sign in, sign out, session) | Sign-up disabled, login rate limited |
 | `/api/admin/upload-signature` | POST | Signed Cloudinary upload params | `proxy.ts` + `requireAdmin()` |
-| `/api/admin/orders-export` | GET | CSV of filtered orders (UTF-8 with BOM so Excel shows Bangla) | `proxy.ts` + `requireAdmin()` |
+| `/api/admin/orders-export` | GET | CSV of the orders matching the list filters, newest first, up to 5,000 (UTF-8 with BOM so Excel shows Bangla; the phone is written as a text formula so Excel keeps the 0; other text starting with = + - @ gets an apostrophe) | `proxy.ts` + `requireAdminApi()` |
 
 Login: the `/admin/login` form posts to `/api/auth/sign-in/email`. It must go through this route, because Better Auth only applies its rate limit to requests through its handler, not to direct server API calls. Logout is a Server Action in the panel nav; Better Auth's `nextCookies` plugin clears the cookie.
 
@@ -438,6 +462,7 @@ Server Actions (each calls `requireAdmin()` first):
 - incomplete: `markDraftContacted`, `deleteIncompleteOrder`
 - customers: `updateCustomerTags`, `saveCustomerNote`
 - Pathao (P2b): `sendToPathao`, `bulkSendToPathao`, `refreshPathao`, `clearPathaoSend`, `savePathaoLocation`
+- stock (P2e): `addPurchase`, `addAdjustment`, `updateLowStockLevel`
 - settings: `saveSettings`
 
 ### Create order flow (`POST /api/orders`)
@@ -703,7 +728,7 @@ Services not chosen yet (fraud check, SMS) are picked by the owner at the start 
 | P2e | **Stock count** with a low-stock alert | Set stock and a low-stock level; place orders until the alert shows |
 | P2f | **COD payout reconciliation** | Enter a courier payout: matched orders are marked paid, missing or wrong amounts are listed |
 | P2g | **Order SMS** (provider to be chosen) | Place a test order and receive the SMS on a test phone |
-| P2h | **Print and export** (CSV export was M13): invoice and parcel label print, CSV export with the current filters, courier CSV export | Print an invoice and a label; download both CSVs and open them in Excel with Bangla shown correctly |
+| P2h | **Print and export** (CSV export was M13): A5 invoice print, bulk print of ticked orders, orders CSV export with the current filters (decision 96) | Print an invoice and bulk print two; download the CSV and open it in Excel with Bangla shown correctly |
 
 P2a is done (November 2026): customer records by phone, `/admin/customers` list and customer page, the order page customer card and the Blocked customer flag. Existing orders were backfilled with `npm run backfill:customers`.
 
@@ -718,6 +743,10 @@ P2b is done (November 2026) with Pathao (decision 94):
 - Orders list: a tick box on confirmed orders not sent yet and "Send ticked to Pathao" (up to 25, sent one by one, each with its own checks and lock; failures are listed in the toast).
 - Status sync: `/api/pathao/webhook` (set the URL and secret in the Pathao panel webhook page; it replies 202 with the `X-Pathao-Merchant-Webhook-Integration-Secret` header) and "Refresh status" (order info API; its `updated_at` is Dhaka time). Each new Pathao status adds a `kind: courier` history entry ("Pathao: In transit"); an update older than the saved one is ignored. Delivered and Partial delivery move a shipped order to Delivered; Return, Returned, Paid return and Returned to merchant move it to Returned, each with a status history entry. A webhook `delivery_fee` updates the saved fee.
 - Sandbox store "Kinbo Ekhon Sandbox" (Gaibandha Sadar) was created with the store API; its id is `PATHAO_STORE_ID` in `.env.local`. Live keys and the live store id are set on Vercel by the owner.
+
+P2e is done (November 2026, decision 95): product stock and low-stock level, logged stock moves, stock taken when an order is shipped and put back on a return unless Damaged, the orders list Out of stock badge and shortfall warning, the Settings toggle that hides the order button at 0 stock, the dashboard Low stock card and the product page Stock card.
+
+P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page and the orders list (bulk, one per page) and the orders CSV export.
 
 ### Phase 3: after launch
 
@@ -830,3 +859,5 @@ Cart, customer accounts, product variants, email notifications, online payment g
 92. Delivery charge is back (November 2026), replacing decisions 76 and 77. The customer pays it by area: Dhaka City (Dhaka North or South city corporation, already known from the address list) ৳80, everywhere else ৳150, both in Settings. Three payment options, one discount per order: delivery charge in advance with the product price on delivery (chosen first, marked "সবচেয়ে জনপ্রিয়"), ৳20 off the delivery charge (so ৳60 and ৳130; the old `advanceDeliveryDiscount` value from before commit 6c0145c), in Settings; full advance with the normal charge and ৳50 off the total; cash on delivery with the normal charge and no discount. The form shows product, delivery charge, discount, total, pay now and pay on delivery. Orders store `deliveryCharge`; old orders without it read as 0 and are not recalculated. The price calculator leaves the courier out of the product price math and shows delivery income minus courier on its own line. The profit report counts the Settings COD % on the cash the courier collected. The Meta Purchase value is the product total only. The P2c High hint asks for the order's delivery charge in advance; the booking money setting is removed. The shop no longer says free delivery anywhere.
 93. Courier cost and the Dhaka delivery loss (November 2026). The delivery charges stay (Dhaka City ৳80, ৳60 with the advance; outside ৳150, ৳130 with the advance). We ship from Gaibandha, so a Dhaka City order pays the courier more than the customer pays for delivery: that loss is covered in the product price, never by raising the Dhaka charge. Settings keep the real courier cost by weight slab (with packaging) for Dhaka City and outside, prefilled with Pathao rates from Gaibandha: Dhaka 110 / 130 / 170, outside 120 / 145 / 180 for up to 0.5 / 1 / 2 kg; the return fee is 50% of the delivery cost; the COD charge is 1%. These replace the price calculator courier charge and COD %. The price calculator shows profit for Dhaka City and outside, each with cash on delivery and delivery charge in advance, and suggests the price that reaches the target profit in the worst of the 4. The profit report counts each order's courier cost by its area and weight, plus the return fee on returns.
 94. Pathao courier API (P2b, November 2026) instead of Steadfast booking: send confirmed orders one by one or in bulk, consignment and Pathao's delivery fee saved, status by webhook and a Refresh button. Pathao places are matched by name and the admin's corrections are remembered. The profit report uses Pathao's real fee when there is one, and counts the approved advance delivery charge of a returned (refused) parcel as income. Terms page: "পার্সেল গ্রহণ না করলে অগ্রিম ডেলিভারি চার্জ ফেরতযোগ্য নয়।"
+95. Stock count (P2e, November 2026): stock goes down when an order is sent to the courier (status Shipped, by hand or by a Pathao send), never when it is placed or confirmed. A returned parcel goes back in stock unless its return reason is Damaged (the P2c reason decides). Orders are still taken at 0 stock by default and the admin sees "Out of stock" on pending and confirmed orders of that product; a Settings toggle hides the order button and form at 0 stock instead. Purchases log units and cost per unit; manual adjustments need a reason. New products start with stock 0 and a low-stock level of 5.
+96. Print and export (P2h, November 2026), built as the owner asked: A5 invoice per order in Bangla, bulk print of ticked orders (one invoice per page) and the orders CSV export with the current filters. The parcel label and courier CSV export from the first P2h line were not built; Pathao parcels are booked through the API (decision 94).

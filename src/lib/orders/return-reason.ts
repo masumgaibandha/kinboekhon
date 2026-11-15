@@ -5,6 +5,7 @@ import { OrderModel } from "@/lib/models/Order";
 import { missOrStale } from "@/lib/orders/change-status";
 import type { ReturnReason } from "@/lib/orders/enums";
 import { RETURN_REASON_LABELS } from "@/lib/orders/return-reason-labels";
+import { syncReturnedStock } from "@/lib/stock/order-stock";
 
 export const FAILED_STATUSES = ["cancelled", "returned"] as const;
 
@@ -28,5 +29,6 @@ export async function saveReturnReason(
     { projection: { _id: 1 } },
   ).lean();
   if (!updated) return missOrStale(orderNumber);
+  await syncReturnedStock(orderNumber);
   return { ok: true, message: reason ? "Return reason saved." : "Return reason cleared." };
 }

@@ -10,6 +10,7 @@ import { ProofSection, hasProof } from "@/components/shop/landing/ProofSection";
 import { SolutionSection } from "@/components/shop/landing/SolutionSection";
 import { StorySection } from "@/components/shop/landing/StorySection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
+import { SoldOutSection } from "@/components/shop/order/SoldOutSection";
 import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getActiveSlugs, getProductBySlug } from "@/lib/catalog";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
@@ -39,32 +40,39 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
   const settings = await getSettings();
+  const soldOut = settings.hideOrderWhenOutOfStock && !product.inStock;
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <HookSection product={product} />
+      <HookSection product={product} soldOut={soldOut} />
       <ProblemSection problem={product.problem} />
       <StorySection story={product.story} />
       <SolutionSection solution={product.solution} name={product.name} />
       <ProofSection proof={product.proof} />
       {hasProof(product.proof) && (
         <div className="bg-card px-5 pb-5">
-          <OrderButton />
+          <OrderButton soldOut={soldOut} />
         </div>
       )}
-      <CtaSection product={product} />
-      <OrderForm
-        productId={product.id}
-        price={product.price}
-        pricing={{
-          deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
-          deliveryChargeOutside: settings.deliveryChargeOutside,
-          advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
-          fullAdvanceDiscount: settings.fullAdvanceDiscount,
-        }}
-        accounts={enabledAccounts(settings)}
-      />
-      <StickyOrderBar price={product.price} />
+      <CtaSection product={product} soldOut={soldOut} />
+      {soldOut ? (
+        <SoldOutSection />
+      ) : (
+        <>
+          <OrderForm
+            productId={product.id}
+            price={product.price}
+            pricing={{
+              deliveryChargeDhakaCity: settings.deliveryChargeDhakaCity,
+              deliveryChargeOutside: settings.deliveryChargeOutside,
+              advanceDeliveryDiscount: settings.advanceDeliveryDiscount,
+              fullAdvanceDiscount: settings.fullAdvanceDiscount,
+            }}
+            accounts={enabledAccounts(settings)}
+          />
+          <StickyOrderBar price={product.price} />
+        </>
+      )}
       <ViewContentPixel productId={product.id} name={product.name} price={product.price} />
     </div>
   );

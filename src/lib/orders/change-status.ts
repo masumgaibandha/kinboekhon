@@ -2,6 +2,7 @@ import { adminFail, type AdminActionResult } from "@/lib/admin-result";
 import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import { STATUS_LABELS } from "@/lib/orders/status";
+import { syncReturnedStock, takeOrderStock } from "@/lib/stock/order-stock";
 import type { StatusChange } from "@/lib/validation/admin-order";
 
 export const ORDER_CHANGED = "This order was changed since you opened it. Reload the page.";
@@ -26,7 +27,11 @@ export async function changeOrderStatus({ orderNumber, from, to, note }: StatusC
     { $set: { status: to }, $push: { statusHistory: { kind: "status", status: to, at: new Date(), note } } },
     { projection: { _id: 1 } },
   ).lean();
-  if (updated) return { ok: true, message: `Status changed to ${STATUS_LABELS[to]}.` };
+  if (updated) {
+    if (to === "shipped") await takeOrderStock(orderNumber);
+    if (to === "returned") await syncReturnedStock(orderNumber);
+    return { ok: true, message: `Status changed to ${STATUS_LABELS[to]}.` };
+  }
   if (to === "confirmed" && (await OrderModel.exists({ orderNumber, status: from, "payment.status": "submitted" }))) {
     return adminFail(REVIEW_PAYMENT_FIRST);
   }

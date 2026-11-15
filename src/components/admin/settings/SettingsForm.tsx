@@ -115,6 +115,16 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
         {amount("duplicateWindowHours", "Duplicate order window (hours)", "Same phone and product inside this window is blocked. 1 to 168.")}
       </Section>
 
+      <Section title="Stock" description="By default orders are still taken at 0 stock, and the admin sees Out of stock on them.">
+        <div className="sm:col-span-2">
+          <Toggle
+            name="hideOrderWhenOutOfStock"
+            label="Hide the order button when a product has 0 stock"
+            defaultChecked={settings.hideOrderWhenOutOfStock}
+          />
+        </div>
+      </Section>
+
       <CourierFields courier={settings.courier} errors={errors} />
 
       <Section

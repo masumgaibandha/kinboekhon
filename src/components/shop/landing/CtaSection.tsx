@@ -3,7 +3,7 @@ import { LandingSection } from "@/components/shop/landing/LandingSection";
 import { OrderButton } from "@/components/shop/landing/OrderButton";
 import type { ProductInput } from "@/lib/validation/product";
 
-export function CtaSection({ product }: { product: ProductInput }) {
+export function CtaSection({ product, soldOut }: { product: ProductInput; soldOut: boolean }) {
   const { cta } = product;
   if (!cta.title && !cta.text) return null;
 
@@ -12,7 +12,7 @@ export function CtaSection({ product }: { product: ProductInput }) {
       {cta.text && <p className="text-[17px] leading-relaxed text-desc">{cta.text}</p>}
       <div className="mt-4 space-y-3.5">
         <PriceTag price={product.price} size="lg" />
-        <OrderButton />
+        <OrderButton soldOut={soldOut} />
       </div>
     </LandingSection>
   );

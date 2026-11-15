@@ -1,13 +1,14 @@
+import type { Types } from "mongoose";
+
 import { connectMongoose } from "@/lib/db";
-import { dhakaDayEnd, dhakaDayStart } from "@/lib/dates";
 import type { RiskLabel } from "@/lib/fraud/risk";
 import { shortLocation } from "@/lib/locations/format";
 import type { OrderLocation } from "@/lib/locations/types";
 import { CustomerModel } from "@/lib/models/Customer";
 import { OrderModel, type OrderCall } from "@/lib/models/Order";
 import type { OrderStatus } from "@/lib/orders/enums";
-import { normalizePhone } from "@/lib/phone";
-import { escapeRegex } from "@/lib/regex";
+import { orderListQuery } from "@/lib/orders/order-query";
+import { getProductStocks } from "@/lib/stock/stock-alerts";
 import { ORDERS_PER_PAGE, type OrderFilters } from "@/lib/validation/order-filters";
 
 export interface OrderListItem {
@@ -26,7 +27,12 @@ export interface OrderListItem {
   risk: RiskLabel | null;
   // Confirmed and not sent to Pathao yet.
   canSendToPathao: boolean;
+  // Not sent to the courier yet while its product has no stock.
+  outOfStock: boolean;
 }
+
+// Orders that still need stock when they are sent to the courier.
+export const NOT_SENT: OrderStatus[] = ["pending", "confirmed"];
 
 export interface OrderListPage {
   items: OrderListItem[];
@@ -39,7 +45,7 @@ interface ListDoc {
   orderNumber: string;
   createdAt: Date;
   customer: { name: string; phone: string; location: OrderLocation };
-  product: { name: string };
+  product: { name: string; productId: Types.ObjectId };
   quantity: number;
   total: number;
   status: OrderStatus;
@@ -48,37 +54,9 @@ interface ListDoc {
   courier?: { state: string };
 }
 
-// "KE10001" or "10001" finds an order number, a number starting with 0 finds phones by prefix, anything else a name.
-function searchQuery(q: string): Record<string, unknown> {
-  const compact = normalizePhone(q);
-  if (/^0\d{1,10}$/.test(compact)) return { "customer.phone": { $regex: `^${compact}` } };
-  const orderNumber = /^(?:KE)?([1-9]\d{4,8})$/i.exec(compact);
-  if (orderNumber) return { orderNumber: `KE${orderNumber[1]}` };
-  return { "customer.name": { $regex: escapeRegex(q), $options: "i" } };
-}
-
-function buildQuery(filters: OrderFilters): Record<string, unknown> {
-  const query: Record<string, unknown> = filters.q ? searchQuery(filters.q) : {};
-  if (filters.status) query.status = filters.status;
-  if (filters.method) query["payment.method"] = filters.method;
-  if (filters.payment) query["payment.status"] = filters.payment;
-  if (filters.call) query["lastCall.outcome"] = filters.call === "none" ? null : filters.call;
-  if (filters.product) query["product.productId"] = filters.product;
-
-  const from = filters.from ? dhakaDayStart(filters.from) : null;
-  const to = filters.to ? dhakaDayEnd(filters.to) : null;
-  if (from || to) query.createdAt = { ...(from && { $gte: from }), ...(to && { $lt: to }) };
-  return query;
-}
-
 export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderListPage> {
   await connectMongoose();
-  const query = buildQuery(filters);
-  // Risk is kept per phone on the customer record, so the filter becomes a list of phones.
-  if (filters.risk) {
-    const phones = await CustomerModel.distinct("phone", { "risk.label": filters.risk });
-    query.$and = [{ "customer.phone": { $in: phones } }];
-  }
+  const query = await orderListQuery(filters);
   const total = await OrderModel.countDocuments(query);
   const pageCount = Math.max(1, Math.ceil(total / ORDERS_PER_PAGE));
   const page = Math.min(filters.page, pageCount);
@@ -90,6 +68,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     "customer.phone": 1,
     "customer.location": 1,
     "product.name": 1,
+    "product.productId": 1,
     quantity: 1,
     total: 1,
     status: 1,
@@ -107,6 +86,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     { _id: 0, phone: 1, "risk.label": 1 },
   ).lean<{ phone: string; risk: { label: RiskLabel } }[]>();
   const riskByPhone = new Map(risks.map((customer) => [customer.phone, customer.risk.label]));
+  const stocks = await getProductStocks([...new Set(docs.map((doc) => String(doc.product.productId)))]);
 
   const items = docs.map((doc) => ({
     orderNumber: doc.orderNumber,
@@ -122,6 +102,7 @@ export async function listOrdersForAdmin(filters: OrderFilters): Promise<OrderLi
     customerBlocked: doc.customerBlocked === true,
     risk: riskByPhone.get(doc.customer.phone) ?? null,
     canSendToPathao: doc.status === "confirmed" && !doc.courier,
+    outOfStock: NOT_SENT.includes(doc.status) && (stocks.get(String(doc.product.productId))?.stock ?? 0) <= 0,
   }));
   return { items, total, page, pageCount };
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CallsCard } from "@/components/admin/dashboard/CallsCard";
+import { LowStockCard } from "@/components/admin/dashboard/LowStockCard";
 import { PeriodSwitch } from "@/components/admin/dashboard/PeriodSwitch";
 import { ProfitSummaryCard } from "@/components/admin/dashboard/ProfitSummaryCard";
 import { ProductStatsTable } from "@/components/admin/dashboard/ProductStatsTable";
@@ -11,6 +12,7 @@ import { getCallQueue, getCallResults, getCallTodo } from "@/lib/orders/call-sta
 import { ORDER_STATUSES } from "@/lib/orders/enums";
 import { getDashboardStats } from "@/lib/orders/stats";
 import { getProfitReport } from "@/lib/profit/profit-report";
+import { getLowStockProducts } from "@/lib/stock/stock-alerts";
 import { STATUS_LABELS } from "@/lib/orders/status";
 import { dashboardHref, periodStart, readPeriod, type Period } from "@/lib/validation/dashboard-period";
 import { rangeHref } from "@/lib/validation/report-range";
@@ -32,12 +34,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const callsPeriod = readPeriod(params.calls);
   const now = new Date();
   const start = periodStart(period, now);
-  const [stats, callTodo, callResults, callQueue, profit] = await Promise.all([
+  const [stats, callTodo, callResults, callQueue, profit, lowStock] = await Promise.all([
     getDashboardStats(start),
     getCallTodo(),
     getCallResults(periodStart(callsPeriod, now)),
     getCallQueue(),
     getProfitReport(start, null),
+    getLowStockProducts(),
   ]);
 
   return (
@@ -85,6 +88,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         <h2 className="font-semibold text-heading">Orders per product</h2>
         <ProductStatsTable products={stats.products} />
       </section>
+
+      <LowStockCard products={lowStock} />
 
       <section className="space-y-2">
         <h2 className="font-semibold text-heading">Needs attention now</h2>

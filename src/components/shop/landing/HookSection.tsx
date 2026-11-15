@@ -4,7 +4,7 @@ import { OrderButton } from "@/components/shop/landing/OrderButton";
 import { TrustBadges } from "@/components/shop/landing/TrustBadges";
 import type { ProductInput } from "@/lib/validation/product";
 
-export function HookSection({ product }: { product: ProductInput }) {
+export function HookSection({ product, soldOut }: { product: ProductInput; soldOut: boolean }) {
   const { hook, name } = product;
   const headline = hook.headline || name;
 
@@ -22,7 +22,7 @@ export function HookSection({ product }: { product: ProductInput }) {
 
       <div className="mt-4 space-y-3.5">
         <PriceTag price={product.price} size="lg" />
-        <OrderButton />
+        <OrderButton soldOut={soldOut} />
         <TrustBadges />
       </div>
     </section>

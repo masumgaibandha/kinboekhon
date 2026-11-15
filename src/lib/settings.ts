@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   supportPhone: "",
   whatsappNumber: "",
   duplicateWindowHours: 24,
+  hideOrderWhenOutOfStock: false,
 };
 
 export const DEFAULT_COST_DEFAULTS: CostDefaults = {

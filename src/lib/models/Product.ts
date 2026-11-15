@@ -11,7 +11,12 @@ const imageSchema = new Schema(
   { _id: false },
 );
 
-const productSchema = new Schema<ProductFormValues>(
+// Stock is changed only through logged stock moves, never by the product form.
+export type ProductDocument = ProductFormValues & { stock: number; lowStockLevel: number };
+
+export const DEFAULT_LOW_STOCK_LEVEL = 5;
+
+const productSchema = new Schema<ProductDocument>(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
@@ -27,6 +32,8 @@ const productSchema = new Schema<ProductFormValues>(
     active: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
     costs: costsSchema,
+    stock: { type: Number, default: 0 },
+    lowStockLevel: { type: Number, default: DEFAULT_LOW_STOCK_LEVEL, min: 0 },
   },
   { timestamps: true },
 );
@@ -36,4 +43,4 @@ productSchema.index({ active: 1, sortOrder: 1 });
 // Replace a model left from an earlier hot reload, so schema changes apply in development.
 if (appDb.models.Product) appDb.deleteModel("Product");
 
-export const ProductModel = appDb.model<ProductFormValues>("Product", productSchema);
+export const ProductModel = appDb.model<ProductDocument>("Product", productSchema);

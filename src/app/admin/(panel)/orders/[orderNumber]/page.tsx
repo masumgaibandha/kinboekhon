@@ -17,11 +17,15 @@ import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
 import { PathaoCard } from "@/components/admin/pathao/PathaoCard";
+import { OutOfStockBadge } from "@/components/admin/stock/StockLevelBadge";
 import { requireAdmin } from "@/lib/admin-session";
 import { getCustomerSummary } from "@/lib/customers/customer-summary";
 import { formatDhakaDateTime } from "@/lib/dates";
 import { getDeliveryHistory } from "@/lib/fraud/delivery-history";
 import { getOrderForAdmin } from "@/lib/orders/admin-order-detail";
+import { NOT_SENT } from "@/lib/orders/admin-order-list";
+import { PRINT_PATH } from "@/lib/orders/print-path";
+import { getProductStocks } from "@/lib/stock/stock-alerts";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -32,10 +36,12 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
   const { orderNumber } = await params;
   const order = await getOrderForAdmin(orderNumber);
   if (!order) notFound();
-  const [summary, history] = await Promise.all([
+  const [summary, history, stocks] = await Promise.all([
     getCustomerSummary(order.customer.phone, order.orderNumber),
     getDeliveryHistory(order.customer.phone),
+    getProductStocks([order.productId]),
   ]);
+  const outOfStock = NOT_SENT.includes(order.status) && (stocks.get(order.productId)?.stock ?? 0) <= 0;
   const failed = order.status === "cancelled" || order.status === "returned";
   // Every form is keyed on the saved version, so it always starts from fresh values.
   const key = `${order.orderNumber}-${order.version}`;
@@ -49,7 +55,16 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
         <h1 className="text-xl font-bold text-heading">{order.orderNumber}</h1>
         <StatusBadge status={order.status} />
         {order.customerBlocked && <BlockedBadge />}
+        {outOfStock && <OutOfStockBadge />}
         <span className="text-sm text-muted">Placed {formatDhakaDateTime(order.createdAt)}</span>
+        <a
+          href={`${PRINT_PATH}?orderNumbers=${order.orderNumber}`}
+          target="_blank"
+          rel="noopener"
+          className="ml-auto rounded-lg border border-brand px-3 py-1.5 text-sm font-semibold text-brand-dark"
+        >
+          Print invoice
+        </a>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

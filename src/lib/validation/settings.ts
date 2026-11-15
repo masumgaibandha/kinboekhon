@@ -72,6 +72,8 @@ export const settingsSchema = z.object({
     .regex(/^\d{1,3}$/, "Enter whole hours.")
     .transform(Number)
     .refine((hours) => hours >= 1 && hours <= 168, "Use 1 to 168 hours."),
+  // Hide the landing page order button while the product has no stock.
+  hideOrderWhenOutOfStock: z.boolean(),
 });
 
 // Admin-only form: the shop settings plus the courier rates, price calculator defaults, ad and fraud check settings, which never reach the shop.

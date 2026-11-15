@@ -4,11 +4,12 @@ import { BlockedBadge } from "@/components/admin/customers/BlockedBadge";
 import { RiskBadge } from "@/components/admin/fraud/RiskBadge";
 import { CallBadge } from "@/components/admin/orders/CallBadge";
 import { StatusBadge } from "@/components/admin/orders/StatusBadge";
+import { OutOfStockBadge } from "@/components/admin/stock/StockLevelBadge";
 import { Money } from "@/components/ui/Money";
 import { formatDhakaDateTime } from "@/lib/dates";
 import type { OrderListItem } from "@/lib/orders/admin-order-list";
 
-// With `bulkFormId`, confirmed orders not sent yet get a tick box for that bulk send form.
+// With `bulkFormId`, every order gets a tick box for that bulk actions form.
 export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; bulkFormId?: string }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-card">
@@ -17,7 +18,7 @@ export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; b
           <tr>
             {bulkFormId && (
               <th className="w-10 px-4 py-3 font-medium">
-                <span className="sr-only">Send to Pathao</span>
+                <span className="sr-only">Tick</span>
               </th>
             )}
             <th className="px-4 py-3 font-medium">Order</th>
@@ -36,16 +37,15 @@ export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; b
             <tr key={order.orderNumber} className="border-b border-line last:border-0">
               {bulkFormId && (
                 <td className="px-4 py-3">
-                  {order.canSendToPathao && (
-                    <input
-                      type="checkbox"
-                      form={bulkFormId}
-                      name="orderNumbers"
-                      value={order.orderNumber}
-                      aria-label={`Send ${order.orderNumber} to Pathao`}
-                      className="h-4 w-4 accent-brand"
-                    />
-                  )}
+                  <input
+                    type="checkbox"
+                    form={bulkFormId}
+                    name="orderNumbers"
+                    value={order.orderNumber}
+                    data-pathao={order.canSendToPathao}
+                    aria-label={`Tick ${order.orderNumber}`}
+                    className="h-4 w-4 accent-brand"
+                  />
                 </td>
               )}
               <td className="px-4 py-3 font-semibold">
@@ -66,8 +66,13 @@ export function OrdersTable({ orders, bulkFormId }: { orders: OrderListItem[]; b
               <td className="whitespace-nowrap px-4 py-3">
                 <Money amount={order.total} />
               </td>
-              <td className="px-4 py-3">
+              <td className="space-y-1 px-4 py-3">
                 <StatusBadge status={order.status} />
+                {order.outOfStock && (
+                  <span className="block">
+                    <OutOfStockBadge />
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3">
                 {order.lastCall ? (
