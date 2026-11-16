@@ -7,11 +7,12 @@ import { PIXEL_READY_EVENT } from "@/components/tracking/pixel";
 const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? "";
 
 // Meta's base snippet, for shop pages only; it sends the first PageView. Its own pushState tracking is off, PixelPageViews sends the rest.
+// It loads after the page has loaded, so Meta's scripts never compete with the main image.
 export function MetaPixel() {
   if (!/^\d+$/.test(PIXEL_ID)) return null;
   return (
     <>
-      <Script id="meta-pixel" strategy="afterInteractive">
+      <Script id="meta-pixel" strategy="lazyOnload">
         {`!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};

@@ -53,9 +53,9 @@ export function DangerZone({ counts }: { counts: TestDataCounts }) {
     <section className="rounded-xl border-2 border-brand-dark bg-card p-5">
       <h2 className="text-lg font-semibold text-brand-dark">Danger zone</h2>
       <p className="mt-1 text-sm text-desc">
-        Before launch only. Deletes all orders (with their calls and payments), customers, fraud checks, ad spend entries
-        and stock moves, and the next order becomes KE10001. Products, categories, banners, landing pages, settings and
-        the admin login are kept. Product stock counts are not changed.
+        Before launch only. Deletes all orders (with their calls and payments), incomplete orders, customers, fraud
+        checks, ad spend entries and stock moves, sets the stock of every product to 0, and the next order becomes KE10001.
+        Products, categories, banners, landing pages, settings and the admin login are kept.
       </p>
       <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {(Object.keys(TEST_DATA_LABELS) as (keyof TestDataCounts)[]).map((key) => (

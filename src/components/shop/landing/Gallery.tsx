@@ -2,13 +2,14 @@
 
 import { useRef, useState } from "react";
 
+import { useNearScreen } from "@/components/shop/landing/use-near-screen";
 import { CloudinaryImage } from "@/components/ui/CloudinaryImage";
 import type { ProductImage } from "@/lib/product-images";
 
 interface GalleryProps {
   images: ProductImage[];
   alt: string;
-  // Below the first screen: no image is preloaded.
+  // Below the first screen: no image is preloaded, and images load only when the gallery comes near the screen.
   lazy?: boolean;
 }
 
@@ -17,6 +18,7 @@ const SIZES = "(min-width: 1024px) 800px, (min-width: 576px) 536px, calc(100vw -
 export function Gallery({ images, alt, lazy = false }: GalleryProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  const near = useNearScreen(trackRef, lazy);
 
   if (images.length === 0) return null;
 
@@ -39,14 +41,16 @@ export function Gallery({ images, alt, lazy = false }: GalleryProps) {
       >
         {images.map((image, index) => (
           <div key={image.publicId} className="relative aspect-square w-full shrink-0 snap-center bg-card">
-            <CloudinaryImage
-              publicId={image.publicId}
-              alt={index === 0 ? alt : `${alt}, ছবি ${index + 1}`}
-              fill
-              sizes={SIZES}
-              preload={!lazy && index === 0}
-              className="object-contain"
-            />
+            {near && (
+              <CloudinaryImage
+                publicId={image.publicId}
+                alt={index === 0 ? alt : `${alt}, ছবি ${index + 1}`}
+                fill
+                sizes={SIZES}
+                preload={!lazy && index === 0}
+                className="object-contain"
+              />
+            )}
           </div>
         ))}
       </div>
@@ -76,7 +80,7 @@ export function Gallery({ images, alt, lazy = false }: GalleryProps) {
                   index === current ? "border-brand" : "border-line hover:border-line-strong"
                 }`}
               >
-                <CloudinaryImage publicId={image.publicId} alt="" fill sizes="80px" className="object-contain" />
+                {near && <CloudinaryImage publicId={image.publicId} alt="" fill sizes="80px" className="object-contain" />}
               </button>
             ))}
           </div>
