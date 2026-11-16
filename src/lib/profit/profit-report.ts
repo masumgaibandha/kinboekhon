@@ -1,14 +1,14 @@
 import { Types } from "mongoose";
 
 import { connectMongoose } from "@/lib/db";
-import { AdSpendModel } from "@/lib/models/AdSpend";
 import { OrderModel } from "@/lib/models/Order";
 import { ProductModel } from "@/lib/models/Product";
-import type { OrderStatus } from "@/lib/orders/enums";
+import { CONFIRMED_STATUSES, type OrderStatus } from "@/lib/orders/enums";
 import { IS_MAIN_LINE, UNWIND_ITEMS, lineShare } from "@/lib/orders/order-items";
 import { startingCosts } from "@/lib/products";
+import { getAdSpendTotals } from "@/lib/profit/ad-spend-totals";
 import { courierCostByProduct, parcelGroups } from "@/lib/profit/parcel-courier";
-import { NO_ORDERS, profitRow, totalOf, type OrderCounts, type ProfitNumbers, type ProfitRow } from "@/lib/profit/profit-math";
+import { NO_ORDERS, UNASSIGNED_SPEND_ID, profitRow, totalOf, type OrderCounts, type ProfitNumbers, type ProfitRow } from "@/lib/profit/profit-math";
 import { getAdSettings, getCostDefaults, getCourierSettings } from "@/lib/settings";
 import type { ProductCosts } from "@/lib/validation/costs";
 import { rangeFilter } from "@/lib/validation/report-range";
@@ -19,8 +19,6 @@ export interface ProfitReport {
   maxCpa: number;
 }
 
-// Orders that passed the confirmation call, whatever happened to them after it.
-const CONFIRMED: OrderStatus[] = ["confirmed", "shipped", "delivered", "returned"];
 
 const when = (condition: object, value: unknown) => ({ $sum: { $cond: [condition, value, 0] } });
 const isStatus = (status: OrderStatus) => ({ $eq: ["$status", status] });
@@ -58,7 +56,7 @@ function orderCounts(start: Date | null, end: Date | null) {
         _id: "$items.productId",
         name: { $first: "$items.name" },
         orders: when(IS_MAIN_LINE, 1),
-        confirmed: when(onMain({ $in: ["$status", CONFIRMED] }), 1),
+        confirmed: when(onMain({ $in: ["$status", CONFIRMED_STATUSES] }), 1),
         delivered: when(onMain(isStatus("delivered")), 1),
         returned: when(onMain(isStatus("returned")), 1),
         revenue: { $sum: { $cond: [isStatus("delivered"), lineShare("$total"), { $cond: [IS_MAIN_LINE, keptAdvance, 0] }] } },
@@ -69,20 +67,19 @@ function orderCounts(start: Date | null, end: Date | null) {
   ]);
 }
 
-function adSpendTotals(start: Date | null, end: Date | null) {
-  const day = rangeFilter(start, end);
-  return AdSpendModel.aggregate<{ _id: Types.ObjectId; amount: number }>([
-    { $match: day ? { day } : {} },
-    { $group: { _id: "$productId", amount: { $sum: "$amountBdt" } } },
-  ]);
+// Imported Meta spend on ads with no known product: a row of its own, so the total stays right.
+function unassignedRow(amount: number, costs: ProductCosts, maxCpa: number, codPercent: number): ProfitRow[] {
+  if (amount === 0) return [];
+  const row = profitRow({ productId: UNASSIGNED_SPEND_ID, name: "Meta ads with no product" }, NO_ORDERS, amount, costs, 0, maxCpa, codPercent);
+  return [{ ...row, aboveMaxCpa: false }];
 }
 
 // Profit per product for orders placed and ad spend days in [start, end); an open side has no limit.
 export async function getProfitReport(start: Date | null, end: Date | null): Promise<ProfitReport> {
   await connectMongoose();
-  const [orderRows, spendRows, parcels, defaults, ads, courier] = await Promise.all([
+  const [orderRows, adSpend, parcels, defaults, ads, courier] = await Promise.all([
     orderCounts(start, end),
-    adSpendTotals(start, end),
+    getAdSpendTotals(start, end),
     parcelGroups(start, end),
     getCostDefaults(),
     getAdSettings(),
@@ -90,7 +87,7 @@ export async function getProfitReport(start: Date | null, end: Date | null): Pro
   ]);
 
   const counts = new Map(orderRows.map(({ _id, ...row }) => [String(_id), row]));
-  const spend = new Map(spendRows.map((row) => [String(row._id), row.amount]));
+  const spend = adSpend.byProduct;
   const ids = [...new Set([...counts.keys(), ...spend.keys()])];
   const products = await ProductModel.find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } }, { name: 1, costs: 1 }).lean<
     { _id: Types.ObjectId; name: string; costs?: Partial<ProductCosts> }[]
@@ -113,6 +110,7 @@ export async function getProfitReport(start: Date | null, end: Date | null): Pro
         courier.codPercent,
       );
     })
+    .concat(unassignedRow(adSpend.unassigned, costsOf(""), ads.maxCpa, courier.codPercent))
     .sort((a, b) => b.adSpend - a.adSpend || b.orders - a.orders);
 
   return { rows, total: totalOf(rows), maxCpa: ads.maxCpa };

@@ -31,6 +31,9 @@ export interface ProfitRow extends ProfitNumbers {
   aboveMaxCpa: boolean;
 }
 
+// Row id for imported Meta spend whose ad has no known product.
+export const UNASSIGNED_SPEND_ID = "meta-unassigned";
+
 export const NO_ORDERS: OrderCounts = { orders: 0, confirmed: 0, delivered: 0, returned: 0, revenue: 0, deliveredQuantity: 0, codCollected: 0 };
 
 export const formatRoas = (roas: number | null) => (roas === null ? "-" : `${roas.toFixed(2)}x`);

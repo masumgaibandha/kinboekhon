@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import toast from "react-hot-toast";
 
-// Meta fills these {{...}} macros with the campaign, ad set and ad names when the ad is shown.
-const UTM_TEMPLATE =
-  "utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}";
+import { AD_URL_PARAMS } from "@/lib/meta-ads/url-params";
+
 
 const subscribe = () => () => {};
 
@@ -22,7 +21,7 @@ export function LandingLinkCard({ slug, live, editHref }: LandingLinkCardProps) 
   // The admin runs on the shop's own domain, so its origin is the link's origin.
   const origin = useSyncExternalStore(subscribe, () => window.location.origin, () => "");
   const plain = `${origin}/l/${slug}`;
-  const adLink = `${plain}?${UTM_TEMPLATE}`;
+  const adLink = `${plain}?${AD_URL_PARAMS}`;
 
   async function copy() {
     try {

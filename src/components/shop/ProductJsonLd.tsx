@@ -4,10 +4,12 @@ import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 interface ProductJsonLdProps {
   product: LandingProduct;
+  // True only when orders are blocked: 0 stock while Settings hides the order button at 0 stock.
+  soldOut: boolean;
 }
 
 // Product rich result data for search engines: name, image, price in BDT and stock.
-export function ProductJsonLd({ product }: ProductJsonLdProps) {
+export function ProductJsonLd({ product, soldOut }: ProductJsonLdProps) {
   const url = `${SITE_URL}/p/${product.slug}`;
   const data = {
     "@context": "https://schema.org",
@@ -22,7 +24,7 @@ export function ProductJsonLd({ product }: ProductJsonLdProps) {
       url,
       price: product.price,
       priceCurrency: "BDT",
-      availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      availability: soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
     },
   };

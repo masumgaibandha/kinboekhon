@@ -50,7 +50,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
 
   return (
     <div className="mx-auto w-full max-w-xl lg:max-w-shop lg:px-4 lg:pt-6">
-      <ProductJsonLd product={product} />
+      <ProductJsonLd product={product} soldOut={soldOut} />
       <HookSection product={product} soldOut={soldOut} />
       <ProblemSection problem={product.problem} />
       <StorySection story={product.story} />

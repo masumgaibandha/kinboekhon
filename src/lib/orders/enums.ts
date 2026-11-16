@@ -1,6 +1,9 @@
 export const ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "returned", "cancelled"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+// Orders that passed the confirmation call, whatever happened to them after it.
+export const CONFIRMED_STATUSES: OrderStatus[] = ["confirmed", "shipped", "delivered", "returned"];
+
 export const PAYMENT_OPTIONS = ["cod", "advance_delivery", "advance_full"] as const;
 export type PaymentOption = (typeof PAYMENT_OPTIONS)[number];
 

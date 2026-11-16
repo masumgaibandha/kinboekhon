@@ -97,6 +97,8 @@ kinboekhon/
    │  │     ├─ ad-spend/[id]/page.tsx          edit one entry
    │  │     ├─ ad-spend/actions.ts             createAdSpend, updateAdSpend, deleteAdSpend
    │  │     ├─ profit/page.tsx                 profit and ad spend report (P2d)
+   │  │     ├─ ads/page.tsx                    Meta Ads report: sync status, Sync now, ad URL parameters, campaigns, ad sets, ads (decision 111)
+   │  │     ├─ ads/actions.ts                  syncMetaAdsAction, saveCampaignProductAction
    │  │     ├─ sms/page.tsx                    SMS log: provider balance, test SMS, this month's count and estimated cost, newest 100 SMS (P2g)
    │  │     ├─ sms/actions.ts                  sendTestSmsAction (decision 107)
    │  │     ├─ settings/page.tsx
@@ -110,6 +112,7 @@ kinboekhon/
    │     ├─ track/route.ts                POST CAPI for InitiateCheckout
    │     ├─ callback/route.ts             POST help popup callback request (decision 105)
    │     ├─ pathao/webhook/route.ts       POST Pathao status updates (P2b)
+   │     ├─ cron/meta-ads/route.ts        GET daily Meta Ads import from Vercel Cron (decision 111)
    │     └─ admin/
    │        ├─ upload-signature/route.ts  POST Cloudinary signature
    │        └─ orders-export/route.ts     GET CSV
@@ -172,6 +175,8 @@ kinboekhon/
       │                          location-match (guess and remember), parcel, send-order, apply-update, refresh-status, status-map
       ├─ sms/                    P2g: templates (texts, placeholders, labels), parts (characters and SMS parts), sms-settings, deliver (safety rules + log),
       │                          order-sms (automatic SMS, queued with after()), manual-sms, test-sms, sms-log (admin reads), sms-balance, providers/ (one file per provider: bulksmsbd)
+      ├─ meta-ads/               decision 111: connection (env check), graph-insights (GET-only insights client), sync-insights, ad-products (ad to product),
+      │                          imported-spend (by product and day), ads-math, ads-report, campaign-products, last-sync, url-params
       └─ meta/
          ├─ capi.ts              send one event to Conversions API
          └─ user-data.ts         hash + build user_data
@@ -312,6 +317,7 @@ Indexes:
 - `{ "lastCall.outcome": 1, createdAt: -1 }` for the latest call filter
 - `payment.transactionIdNormalized` unique, partial (only when it is a string), so one TxID cannot be used twice
 - `courier.consignmentId` unique, partial, for Pathao status updates
+- `{ "tracking.utmContent": 1, createdAt: -1 }`, partial (string only), for the Meta Ads report (decision 111)
 
 ### IncompleteOrder
 | Field | Type | Notes |
@@ -376,6 +382,22 @@ Indexes: `phone` unique, `{ lastOrderAt: -1 }`, `{ tags: 1, lastOrderAt: -1 }`, 
 | amountBdt | whole taka = round(amountUsd x usdRate), worked out on the server in whole cents so it matches a hand calculation |
 
 Indexes: `{ day: 1, productId: 1 }` unique (one entry per product per day: a second one is refused with "edit it instead"), `{ day: -1 }`.
+
+### AdInsight (decision 111)
+One Meta ad on one day, imported read only from the Marketing API.
+| Field | Notes |
+|---|---|
+| day | 00:00 Dhaka time of the ad account's day (set the ad account time zone to Asia/Dhaka) |
+| adId, adName, adsetId, adsetName, campaignId, campaignName | ids and names from Meta, names up to 200 characters |
+| currency | the ad account currency; only USD and BDT are accepted |
+| spend | in the account currency, up to 2 decimals |
+| usdRate | Settings `ads.usdRate` at import time for a USD account, null for BDT |
+| spendBdt | whole taka: `usdToBdt(spend, usdRate)` for USD, rounded spend for BDT |
+| impressions, linkClicks, purchases | `inline_link_clicks`; purchases from the first of `omni_purchase`, `purchase`, `offsite_conversion.fb_pixel_purchase` (never summed) |
+
+Indexes: `{ adId: 1, day: 1 }` unique (one row per ad per day, upserted), `{ day: -1 }`.
+
+AdCampaignProduct: `{ campaignId (unique), productId }`, the admin's product for a campaign. MetaAdsSync (`metaadssync`, single document `key: "main"`): `{ at, trigger: cron|manual, ok, rows, error }` of the last import.
 
 ### DeliveryCheck (P2c)
 | Field | Notes |
@@ -529,10 +551,11 @@ Order form fields:
 | `/admin/ad-spend` | Ad spend entries (P2d) for a period (default this month), newest day first, each with Edit and Delete; an add form (date, product, USD amount, rate, live taka amount) |
 | `/admin/ad-spend/[id]` | Edit one ad spend entry, with Delete |
 | `/admin/profit` | Profit and ad spend report (P2d) with a period switch and a custom date range |
+| `/admin/ads` | Meta Ads (decision 111): "Meta Ads not connected" until both env vars are set, else the account, last sync and Sync now; the "Copy ad URL parameters" box; period switch (default this week); Campaigns (with a Product select per campaign), Ad sets and Ads tables |
 | `/admin/categories`, `/admin/categories/new`, `/admin/categories/[id]` | Category list (image, name, slug, product count, order, View, Edit) and form: name, slug, sort order, image upload (decision 97) |
 | `/admin/banners`, `/admin/banners/new`, `/admin/banners/[id]` | Banner list (mobile thumbnail, title, link, order, On/Off) and form: title, link, sort order, On, mobile and desktop image uploads |
 | `/admin/home` | Trust bar texts, why us (title, text, founder name, founder photo), FAQ rows (add, remove) |
-| `/admin/products/[id]/landing` | Ad landing page editor for the product (decision 98): On, every section, image uploads. The product page and this page show an "Ad landing page" card: live or not, View, "Copy landing link" (the link with `utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}`, Meta's URL macros) and, on the product page, "Edit landing page" |
+| `/admin/products/[id]/landing` | Ad landing page editor for the product (decision 98): On, every section, image uploads. The product page and this page show an "Ad landing page" card: live or not, View, "Copy landing link" (the link with the ad URL parameters of decision 111, `utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}`, Meta's URL macros) and, on the product page, "Edit landing page" |
 | `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, courier cost (decision 93), price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c), business info and trust icon texts (decision 103), SMS templates and price per part (P2g, its own form and Save button), Launch mode and the Danger zone (decision 104) |
 | `/admin/sms` | SMS log (P2g): "SMS not connected" notice until the keys are set (and always in dev); the live BulkSMSBD balance and a one-time "Send test SMS to my number" form when connected (decision 107); this Dhaka month's SMS sent, parts sent, estimated cost (parts x price per part, whole taka), failed and skipped, and how many were only logged; table of the newest 100: time, phone with order link, template with the text, parts, status, provider reply |
 | `/admin/account` | My account (decision 109): login email (current email shown, new email + current password) and password (current, new, new again); success toast; other sessions are signed out |
@@ -679,7 +702,7 @@ The customer pays a delivery charge by area (decision 92): Dhaka City (`delivery
 - Period: Today, This week, This month (same starts as the dashboard, decision 80) or Custom (`from` and `to` days, both included; an empty side is open). In the URL as `?period=today|week|month|custom&from=&to=`; a missing or bad period shows today, a bad day is dropped. `/admin/ad-spend` uses the same switch with this month as its default.
 - Orders count by placement time in the period (like the dashboard). Ad spend counts by its `day` in the period.
 - One row per product with orders or ad spend in the period (name from the product, else the newest order snapshot), most ad spend first, then a Total row:
-  - Ad spend = sum of `amountBdt`.
+  - Ad spend = imported Meta spend (decision 111) plus manual entries. Each ad's daily `spendBdt` goes to the product most of its orders (utm_content = ad id, all time) were placed from, else its campaign's Product on `/admin/ads`, else to a "Meta ads with no product" row. A manual entry for a product and day that has imported spend is not counted (the ad spend list marks it "Not counted: Meta import covers this day").
   - Orders = all orders placed. Confirmed = orders now `confirmed`, `shipped`, `delivered` or `returned`. Delivered = orders now `delivered`.
   - Cost per order = ad spend / orders; cost per confirmed = ad spend / confirmed (whole taka, "-" with nothing to divide by).
   - Revenue = sum of `total` of delivered orders (delivery charge included), plus on returned orders the approved advance up to the delivery charge (`min(advanceAmount, deliveryCharge)` when `payment.status` is `verified`): a refused parcel's advance delivery charge is not refunded (terms page, decision 94).
@@ -788,6 +811,9 @@ CLOUDINARY_UPLOAD_FOLDER=kinboekhon
 NEXT_PUBLIC_META_PIXEL_ID=
 META_CAPI_ACCESS_TOKEN=
 META_TEST_EVENT_CODE=
+META_ADS_ACCOUNT_ID=   # act_..., Meta Ads insights import (read only)
+META_ADS_TOKEN=        # system user token with ads_read only
+CRON_SECRET=           # Vercel Cron Bearer token for /api/cron/meta-ads
 STEADFAST_API_KEY=     # Steadfast merchant API key; empty shows "Not connected"
 STEADFAST_SECRET_KEY=
 PATHAO_BASE_URL=       # sandbox https://courier-api-sandbox.pathao.com, live https://api-hermes.pathao.com
@@ -865,6 +891,8 @@ P2b is done (November 2026) with Pathao (decision 94):
 P2e is done (November 2026, decision 95): product stock and low-stock level, logged stock moves, stock taken when an order is shipped and put back on a return unless Damaged, the orders list Out of stock badge and shortfall warning, the Settings toggle that hides the order button at 0 stock, the dashboard Low stock card and the product page Stock card.
 
 P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page and the orders list (bulk, one per page) and the orders CSV export.
+
+Meta Ads insights import is done (November 2026, decision 111): `/admin/ads`, the daily cron and Sync now, the ad URL parameters box, imported spend in the profit report. Tested with mocked Meta API replies on the dev database.
 
 P2g is done (November 2026, decision 106): order SMS with templates in Settings, the SMS log at `/admin/sms`, the order page SMS card with a manual send, and the safety rules. The provider is BulkSMSBD (decision 107); dev and tests stay "Not connected".
 
@@ -1001,3 +1029,4 @@ Cart, customer accounts, product variants, email notifications, online payment g
 108. One shared MongoDB connection (November 2026): `src/lib/db.ts` keeps one long-lived MongoClient per server process on `globalThis` (also in production), used by Mongoose and Better Auth in every bundle. Runtime code never closes it; only CLI scripts close it when they finish. A failed connect leaves the driver on a closed topology that never reopens by itself (every later query fails with "Topology is closed"), so `connectMongoose()` calls `client.connect()` each time, which reopens it and returns at once while connected. Better Auth is reached only through `getAuth()` in `src/lib/auth.ts`, which runs that guard first.
 109. Admin My account (November 2026): `/admin/account` changes the login email or the password, each needing the current password. Password at least 12 characters, typed twice. No email verification step (one admin): the email is written through Better Auth's internal adapter after a duplicate check; the password through `auth.api.changePassword`. After either change, other sessions are signed out and this browser stays signed in. The header shows the login email.
 110. SEO and share previews (November 2026): every customer page has a Bangla title and description. Product (`/p/`) and landing (`/l/`) pages: title "<product name> - ৳<price> | কিনবো এখন", description from the short description (else the hook subheadline), cut at 160 characters. Canonical URLs and `og:url` always use https://www.kinboekhon.com (`SITE_URL` in `src/lib/site.ts`, also the `metadataBase`). Open Graph and Twitter (`summary_large_image`) tags on all pages; product and landing pages share the main image as a Cloudinary 1200x630 `c_fill,g_auto,f_jpg,q_auto` URL, all other pages the Settings share image (same crop) or, without one, `public/brand/share-default.jpg`. `sitemap.xml` lists home, categories, active products and the policy pages (no admin, no `/l/`, no search, track or thank-you); `robots.txt` allows all and blocks `/admin`, `/api` and `/track`. `/p/[slug]` has Product JSON-LD: name, description, up to 3 images, url, price in BDT, availability InStock when stock is above 0, else OutOfStock. Search, thank-you and landing pages stay noindex.
+111. Meta Ads insights import (November 2026), read only: `META_ADS_ACCOUNT_ID` (act_...) and `META_ADS_TOKEN` (system user token, ads_read only); "Meta Ads not connected" until both are set. Only GET requests to the Graph API insights edge (level ad, one row per day, unified attribution), the token in the Authorization header and paging links kept on graph.facebook.com. A Vercel cron (`vercel.json`, `0 20 * * *` = 02:00 Dhaka) calls `/api/cron/meta-ads` with `CRON_SECRET`; Sync now on `/admin/ads` does the same. Each sync fetches today and the 7 days before it again and upserts one row per ad per day, so late Meta updates are caught; a USD account is converted with the Settings dollar rate at sync time and both amounts are stored. Ad URL parameters `utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}` (also used by Copy landing link); orders are matched to ads by utm_content = ad id. `/admin/ads` per campaign, ad set and ad: spend, Meta purchases, our orders, confirmed, delivered, returned, cost per confirmed, cost per delivered, real ROAS (delivered order totals / spend); "Consider pausing" when spend is at least 2 x max CPA with 0 confirmed. Product JSON-LD availability is InStock unless orders are blocked (0 stock and the hide-order setting on).

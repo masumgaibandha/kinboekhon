@@ -145,6 +145,11 @@ orderSchema.index({ "tracking.ipHash": 1, createdAt: -1 });
 orderSchema.index({ "payment.status": 1, createdAt: 1 });
 // Orders by their latest call outcome, for the orders list filter.
 orderSchema.index({ "lastCall.outcome": 1, createdAt: -1 });
+// Orders of a Meta ad (utm_content = ad id), for the Ads report.
+orderSchema.index(
+  { "tracking.utmContent": 1, createdAt: -1 },
+  { partialFilterExpression: { "tracking.utmContent": { $type: "string" } } },
+);
 // Pathao status updates find the order by its consignment.
 orderSchema.index(
   { "courier.consignmentId": 1 },

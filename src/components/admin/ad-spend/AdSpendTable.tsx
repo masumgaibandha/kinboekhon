@@ -32,7 +32,12 @@ export function AdSpendTable({ entries }: { entries: AdSpendEntry[] }) {
           {entries.map((entry) => (
             <tr key={entry.id} className="border-b border-line">
               <td className="whitespace-nowrap px-3 py-2">{formatDhakaDay(entry.day)}</td>
-              <td className="min-w-40 px-3 py-2 text-heading">{entry.productName}</td>
+              <td className="min-w-40 px-3 py-2 text-heading">
+                {entry.productName}
+                {entry.replaced && (
+                  <span className="block text-xs font-semibold text-brand-dark">Not counted: Meta import covers this day</span>
+                )}
+              </td>
               <td className="whitespace-nowrap px-3 py-2 text-right">${entry.amountUsd.toFixed(2)}</td>
               <td className="whitespace-nowrap px-3 py-2 text-right">{entry.usdRate}</td>
               <td className="whitespace-nowrap px-3 py-2 text-right font-semibold">

@@ -1,8 +1,9 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SignedMoney } from "@/components/admin/profit/SignedMoney";
 import { Money } from "@/components/ui/Money";
-import { formatRoas, type ProfitNumbers, type ProfitRow } from "@/lib/profit/profit-math";
+import { UNASSIGNED_SPEND_ID, formatRoas, type ProfitNumbers, type ProfitRow } from "@/lib/profit/profit-math";
 
 const COLUMNS = [
   "Ad spend",
@@ -77,6 +78,11 @@ export function ProfitTable({ rows, total }: { rows: ProfitRow[]; total: ProfitN
               <td className="min-w-40 px-3 py-2">
                 <span className="block font-medium text-heading">{row.name}</span>
                 {row.aboveMaxCpa && <span className="text-xs font-semibold text-brand-dark">Above max CPA</span>}
+                {row.productId === UNASSIGNED_SPEND_ID && (
+                  <Link href="/admin/ads" className="text-xs font-medium text-brand-dark hover:underline">
+                    Choose a product for the campaign
+                  </Link>
+                )}
               </td>
               <NumberCells numbers={row} highlightCpa={row.aboveMaxCpa} />
             </tr>

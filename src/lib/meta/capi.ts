@@ -1,6 +1,6 @@
 import type { CapiUserData } from "@/lib/meta/user-data";
 
-const GRAPH_URL = "https://graph.facebook.com/v24.0";
+export const GRAPH_URL = "https://graph.facebook.com/v24.0";
 const TIMEOUT_MS = 8000;
 
 export interface CapiCustomData {
