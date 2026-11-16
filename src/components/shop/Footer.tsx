@@ -13,7 +13,7 @@ const FOOTER_LINKS = [
 ];
 
 export async function Footer() {
-  const { supportPhone, whatsappNumber } = await getSettings();
+  const { supportPhone, whatsappNumber, tradeLicense, businessAddress } = await getSettings();
 
   return (
     <footer className="mt-8 bg-footer text-white">
@@ -49,6 +49,12 @@ export async function Footer() {
               </li>
             )}
           </ul>
+        )}
+        {(tradeLicense || businessAddress) && (
+          <div className="mt-5 space-y-1 text-sm text-white/80">
+            {tradeLicense && <p>ট্রেড লাইসেন্স নং: {tradeLicense}</p>}
+            {businessAddress && <p>ঠিকানা: {businessAddress}</p>}
+          </div>
         )}
         <nav aria-label="দরকারি লিংক" className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
           {FOOTER_LINKS.map((link) => (

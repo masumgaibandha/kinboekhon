@@ -55,6 +55,8 @@ const bankSchema = z
 
 const MOBILE_MESSAGE = "Enter a valid 11 digit mobile number.";
 
+const trustBadge = z.string().trim().min(2, "Use 2 to 40 characters.").max(40, "Use 2 to 40 characters.");
+
 export const settingsSchema = z.object({
   deliveryChargeDhakaCity: amount,
   deliveryChargeOutside: amount,
@@ -66,6 +68,10 @@ export const settingsSchema = z.object({
   bank: bankSchema,
   supportPhone: phone(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
   whatsappNumber: phone(BD_MOBILE_PATTERN, MOBILE_MESSAGE),
+  tradeLicense: z.string().trim().max(50, "Use at most 50 characters."),
+  businessAddress: z.string().trim().max(200, "Use at most 200 characters."),
+  // The three trust icon texts under the order button on product and landing pages.
+  trustBadges: z.tuple([trustBadge, trustBadge, trustBadge]),
   duplicateWindowHours: z
     .string()
     .trim()

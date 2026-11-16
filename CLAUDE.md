@@ -91,7 +91,7 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 - The production URI is kept in `.env.local` only as `MONGODB_URI_PROD`, read only by `npm run dev:clone`. The app never uses it.
 - `npm run dev:clone` copies settings and products from production to dev. It only reads production, never writes to it.
 - All tests (browser tests, test orders, scripts) use the dev database only. Log in with the dev admin (`DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD`, created by `npm run seed:dev-admin`). The dev admin must never exist in production.
-- Never delete orders or reset the order counter on production.
+- Never delete orders or reset the order counter on production. The Settings "Delete all test data" button is for the owner only; agents test it on the dev database only.
 - The admin header shows a red "DEV DATABASE" badge whenever the app is not on the production database.
 
 ## Admin auth (Better Auth)

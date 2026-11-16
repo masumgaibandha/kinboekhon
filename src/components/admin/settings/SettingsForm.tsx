@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
 import { CostFields } from "@/components/admin/costs/CostFields";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
+import { BusinessFields } from "@/components/admin/settings/BusinessFields";
 import { CourierFields } from "@/components/admin/settings/CourierFields";
 import { FraudFields } from "@/components/admin/settings/FraudFields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
@@ -106,10 +107,7 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
         <TextField name="bank.routingNumber" label="Routing number" defaultValue={settings.bank.routingNumber} error={errors["bank.routingNumber"]} numeric />
       </Section>
 
-      <Section title="Contact" description="Shown to customers on the site.">
-        <TextField name="supportPhone" label="Support phone" defaultValue={settings.supportPhone} error={errors.supportPhone} numeric placeholder="01XXXXXXXXX" />
-        <TextField name="whatsappNumber" label="WhatsApp number" defaultValue={settings.whatsappNumber} error={errors.whatsappNumber} numeric placeholder="01XXXXXXXXX" />
-      </Section>
+      <BusinessFields settings={settings} errors={errors} />
 
       <Section title="Order protection">
         {amount("duplicateWindowHours", "Duplicate order window (hours)", "Same phone and product inside this window is blocked. 1 to 168.")}

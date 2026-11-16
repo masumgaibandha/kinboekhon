@@ -50,6 +50,9 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   supportPhone: "",
   whatsappNumber: "",
+  tradeLicense: "",
+  businessAddress: "",
+  trustBadges: ["ক্যাশ অন ডেলিভারি", "সারা দেশে হোম ডেলিভারি", "পণ্য দেখে টাকা দিন"],
   duplicateWindowHours: 24,
   hideOrderWhenOutOfStock: false,
 };
@@ -81,7 +84,7 @@ export async function getSettings(): Promise<Settings> {
   await connectMongoose();
   const saved = await SettingsModel.findOne(
     { key: SETTINGS_KEY },
-    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0, courier: 0 },
+    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0, courier: 0, launchMode: 0 },
   ).lean<Partial<Settings>>();
 
   const settings = { ...DEFAULT_SETTINGS, ...saved };
@@ -99,7 +102,7 @@ export interface AdminSettings {
 // Uncached read for the admin form. `version` changes on every save.
 export async function getSettingsForAdmin(): Promise<AdminSettings> {
   await connectMongoose();
-  const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0 }).lean<
+  const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0, launchMode: 0 }).lean<
     Partial<Settings> & {
       costDefaults?: Partial<CostDefaults>;
       ads?: Partial<AdSettings>;
@@ -153,6 +156,12 @@ export async function getDeliveryContext(): Promise<DeliveryContext> {
     advanceDiscount: settings.advanceDeliveryDiscount,
     courier,
   };
+}
+
+// Uncached read: true once the admin has turned on launch mode.
+export async function isLaunchMode(): Promise<boolean> {
+  await connectMongoose();
+  return (await SettingsModel.exists({ key: SETTINGS_KEY, launchMode: true })) !== null;
 }
 
 // Uncached admin read: the dollar rate for new ad spend entries and the max CPA for the profit report.

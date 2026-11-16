@@ -5,7 +5,7 @@ import { appDb } from "@/lib/db";
 import { costsSchema } from "@/lib/models/costs-schema";
 import type { AdminSettingsValues } from "@/lib/validation/settings";
 
-type SettingsDocument = AdminSettingsValues & { key: string };
+type SettingsDocument = AdminSettingsValues & { key: string; launchMode?: boolean };
 
 const walletSchema = new Schema(
   {
@@ -62,6 +62,11 @@ const settingsSchema = new Schema<SettingsDocument>(
     bank: bankSchema,
     supportPhone: String,
     whatsappNumber: String,
+    tradeLicense: String,
+    businessAddress: String,
+    trustBadges: { type: [String], default: undefined },
+    // Once true, the test data reset is refused for good. Nothing in the app sets it back to false.
+    launchMode: Boolean,
     duplicateWindowHours: { type: Number, min: 1 },
     hideOrderWhenOutOfStock: Boolean,
     courier: courierSchema,
