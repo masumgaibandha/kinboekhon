@@ -27,9 +27,11 @@ export function SmsLogTable({ rows }: { rows: SmsLogRow[] }) {
               <td className="whitespace-nowrap px-4 py-3 text-desc">{formatDhakaDateTime(row.createdAt)}</td>
               <td className="px-4 py-3">
                 <span className="font-medium text-body">{row.phone}</span>
-                <Link href={`/admin/orders/${row.orderNumber}`} className="block text-xs font-semibold text-brand hover:underline">
-                  {row.orderNumber}
-                </Link>
+                {row.template !== "test" && (
+                  <Link href={`/admin/orders/${row.orderNumber}`} className="block text-xs font-semibold text-brand hover:underline">
+                    {row.orderNumber}
+                  </Link>
+                )}
               </td>
               <td className="px-4 py-3">
                 <span className="font-medium text-body">{SMS_TEMPLATE_LABELS[row.template]}</span>

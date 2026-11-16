@@ -1,6 +1,6 @@
 export const AUTO_TEMPLATES = ["received", "confirmed", "shipped", "delivered"] as const;
 export type AutoTemplate = (typeof AUTO_TEMPLATES)[number];
-export const SMS_TEMPLATE_KINDS = [...AUTO_TEMPLATES, "manual"] as const;
+export const SMS_TEMPLATE_KINDS = [...AUTO_TEMPLATES, "manual", "test"] as const;
 export type SmsTemplateKind = (typeof SMS_TEMPLATE_KINDS)[number];
 
 export const SMS_TEMPLATE_LABELS: Record<SmsTemplateKind, string> = {
@@ -9,6 +9,7 @@ export const SMS_TEMPLATE_LABELS: Record<SmsTemplateKind, string> = {
   shipped: "Shipped",
   delivered: "Delivered",
   manual: "Manual",
+  test: "Test SMS",
 };
 
 export const SMS_TEMPLATE_HINTS: Record<AutoTemplate, string> = {
@@ -21,12 +22,15 @@ export const SMS_TEMPLATE_HINTS: Record<AutoTemplate, string> = {
 export const SMS_PLACEHOLDERS = ["name", "order", "amount", "track"] as const;
 export type SmsValues = Record<(typeof SMS_PLACEHOLDERS)[number], string>;
 
+// Each fits one Bangla SMS part (70 characters) with a typical order number and amount.
 export const DEFAULT_SMS_TEXTS: Record<AutoTemplate, string> = {
-  received: "অর্ডার {order} পেয়েছি, মোট ৳{amount}। ট্র্যাক: {track} -কিনবো এখন",
-  confirmed: "অর্ডার {order} কনফার্ম হয়েছে, শীঘ্রই পাঠানো হবে। -কিনবো এখন",
-  shipped: "অর্ডার {order} কুরিয়ারে দেওয়া হয়েছে। ট্র্যাক: {track} -কিনবো এখন",
-  delivered: "ধন্যবাদ {name}! অর্ডার {order} ডেলিভারি হয়েছে। -কিনবো এখন",
+  received: "কিনবো এখন: অর্ডার {order} পেয়েছি, মোট ৳{amount}। শীঘ্রই কল করবো।",
+  confirmed: "কিনবো এখন: অর্ডার {order} কনফার্ম হয়েছে, শীঘ্রই পাঠানো হবে।",
+  shipped: "কিনবো এখন: অর্ডার {order} কুরিয়ারে পাঠানো হয়েছে, শীঘ্রই পৌঁছাবে।",
+  delivered: "কিনবো এখন: অর্ডার {order} ডেলিভারি হয়েছে। কেনাকাটার জন্য ধন্যবাদ!",
 };
+
+export const TEST_SMS_TEXT = "কিনবো এখন: টেস্ট SMS। SMS চালু আছে।";
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 

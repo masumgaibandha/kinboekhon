@@ -97,7 +97,8 @@ kinboekhon/
    │  │     ├─ ad-spend/[id]/page.tsx          edit one entry
    │  │     ├─ ad-spend/actions.ts             createAdSpend, updateAdSpend, deleteAdSpend
    │  │     ├─ profit/page.tsx                 profit and ad spend report (P2d)
-   │  │     ├─ sms/page.tsx                    SMS log: this month's count and estimated cost, newest 100 SMS (P2g)
+   │  │     ├─ sms/page.tsx                    SMS log: provider balance, test SMS, this month's count and estimated cost, newest 100 SMS (P2g)
+   │  │     ├─ sms/actions.ts                  sendTestSmsAction (decision 107)
    │  │     ├─ settings/page.tsx
    │  │     ├─ settings/sms-actions.ts         saveSmsSettings (P2g)
    │  │     └─ settings/actions.ts
@@ -170,7 +171,7 @@ kinboekhon/
       ├─ pathao/                 P2b: config, token (stored access token), client, places (cached cities, zones, areas), name-match,
       │                          location-match (guess and remember), parcel, send-order, apply-update, refresh-status, status-map
       ├─ sms/                    P2g: templates (texts, placeholders, labels), parts (characters and SMS parts), sms-settings, deliver (safety rules + log),
-      │                          order-sms (automatic SMS, queued with after()), manual-sms, sms-log (admin reads), providers/ (one file per provider)
+      │                          order-sms (automatic SMS, queued with after()), manual-sms, test-sms, sms-log (admin reads), sms-balance, providers/ (one file per provider: bulksmsbd)
       └─ meta/
          ├─ capi.ts              send one event to Conversions API
          └─ user-data.ts         hash + build user_data
@@ -410,11 +411,11 @@ Index: `{ productId, createdAt: -1 }`. Only `createdAt` (no `updatedAt`). A move
 | Field | Notes |
 |---|---|
 | orderNumber, phone | the order and the phone read from it |
-| template | `received` | `confirmed` | `shipped` | `delivered` | `manual` |
+| template | `received` | `confirmed` | `shipped` | `delivered` | `manual` | `test` (the one-time test SMS, orderNumber `TEST`) |
 | text, parts | the SMS as sent and its SMS parts (Unicode: 70 in one part, 67 per part when longer; GSM: 160, then 153) |
 | status | `sending`, `sent`, `failed`, `not_connected` (logged only, no provider set) or `skipped` (Blocked customer or the daily limit) |
 | provider, reply | provider id and its short reply (up to 300 characters) |
-| onceKey | `<orderNumber>:<template>` on automatic SMS only, unique, so each goes out at most once per order |
+| onceKey | `<orderNumber>:<template>` on automatic SMS only, unique, so each goes out at most once per order; `TEST:test` is kept only when the test SMS was sent, so a failed test can be tried again |
 
 Indexes: `onceKey` unique (partial), `{ phone, createdAt: -1 }` (daily limit), `{ orderNumber, createdAt: -1 }`, `{ createdAt: -1 }`. Deleted by the test data reset.
 
@@ -530,7 +531,7 @@ Order form fields:
 | `/admin/home` | Trust bar texts, why us (title, text, founder name, founder photo), FAQ rows (add, remove) |
 | `/admin/products/[id]/landing` | Ad landing page editor for the product (decision 98): On, every section, image uploads. The product page and this page show an "Ad landing page" card: live or not, View, "Copy landing link" (the link with `utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}`, Meta's URL macros) and, on the product page, "Edit landing page" |
 | `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, courier cost (decision 93), price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c), business info and trust icon texts (decision 103), SMS templates and price per part (P2g, its own form and Save button), Launch mode and the Danger zone (decision 104) |
-| `/admin/sms` | SMS log (P2g): "SMS not connected" notice until the keys are set; this Dhaka month's SMS sent, parts sent, estimated cost (parts x price per part, whole taka), failed and skipped, and how many were only logged; table of the newest 100: time, phone with order link, template with the text, parts, status, provider reply |
+| `/admin/sms` | SMS log (P2g): "SMS not connected" notice until the keys are set (and always in dev); the live BulkSMSBD balance and a one-time "Send test SMS to my number" form when connected (decision 107); this Dhaka month's SMS sent, parts sent, estimated cost (parts x price per part, whole taka), failed and skipped, and how many were only logged; table of the newest 100: time, phone with order link, template with the text, parts, status, provider reply |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight with packaging (grams), air shipping (taka per kg), agent fee, packaging, return rate %, ad cost per order, target profit. Money inputs are whole taka; the return rate allows one decimal (0 to 90); China price and weight may be empty (0). Delivery charges, the advance discount, courier cost, return fee and COD % come from Settings (decision 93). Results update live as the admin types, including the Price field:
 - Landed cost = China price + weight / 1000 x shipping per kg + agent fee.
@@ -574,7 +575,7 @@ Server Actions (each calls `requireAdmin()` first):
 - Pathao (P2b): `sendToPathao`, `bulkSendToPathao`, `refreshPathao`, `clearPathaoSend`, `savePathaoLocation`
 - stock (P2e): `addPurchase`, `addAdjustment`, `updateLowStockLevel`
 - settings: `saveSettings`, `resetTestData`, `turnOnLaunchMode` (decision 104), `saveSmsSettings` (P2g)
-- SMS (P2g): `sendOrderSmsAction` (manual SMS from the order page)
+- SMS (P2g): `sendOrderSmsAction` (manual SMS from the order page), `sendTestSmsAction` (decision 107)
 
 ### Create order flow (`POST /api/orders`)
 1. Check origin, content type, body size.
@@ -859,7 +860,7 @@ P2e is done (November 2026, decision 95): product stock and low-stock level, log
 
 P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page and the orders list (bulk, one per page) and the orders CSV export.
 
-P2g is done (November 2026, decision 106): order SMS with templates in Settings, the SMS log at `/admin/sms`, the order page SMS card with a manual send, and the safety rules. No provider is chosen yet, so every SMS is logged as "Not connected".
+P2g is done (November 2026, decision 106): order SMS with templates in Settings, the SMS log at `/admin/sms`, the order page SMS card with a manual send, and the safety rules. The provider is BulkSMSBD (decision 107); dev and tests stay "Not connected".
 
 H2 **Ad landing pages** is done (November 2026, decision 98): `/l/[slug]` per product with On/Off, optional sections edited at `/admin/products/[id]/landing`, Copy landing link with the UTM template, five UTM values saved on orders. Browser test at 390px: every section, sticky bar scrolls to the form and hides, video plays on tap, a COD order with UTMs fired ViewContent, InitiateCheckout and Purchase with their event ids and the order page shows the UTMs, Off gives the not-found page. `npm run demo:seed` also makes `/l/toddler-montessori-busy-book-and-travel-bag` (its photos as the gallery, in `landing/demo`); `demo:clear` deletes landing pages marked `isDemo`.
 
@@ -990,3 +991,4 @@ Cart, customer accounts, product variants, email notifications, online payment g
 104. Pre-launch reset (November 2026): Settings has a "Danger zone" with counts of orders, customers, call logs (call entries in order histories), fraud checks, ad spend entries, stock moves, payments (orders with an advance payment), incomplete orders and products with stock. "Delete all test data" deletes orders, incomplete orders, customers, delivery checks, ad spend and stock moves, sets every product's stock to 0 (without a stock move) and removes the order counter, so the next order is KE10001. Products, categories, banners, landing pages, home content, settings and the admin login are kept. It needs "RESET KINBOEKHON" typed and the admin password (Better Auth `verifyPassword`, 5 tries per 10 minutes), and writes a ResetLog entry. "Launch mode" is one way: once on, the danger zone is hidden and the server refuses any reset; it cannot be turned off from the admin.
 105. Exit-intent help popup (November 2026), no discount: on product (`/p/`) and landing (`/l/`) pages, desktop only (`(min-width: 1024px) and (hover: hover) and (pointer: fine)`, never on phones or tablets), when the mouse leaves through the top of the window after at least 10 seconds on the page. Once per visitor per 24 hours (`ke_help_popup_at` in localStorage) and never after this browser submitted the order form (`ke_order_submitted`, set when the confirm button sends). A modal `<dialog>`: title and text from Settings `helpPopup`, phone field (focused), "কল করুন" button, "WhatsApp এ মেসেজ করুন" link from the Settings WhatsApp number (hidden when empty), close button and Escape. The dialog and its Turnstile widget mount only when it opens. A sent number goes to `POST /api/callback` and is saved as an IncompleteOrder with `kind: callback` (one per phone and product; asking again moves it to the top and clears "contacted"); placing an order for that phone and product removes it like a draft. Settings has an On/Off toggle and the editable title and text.
 106. Order SMS (P2g, November 2026): Bangla SMS to the customer for order received (with the order tracking link), confirmed (after the call, an approved advance or a status change), shipped (Pathao tracking link, else the order tracking link) and delivered (thank you). Each template is edited in Settings with On/Off and placeholders `{name}`, `{order}`, `{amount}` and `{track}`, with a live character and SMS part count (Bangla is Unicode: 70 per part, 67 when longer). The admin can send a free-text SMS from the order page. Safety: an automatic SMS goes out at most once per template per order, at most 5 SMS per phone per Dhaka day (every try counts), and none for an order marked Blocked customer. SMS are sent after the response (`after()`), so they never slow down or fail an order or an admin save. Providers are pluggable: `SMS_PROVIDER`, `SMS_API_KEY` and `SMS_SENDER_ID`; adding a Bangladesh bulk SMS provider is one file in `src/lib/sms/providers/` listed in `index.ts`. Until then the admin shows "SMS not connected" and each SMS is only written to the SMS log (and the server log). The SMS log shows the month's count and the estimated cost from the price per part in Settings. The test data reset also deletes the SMS log.
+107. SMS provider BulkSMSBD (November 2026): `SMS_PROVIDER=bulksmsbd`, `SMS_API_KEY`, `SMS_SENDER_ID`. Send is a POST to `https://bulksmsbd.net/api/smsapi` (`api_key`, `senderid`, `number` as 8801XXXXXXXXX, `message`, `type=text`); response code 202 is sent, any other code is failed and saved in the SMS log with its meaning (for example `1007: Balance insufficient`, `1032: IP not whitelisted`). The SMS log page shows the balance from `getBalanceApi` on each visit. Real SMS go out only when `NODE_ENV` is production, the app is on the production database and all three variables are set; otherwise every SMS is logged as "Not connected", so dev, local builds and tests never send. On the live site the SMS log page has a "Send test SMS to my number" form that sends one fixed test SMS; it hides once a test SMS was sent (the test data reset brings it back). Default templates start with "কিনবো এখন:" and fit one Bangla SMS part (70 characters) with a typical order number and amount, so they have no link; saved templates are not changed.

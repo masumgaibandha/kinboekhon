@@ -12,9 +12,13 @@ export interface SmsSendResult {
   reply: string;
 }
 
+// Account balance in taka, or the provider's reply when it could not be read.
+export type SmsBalance = { ok: true; balance: number } | { ok: false; reply: string };
+
 // One Bangladesh bulk SMS provider. Add one by adding a file here and listing it in index.ts.
 export interface SmsProvider {
   id: string;
   label: string;
   send(input: SmsSendInput): Promise<SmsSendResult>;
+  balance?(apiKey: string): Promise<SmsBalance>;
 }

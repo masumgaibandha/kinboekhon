@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 
 import { StatCard } from "@/components/admin/dashboard/StatCard";
 import { SmsLogTable } from "@/components/admin/sms/SmsLogTable";
+import { TestSmsForm } from "@/components/admin/sms/TestSmsForm";
 import { Money } from "@/components/ui/Money";
 import { requireAdmin } from "@/lib/admin-session";
 import { smsLink } from "@/lib/sms/providers";
+import { getSmsBalance } from "@/lib/sms/sms-balance";
 import { getSmsLog, getSmsMonth, SMS_LOG_LIMIT } from "@/lib/sms/sms-log";
 import { getSmsSettings } from "@/lib/sms/sms-settings";
+import { testSmsSent } from "@/lib/sms/test-sms";
 
 export const metadata: Metadata = { title: "SMS log" };
 
@@ -14,8 +17,14 @@ export const instant = false;
 
 export default async function SmsLogPage() {
   await requireAdmin();
-  const [rows, month, { sms }] = await Promise.all([getSmsLog(), getSmsMonth(), getSmsSettings()]);
   const link = smsLink();
+  const [rows, month, { sms }, balance, testSent] = await Promise.all([
+    getSmsLog(),
+    getSmsMonth(),
+    getSmsSettings(),
+    getSmsBalance(link),
+    testSmsSent(),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -29,6 +38,14 @@ export default async function SmsLogPage() {
           log. {link.reason}
         </p>
       )}
+      {balance && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard label="SMS balance">
+            {balance.ok ? <Money amount={Math.floor(balance.balance)} bold /> : <span className="text-sm text-brand-dark">{balance.reply}</span>}
+          </StatCard>
+        </div>
+      )}
+      {link.connected && !testSent && <TestSmsForm />}
       <h2 className="text-sm font-semibold text-heading">This month</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="SMS sent">{month.sent}</StatCard>

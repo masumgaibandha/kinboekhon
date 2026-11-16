@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { BD_MOBILE_PATTERN, normalizePhone } from "@/lib/phone";
 import { AUTO_TEMPLATES, type AutoTemplate, unknownPlaceholders } from "@/lib/sms/templates";
 
 export const SMS_MAX_CHARS = 480;
@@ -44,4 +45,11 @@ export const manualSmsSchema = z.object({
     .trim()
     .min(2, "Write the SMS text.")
     .max(SMS_MAX_CHARS, `Use at most ${SMS_MAX_CHARS} characters.`),
+});
+
+export const testSmsSchema = z.object({
+  phone: z
+    .string()
+    .transform(normalizePhone)
+    .refine((phone) => BD_MOBILE_PATTERN.test(phone), "Enter an 11 digit mobile number, like 01712345678."),
 });
