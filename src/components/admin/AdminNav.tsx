@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { logout } from "@/app/admin/(panel)/actions";
+import { getAdminSession } from "@/lib/admin-session";
 import { DB_NAME, isProductionDb } from "@/lib/db";
 
 export function AdminNav() {
@@ -60,7 +62,13 @@ export function AdminNav() {
           <Link href="/admin/settings" className="hover:text-brand">
             Settings
           </Link>
+          <Link href="/admin/account" className="hover:text-brand">
+            My account
+          </Link>
         </nav>
+        <Suspense fallback={null}>
+          <AdminEmail />
+        </Suspense>
         <form action={logout}>
           <button type="submit" className="text-sm font-medium text-desc hover:text-brand">
             Log out
@@ -68,5 +76,15 @@ export function AdminNav() {
         </form>
       </div>
     </header>
+  );
+}
+
+async function AdminEmail() {
+  const session = await getAdminSession();
+  if (!session) return null;
+  return (
+    <Link href="/admin/account" title="My account" className="max-w-56 truncate text-sm text-muted hover:text-brand">
+      {session.user.email}
+    </Link>
   );
 }

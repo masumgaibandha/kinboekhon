@@ -1,11 +1,8 @@
 "use server";
 
-import { APIError } from "better-auth/api";
-import { headers } from "next/headers";
-
 import { adminFail, zodFail, type AdminActionResult } from "@/lib/admin-result";
+import { adminPasswordMatches } from "@/lib/admin-password";
 import { requireAdmin } from "@/lib/admin-session";
-import { getAuth } from "@/lib/auth";
 import { connectMongoose, DB_NAME } from "@/lib/db";
 import { ResetLogModel } from "@/lib/models/ResetLog";
 import { SettingsModel } from "@/lib/models/Settings";
@@ -16,17 +13,6 @@ import { launchModeSchema, resetSchema } from "@/lib/validation/reset";
 
 const RESET_WINDOWS = [{ name: "10m", max: 5, windowMs: 10 * 60 * 1000 }];
 const LAUNCH_MODE_ON = "Launch mode is on. Test data can no longer be reset.";
-
-async function passwordMatches(password: string): Promise<boolean> {
-  try {
-    const auth = await getAuth();
-    await auth.api.verifyPassword({ body: { password }, headers: await headers() });
-    return true;
-  } catch (error) {
-    if (error instanceof APIError) return false;
-    throw error;
-  }
-}
 
 export async function resetTestData(formData: FormData): Promise<AdminActionResult> {
   const session = await requireAdmin();
@@ -42,7 +28,7 @@ export async function resetTestData(formData: FormData): Promise<AdminActionResu
     if (!(await takeRateLimit("reset", session.user.id, RESET_WINDOWS))) {
       return adminFail("Too many tries. Wait 10 minutes and try again.");
     }
-    if (!(await passwordMatches(parsed.data.password))) {
+    if (!(await adminPasswordMatches(parsed.data.password))) {
       return adminFail("Wrong password.", { password: "Wrong password." });
     }
 

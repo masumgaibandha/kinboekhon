@@ -1,4 +1,5 @@
-import { ADMIN_MIN_PASSWORD_LENGTH, getAuth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
+import { ADMIN_MIN_PASSWORD_LENGTH } from "@/lib/auth-rules";
 
 // Creates the only admin of the connected database, or updates its password.
 export async function upsertAdmin(email: string, password: string, passwordVar: string): Promise<void> {

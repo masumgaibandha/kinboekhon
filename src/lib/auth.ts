@@ -2,10 +2,9 @@ import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { nextCookies } from "better-auth/next-js";
 
+import { ADMIN_MAX_PASSWORD_LENGTH, ADMIN_MIN_PASSWORD_LENGTH } from "@/lib/auth-rules";
 import { connectMongoose, mongoClient, mongoDb } from "@/lib/db";
 import { requiredEnv } from "@/lib/env";
-
-export const ADMIN_MIN_PASSWORD_LENGTH = 12;
 
 const auth = betterAuth({
   appName: "Kinbo Ekhon Admin",
@@ -16,6 +15,7 @@ const auth = betterAuth({
     enabled: true,
     disableSignUp: true,
     minPasswordLength: ADMIN_MIN_PASSWORD_LENGTH,
+    maxPasswordLength: ADMIN_MAX_PASSWORD_LENGTH,
   },
   rateLimit: {
     enabled: true,

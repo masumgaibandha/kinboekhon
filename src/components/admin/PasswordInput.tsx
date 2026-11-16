@@ -6,9 +6,11 @@ interface PasswordInputProps {
   id: string;
   name: string;
   className: string;
+  autoComplete?: "current-password" | "new-password";
+  invalid?: boolean;
 }
 
-export function PasswordInput({ id, name, className }: PasswordInputProps) {
+export function PasswordInput({ id, name, className, autoComplete = "current-password", invalid }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
 
   // Hide the password again when Next.js hides this page after navigation.
@@ -21,7 +23,8 @@ export function PasswordInput({ id, name, className }: PasswordInputProps) {
         name={name}
         type={visible ? "text" : "password"}
         required
-        autoComplete="current-password"
+        autoComplete={autoComplete}
+        aria-invalid={invalid ? true : undefined}
         className={`${className} pr-11`}
       />
       <button
