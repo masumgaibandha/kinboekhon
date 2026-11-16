@@ -1,4 +1,4 @@
-import { ADMIN_MIN_PASSWORD_LENGTH, auth } from "@/lib/auth";
+import { ADMIN_MIN_PASSWORD_LENGTH, getAuth } from "@/lib/auth";
 
 // Creates the only admin of the connected database, or updates its password.
 export async function upsertAdmin(email: string, password: string, passwordVar: string): Promise<void> {
@@ -6,6 +6,7 @@ export async function upsertAdmin(email: string, password: string, passwordVar: 
     throw new Error(`${passwordVar} must be at least ${ADMIN_MIN_PASSWORD_LENGTH} characters.`);
   }
 
+  const auth = await getAuth();
   const ctx = await auth.$context;
   const passwordHash = await ctx.password.hash(password);
   const existing = await ctx.internalAdapter.findUserByEmail(email, { includeAccounts: true });

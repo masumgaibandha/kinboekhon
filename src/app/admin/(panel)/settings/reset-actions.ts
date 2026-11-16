@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 
 import { adminFail, zodFail, type AdminActionResult } from "@/lib/admin-result";
 import { requireAdmin } from "@/lib/admin-session";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { connectMongoose, DB_NAME } from "@/lib/db";
 import { ResetLogModel } from "@/lib/models/ResetLog";
 import { SettingsModel } from "@/lib/models/Settings";
@@ -19,6 +19,7 @@ const LAUNCH_MODE_ON = "Launch mode is on. Test data can no longer be reset.";
 
 async function passwordMatches(password: string): Promise<boolean> {
   try {
+    const auth = await getAuth();
     await auth.api.verifyPassword({ body: { password }, headers: await headers() });
     return true;
   } catch (error) {

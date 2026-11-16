@@ -17,31 +17,19 @@ export const isProductionDb = DB_NAME === PRODUCTION_DB_NAME;
 
 type MongoClient = InstanceType<typeof mongoose.mongo.MongoClient>;
 
-const globalCache = globalThis as unknown as {
-  mongoClient?: MongoClient;
-  mongooseReady?: Promise<void>;
-};
+const globalCache = globalThis as unknown as { mongoClient?: MongoClient };
 
-// One client per server instance, shared by Better Auth and Mongoose. Cached on globalThis for dev reloads.
-export const mongoClient = globalCache.mongoClient ?? new mongoose.mongo.MongoClient(MONGODB_URI);
-
-if (process.env.NODE_ENV !== "production") globalCache.mongoClient = mongoClient;
+// One long-lived client per server process, shared by Better Auth and Mongoose in every bundle. Runtime code never closes it.
+export const mongoClient = (globalCache.mongoClient ??= new mongoose.mongo.MongoClient(MONGODB_URI));
 
 export const mongoDb = mongoClient.db(DB_NAME);
 
 // Register every Mongoose model on this connection, not on the default one.
 export const appDb = mongoose.connection.useDb(DB_NAME, { useCache: true });
 
+// A failed connect leaves the client on a closed topology that never reopens by itself.
+// connect() opens a new one in that case and returns at once while connected, so call this before every use.
 export async function connectMongoose(): Promise<void> {
-  if (appDb.readyState === 1) return;
-  globalCache.mongooseReady ??= mongoClient
-    .connect()
-    .then(() => {
-      mongoose.connection.setClient(mongoClient);
-    })
-    .catch((error: unknown) => {
-      globalCache.mongooseReady = undefined;
-      throw error;
-    });
-  await globalCache.mongooseReady;
+  await mongoClient.connect();
+  if (mongoose.connection.getClient() !== mongoClient) mongoose.connection.setClient(mongoClient);
 }

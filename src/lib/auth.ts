@@ -2,12 +2,12 @@ import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { nextCookies } from "better-auth/next-js";
 
-import { mongoClient, mongoDb } from "@/lib/db";
+import { connectMongoose, mongoClient, mongoDb } from "@/lib/db";
 import { requiredEnv } from "@/lib/env";
 
 export const ADMIN_MIN_PASSWORD_LENGTH = 12;
 
-export const auth = betterAuth({
+const auth = betterAuth({
   appName: "Kinbo Ekhon Admin",
   baseURL: requiredEnv("BETTER_AUTH_URL"),
   secret: requiredEnv("BETTER_AUTH_SECRET"),
@@ -26,3 +26,9 @@ export const auth = betterAuth({
   },
   plugins: [nextCookies()],
 });
+
+// Better Auth reads through the shared client, so reopen it first if a failed connect closed it.
+export async function getAuth(): Promise<typeof auth> {
+  await connectMongoose();
+  return auth;
+}
