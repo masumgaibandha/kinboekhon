@@ -473,11 +473,11 @@ Order form fields:
 - ঠিকানা (বাড়ি, রাস্তা, এলাকা) (required, textarea, 3 to 200 characters)
 - পরিমাণ (stepper, 1 to MAX_QUANTITY)
 - বিভাগ, জেলা, উপজেলা / থানা (Dhaka: city corporations first)
-- পেমেন্ট অপশন, three cards in this order, each showing its total (decision 92):
+- পেমেন্ট অপশন, one custom dropdown: closed it shows the chosen option, its badge and total; open it lists the options in this order, each with a one-line note and its total (decision 92):
   - ডেলিভারি চার্জ অগ্রিম (default, marked "সবচেয়ে জনপ্রিয়"): ৳20 ছাড় off the delivery charge, product price on delivery
   - পুরো টাকা অগ্রিম: normal delivery charge, ৳50 ছাড় off the total
   - ক্যাশ অন ডেলিভারি: normal delivery charge, no discount
-- For an advance option: choose বিকাশ / নগদ / রকেট / ব্যাংক (only enabled ones), see our account number with a copy button and the exact amount to send, then fill sender number and Transaction ID.
+- For an advance option only: choose বিকাশ / নগদ / রকেট / ব্যাংক (only enabled ones) from one row of small pills, see one line "এই নম্বরে ৳130 সেন্ড মানি করুন" with our number and one copy button, then fill sender number and Transaction ID. Cash on delivery hides all of these.
 - Live summary: product price x quantity, "ডেলিভারি চার্জ (ঢাকা সিটি)" or "(ঢাকা সিটির বাইরে)", the one discount (brand-dark minus line: "ডেলিভারি চার্জে ছাড়" or "পুরো টাকা অগ্রিমে ছাড়"), total, then in a highlighted box "এখন অগ্রিম পাঠাবেন" and "ডেলিভারির সময় দেবেন" (shown for every option). Before the place is picked it uses the outside charge and a line shows both charges. Updates instantly when quantity, place or payment option changes.
 - Turnstile widget (invisible or managed mode).
 - Button: অর্ডার কনফার্ম করুন.

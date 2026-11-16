@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Money } from "@/components/ui/Money";
 import type { PaymentOption } from "@/lib/orders/enums";
@@ -19,62 +21,109 @@ const TITLES: Record<PaymentOption, string> = {
   cod: "ক্যাশ অন ডেলিভারি",
 };
 
-function detail(option: PaymentOption, amounts: OrderAmounts): ReactNode {
+function note(option: PaymentOption, amounts: OrderAmounts): ReactNode {
   if (option === "cod") return "পণ্য হাতে পেয়ে সব টাকা দিন";
-  if (option === "advance_delivery") {
-    return (
-      <>
-        ডেলিভারি চার্জে <Money amount={amounts.discount} /> ছাড়, পণ্যের দাম ডেলিভারির সময়
-      </>
-    );
-  }
   return (
     <>
-      মোট দামে <Money amount={amounts.discount} /> ছাড়
+      {option === "advance_delivery" ? "ডেলিভারি চার্জে" : "মোট দামে"} <Money amount={amounts.discount} /> ছাড়
     </>
   );
 }
 
+function Title({ option }: { option: PaymentOption }) {
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-body">
+      {TITLES[option]}
+      {option === "advance_delivery" && (
+        <span className="rounded bg-brand px-1.5 py-0.5 text-xs font-semibold text-white">সবচেয়ে জনপ্রিয়</span>
+      )}
+    </span>
+  );
+}
+
+function Total({ amount }: { amount: number }) {
+  return (
+    <span className="shrink-0 text-[15px] font-semibold text-body">
+      <Money amount={amount} />
+    </span>
+  );
+}
+
 export function PaymentOptionPicker({ value, onChange, amounts, offered, labelClass }: PaymentOptionPickerProps) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const id = useId();
   const options = (Object.keys(TITLES) as PaymentOption[]).filter(offered);
 
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  function choose(option: PaymentOption) {
+    onChange(option);
+    setOpen(false);
+  }
+
   return (
-    <fieldset>
-      <legend className={labelClass}>পেমেন্ট</legend>
-      <div className="space-y-2">
-        {options.map((option) => (
-          <label
-            key={option}
-            className={`flex items-start gap-3 rounded-md border p-3 ${
-              value === option ? "border-brand bg-brand-light" : "border-line-strong bg-card"
-            }`}
-          >
-            <input
-              type="radio"
-              name="paymentOption"
-              value={option}
-              checked={value === option}
-              onChange={() => onChange(option)}
-              className="mt-1 accent-brand"
-            />
-            <span className="flex-1">
-              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-body">
-                {TITLES[option]}
-                {option === "advance_delivery" && (
-                  <span className="rounded bg-brand px-1.5 py-0.5 text-xs font-semibold text-white">সবচেয়ে জনপ্রিয়</span>
-                )}
+    <div ref={box} className="relative">
+      <span id={`${id}-label`} className={labelClass}>
+        পেমেন্ট
+      </span>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-labelledby={`${id}-label ${id}-value`}
+        onClick={() => setOpen(!open)}
+        className={`flex w-full items-center gap-3 rounded-md border bg-card p-3 text-left ${
+          open ? "border-brand" : "border-line-strong"
+        }`}
+      >
+        <span id={`${id}-value`} className="flex flex-1 items-center justify-between gap-3">
+          <Title option={value} />
+          <Total amount={amounts[value].total} />
+        </span>
+        <svg viewBox="0 0 20 20" aria-hidden="true" className={`size-5 shrink-0 text-muted ${open ? "rotate-180" : ""}`}>
+          <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-labelledby={`${id}-label`}
+          className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-line-strong bg-card shadow-lg"
+        >
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={value === option}
+              onClick={() => choose(option)}
+              className={`flex w-full items-center gap-3 border-b border-line p-3 text-left last:border-b-0 ${
+                value === option ? "bg-brand-light" : ""
+              }`}
+            >
+              <span className="min-w-0 flex-1">
+                <Title option={option} />
+                <span className="mt-0.5 block truncate text-sm text-desc">{note(option, amounts[option])}</span>
               </span>
-              <span className="mt-0.5 block text-sm text-desc">{detail(option, amounts[option])}</span>
-            </span>
-            <span className="text-right text-sm text-desc">
-              মোট
-              <span className="block text-[15px] font-semibold text-body">
-                <Money amount={amounts[option].total} />
-              </span>
-            </span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+              <Total amount={amounts[option].total} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

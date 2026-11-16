@@ -31,12 +31,12 @@ export function PaymentSection({ option, onOption, method, onMethod, accounts, a
         <>
           <fieldset aria-describedby={errors.paymentMethod ? "order-paymentMethod-error" : undefined}>
             <legend className={labelClass}>কোন মাধ্যমে টাকা পাঠাবেন</legend>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-wrap gap-2">
               {accounts.map((item) => (
                 <label
                   key={item.method}
-                  className={`flex items-center gap-2 rounded-md border p-3 text-[15px] font-semibold text-body ${
-                    method === item.method ? "border-brand bg-brand-light" : "border-line-strong bg-card"
+                  className={`rounded-full border px-4 py-1.5 text-sm font-semibold has-focus-visible:ring-2 has-focus-visible:ring-brand ${
+                    method === item.method ? "border-brand bg-brand text-white" : "border-line-strong bg-card text-body"
                   }`}
                 >
                   <input
@@ -45,7 +45,7 @@ export function PaymentSection({ option, onOption, method, onMethod, accounts, a
                     value={item.method}
                     checked={method === item.method}
                     onChange={() => onMethod(item.method)}
-                    className="accent-brand"
+                    className="sr-only"
                   />
                   {METHOD_LABELS_BN[item.method]}
                 </label>
