@@ -5,6 +5,7 @@ import { CALL_OUTCOME_LABELS } from "@/lib/orders/call-labels";
 import { missOrStale } from "@/lib/orders/change-status";
 import type { CallOutcome, OrderStatus, PaymentStatus } from "@/lib/orders/enums";
 import { STATUS_LABELS, canMoveStatus } from "@/lib/orders/status";
+import { queueStatusSms } from "@/lib/sms/order-sms";
 
 // The status a call moves the order to. No answer and Call later keep it as it is.
 const CALL_STATUS: Partial<Record<CallOutcome, OrderStatus>> = {
@@ -45,7 +46,10 @@ export async function logOrderCall(orderNumber: string, outcome: CallOutcome, no
   ).lean();
   if (!updated) return missOrStale(orderNumber);
 
-  if (next) return { ok: true, message: `Call saved: ${label}. Status changed to ${STATUS_LABELS[next]}.` };
+  if (next) {
+    queueStatusSms(orderNumber, next);
+    return { ok: true, message: `Call saved: ${label}. Status changed to ${STATUS_LABELS[next]}.` };
+  }
   if (outcome === "agreed_to_wait" && order.status === "pending" && order.payment.status === "submitted") {
     return { ok: true, warning: true, message: `Call saved: ${label}. Approve the advance payment to confirm the order.` };
   }

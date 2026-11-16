@@ -3,6 +3,7 @@ import { after, type NextRequest } from "next/server";
 import { adTracking } from "@/lib/meta/ad-tracking";
 import { sendPurchaseEvent } from "@/lib/meta/purchase";
 import { createOrder } from "@/lib/orders/create-order";
+import { queueOrderSms } from "@/lib/sms/order-sms";
 import { countRateLimit, isRateLimited, ORDER_IP_WINDOWS, REQUEST_IP_WINDOWS, takeRateLimit } from "@/lib/rate-limit";
 import { clientIp, hashIp, isSameOrigin, userAgent } from "@/lib/request";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
     await countOrderAttempt(ipHash);
     // A failed Purchase event is recorded on the order and never reaches the customer.
     after(() => sendPurchaseEvent(result.publicId).catch(() => {}));
+    queueOrderSms(result.orderNumber, "received");
     return reply({ publicId: result.publicId }, 201);
   } catch {
     return reply({ message: TRY_AGAIN }, 500);

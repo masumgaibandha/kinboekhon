@@ -4,8 +4,9 @@ import { ACCOUNT_TYPES } from "@/lib/account-types";
 import { appDb } from "@/lib/db";
 import { costsSchema } from "@/lib/models/costs-schema";
 import type { AdminSettingsValues } from "@/lib/validation/settings";
+import type { SmsSettings } from "@/lib/validation/sms-settings";
 
-type SettingsDocument = AdminSettingsValues & { key: string; launchMode?: boolean };
+type SettingsDocument = AdminSettingsValues & { key: string; launchMode?: boolean; sms?: SmsSettings };
 
 const walletSchema = new Schema(
   {
@@ -29,6 +30,19 @@ const bankSchema = new Schema(
 );
 
 const helpPopupSchema = new Schema({ enabled: Boolean, title: String, text: String }, { _id: false });
+
+const smsTemplateSchema = new Schema({ enabled: Boolean, text: String }, { _id: false });
+
+const smsSchema = new Schema(
+  {
+    pricePerPart: Number,
+    templates: new Schema(
+      { received: smsTemplateSchema, confirmed: smsTemplateSchema, shipped: smsTemplateSchema, delivered: smsTemplateSchema },
+      { _id: false },
+    ),
+  },
+  { _id: false },
+);
 
 const adsSchema = new Schema({ usdRate: Number, maxCpa: Number }, { _id: false });
 
@@ -76,6 +90,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     costDefaults: costsSchema,
     ads: adsSchema,
     fraud: fraudSchema,
+    sms: smsSchema,
   },
   { timestamps: true },
 );

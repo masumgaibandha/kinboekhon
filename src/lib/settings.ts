@@ -94,7 +94,7 @@ export async function getSettings(): Promise<Settings> {
   await connectMongoose();
   const saved = await SettingsModel.findOne(
     { key: SETTINGS_KEY },
-    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0, courier: 0, launchMode: 0 },
+    { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0, courier: 0, launchMode: 0, sms: 0 },
   ).lean<Partial<Settings>>();
 
   const settings = { ...DEFAULT_SETTINGS, ...saved, helpPopup: withHelpPopupDefaults(saved?.helpPopup) };
@@ -112,7 +112,7 @@ export interface AdminSettings {
 // Uncached read for the admin form. `version` changes on every save.
 export async function getSettingsForAdmin(): Promise<AdminSettings> {
   await connectMongoose();
-  const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0, launchMode: 0 }).lean<
+  const doc = await SettingsModel.findOne({ key: SETTINGS_KEY }, { _id: 0, key: 0, __v: 0, createdAt: 0, launchMode: 0, sms: 0 }).lean<
     Partial<Settings> & {
       costDefaults?: Partial<CostDefaults>;
       ads?: Partial<AdSettings>;

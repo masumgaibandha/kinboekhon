@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/admin/orders/StatusBadge";
 import { StatusForm } from "@/components/admin/orders/StatusForm";
 import { StatusHistory } from "@/components/admin/orders/StatusHistory";
 import { PathaoCard } from "@/components/admin/pathao/PathaoCard";
+import { OrderSmsCard } from "@/components/admin/sms/OrderSmsCard";
 import { OutOfStockBadge } from "@/components/admin/stock/StockLevelBadge";
 import { requireAdmin } from "@/lib/admin-session";
 import { getCustomerSummary } from "@/lib/customers/customer-summary";
@@ -25,6 +26,7 @@ import { getDeliveryHistory } from "@/lib/fraud/delivery-history";
 import { getOrderForAdmin } from "@/lib/orders/admin-order-detail";
 import { NOT_SENT } from "@/lib/orders/admin-order-list";
 import { PRINT_PATH } from "@/lib/orders/print-path";
+import { getOrderSmsLog } from "@/lib/sms/sms-log";
 import { getProductStocks } from "@/lib/stock/stock-alerts";
 
 export const metadata: Metadata = { title: "Order" };
@@ -36,10 +38,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
   const { orderNumber } = await params;
   const order = await getOrderForAdmin(orderNumber);
   if (!order) notFound();
-  const [summary, history, stocks] = await Promise.all([
+  const [summary, history, stocks, smsRows] = await Promise.all([
     getCustomerSummary(order.customer.phone, order.orderNumber),
     getDeliveryHistory(order.customer.phone),
     getProductStocks(order.items.map((item) => item.productId)),
+    getOrderSmsLog(order.orderNumber),
   ]);
   const outOfStock = NOT_SENT.includes(order.status) && order.items.some((item) => (stocks.get(item.productId)?.stock ?? 0) <= 0);
   const failed = order.status === "cancelled" || order.status === "returned";
@@ -107,6 +110,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[or
           <OrderCard title="Call outcome">
             <CallOutcomeForm key={key} orderNumber={order.orderNumber} />
           </OrderCard>
+          <OrderSmsCard orderNumber={order.orderNumber} rows={smsRows} blocked={order.customerBlocked} formKey={key} />
           <OrderCard title="Admin note">
             <AdminNoteForm key={key} orderNumber={order.orderNumber} note={order.adminNote} />
           </OrderCard>

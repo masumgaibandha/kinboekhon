@@ -2,6 +2,7 @@ import { adminFail, type AdminActionResult } from "@/lib/admin-result";
 import { connectMongoose } from "@/lib/db";
 import { OrderModel } from "@/lib/models/Order";
 import { STATUS_LABELS } from "@/lib/orders/status";
+import { queueStatusSms } from "@/lib/sms/order-sms";
 import { syncReturnedStock, takeOrderStock } from "@/lib/stock/order-stock";
 import type { StatusChange } from "@/lib/validation/admin-order";
 
@@ -30,6 +31,7 @@ export async function changeOrderStatus({ orderNumber, from, to, note }: StatusC
   if (updated) {
     if (to === "shipped") await takeOrderStock(orderNumber);
     if (to === "returned") await syncReturnedStock(orderNumber);
+    queueStatusSms(orderNumber, to);
     return { ok: true, message: `Status changed to ${STATUS_LABELS[to]}.` };
   }
   if (to === "confirmed" && (await OrderModel.exists({ orderNumber, status: from, "payment.status": "submitted" }))) {

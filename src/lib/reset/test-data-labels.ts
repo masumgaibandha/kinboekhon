@@ -8,6 +8,7 @@ export interface TestDataCounts {
   payments: number;
   incompleteOrders: number;
   productsWithStock: number;
+  smsLogs: number;
 }
 
 export const TEST_DATA_LABELS: Record<keyof TestDataCounts, string> = {
@@ -20,4 +21,5 @@ export const TEST_DATA_LABELS: Record<keyof TestDataCounts, string> = {
   payments: "Payments",
   incompleteOrders: "Incomplete orders",
   productsWithStock: "Products with stock",
+  smsLogs: "SMS log entries",
 };

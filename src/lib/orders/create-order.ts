@@ -19,7 +19,7 @@ import type { OrderInput } from "@/lib/validation/order";
 import type { PaymentInput } from "@/lib/validation/order-payment";
 
 export type CreateOrderResult =
-  | { ok: true; publicId: string }
+  | { ok: true; publicId: string; orderNumber: string }
   | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
 interface OrderProduct {
@@ -142,5 +142,5 @@ export async function createOrder(input: OrderInput, request: OrderRequestInfo):
     await syncCustomer(input.phone);
   } catch {}
 
-  return { ok: true, publicId };
+  return { ok: true, publicId, orderNumber };
 }

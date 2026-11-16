@@ -77,6 +77,7 @@ kinboekhon/
    │  │     ├─ orders/actions.ts               updateOrderStatus, saveAdminNote, updateOrderCustomer
    │  │     ├─ orders/history-actions.ts       checkDeliveryHistory, saveManualDeliveryHistory (P2c)
    │  │     ├─ orders/pathao-actions.ts        sendToPathao, bulkSendToPathao, refreshPathao, clearPathaoSend, savePathaoLocation (P2b)
+   │  │     ├─ orders/sms-actions.ts           sendOrderSmsAction: manual SMS from the order page (P2g)
    │  │     ├─ customers/page.tsx              customer list, search, tag filter, sort (P2a)
    │  │     ├─ customers/[phone]/page.tsx      customer: orders, calls, tags, notes
    │  │     ├─ customers/actions.ts            updateCustomerTags, saveCustomerNote
@@ -96,7 +97,9 @@ kinboekhon/
    │  │     ├─ ad-spend/[id]/page.tsx          edit one entry
    │  │     ├─ ad-spend/actions.ts             createAdSpend, updateAdSpend, deleteAdSpend
    │  │     ├─ profit/page.tsx                 profit and ad spend report (P2d)
+   │  │     ├─ sms/page.tsx                    SMS log: this month's count and estimated cost, newest 100 SMS (P2g)
    │  │     ├─ settings/page.tsx
+   │  │     ├─ settings/sms-actions.ts         saveSmsSettings (P2g)
    │  │     └─ settings/actions.ts
    │  │  └─ print/invoices/page.tsx   A5 invoices for `?orderNumbers=` (P2h), outside the panel layout
    │  └─ api/
@@ -166,6 +169,8 @@ kinboekhon/
       ├─ csv.ts                  CSV text with a UTF-8 BOM, formula guard, phone kept as text
       ├─ pathao/                 P2b: config, token (stored access token), client, places (cached cities, zones, areas), name-match,
       │                          location-match (guess and remember), parcel, send-order, apply-update, refresh-status, status-map
+      ├─ sms/                    P2g: templates (texts, placeholders, labels), parts (characters and SMS parts), sms-settings, deliver (safety rules + log),
+      │                          order-sms (automatic SMS, queued with after()), manual-sms, sms-log (admin reads), providers/ (one file per provider)
       └─ meta/
          ├─ capi.ts              send one event to Conversions API
          └─ user-data.ts         hash + build user_data
@@ -342,6 +347,7 @@ TTL index: removed 30 days after `updatedAt` (the same index sorts the admin lis
 | courier | `{ dhakaHalfKg: 110, dhakaOneKg: 130, dhakaTwoKg: 170, outsideHalfKg: 120, outsideOneKg: 145, outsideTwoKg: 180, returnFeePercent: 50, codPercent: 1 }` (decision 93), admin only: what the courier charges us per parcel from Gaibandha (Pathao rates) by area and weight slab (up to 0.5, 1 and 2 kg; above 2 kg the 2 kg rate is used), the return fee as a percent of the delivery cost (a returned parcel pays delivery cost plus the fee) and the COD charge on the cash collected. `getSettings()` leaves it out; the admin reads it with `getCourierSettings()` (uncached) |
 | costDefaults | `{ shippingPerKg: 710, agentFee: 0, packaging: 10, returnPercent: 15, adCost: 250, targetProfit: 150 }`: price calculator starting values (P1a), admin only. `getSettings()` leaves them out; the admin reads them with `getCostDefaults()` (uncached) |
 | ads | `{ usdRate: 125, maxCpa: 300 }` (P2d), admin only: `usdRate` is taka per US dollar (up to 2 decimals), the starting rate of a new ad spend entry; `maxCpa` is the highest ad cost per confirmed order (whole taka) before a product is highlighted in the profit report. `getSettings()` leaves them out; the admin reads them with `getAdSettings()` (uncached) |
+| sms | `{ pricePerPart: 0.35, templates: { received, confirmed, shipped, delivered: { enabled: true, text } } }` (P2g), admin only: Bangla SMS texts with `{name}`, `{order}`, `{amount}` (order total) and `{track}`, each with On/Off, and taka per SMS part (up to 2 decimals) for the estimated cost. Saved fields are merged over the defaults. `getSettings()` and the main Settings form leave it out; read with `getSmsSettings()` (uncached), saved by its own form and `saveSmsSettings` |
 | fraud | `{ minRecords: 3, checkFailPercent: 20, highMinFailed: 3, highFailPercent: 40 }` (P2c), admin only: risk label thresholds. `getSettings()` leaves them out; the admin reads them with `getFraudSettings()` (uncached) |
 
 Read through `getSettings()` in `src/lib/settings.ts` (`"use cache"`, tag `settings`). Defaults apply until the first save. `saveSettings` calls `updateTag("settings")`, so the next read is fresh. Mongoose models are registered on `appDb` from `src/lib/db.ts`, which shares the one MongoClient with Better Auth.
@@ -400,11 +406,23 @@ Index: `{ phone, source }` unique, so each source keeps one row per phone.
 
 Index: `{ productId, createdAt: -1 }`. Only `createdAt` (no `updatedAt`). A move that takes stock to 0 or back above it refreshes the landing page tag `product-<slug>` (`revalidateTag(..., "max")`, also from the Pathao webhook).
 
+### SmsLog (P2g)
+| Field | Notes |
+|---|---|
+| orderNumber, phone | the order and the phone read from it |
+| template | `received` | `confirmed` | `shipped` | `delivered` | `manual` |
+| text, parts | the SMS as sent and its SMS parts (Unicode: 70 in one part, 67 per part when longer; GSM: 160, then 153) |
+| status | `sending`, `sent`, `failed`, `not_connected` (logged only, no provider set) or `skipped` (Blocked customer or the daily limit) |
+| provider, reply | provider id and its short reply (up to 300 characters) |
+| onceKey | `<orderNumber>:<template>` on automatic SMS only, unique, so each goes out at most once per order |
+
+Indexes: `onceKey` unique (partial), `{ phone, createdAt: -1 }` (daily limit), `{ orderNumber, createdAt: -1 }`, `{ createdAt: -1 }`. Deleted by the test data reset.
+
 ### Counter
 `{ _id: "order", seq }`. Atomic `$inc` gives the next order number.
 
 ### ResetLog
-`{ adminEmail, dbName, deleted: { orders, customers, callLogs, fraudChecks, adSpend, stockMoves, payments, incompleteOrders, productsWithStock }, createdAt }`: one entry per test data reset (decision 104).
+`{ adminEmail, dbName, deleted: { orders, customers, callLogs, fraudChecks, adSpend, stockMoves, payments, incompleteOrders, productsWithStock, smsLogs }, createdAt }`: one entry per test data reset (decision 104).
 
 ### RateLimit
 `{ key, count, expiresAt }` in the `ratelimits` collection (separate from Better Auth's `rateLimit`). TTL index on `expiresAt`. Key = scope + window name + hashed IP + window start (fixed windows), counted with one atomic upsert. Used for orders, later drafts and tracking.
@@ -511,7 +529,8 @@ Order form fields:
 | `/admin/banners`, `/admin/banners/new`, `/admin/banners/[id]` | Banner list (mobile thumbnail, title, link, order, On/Off) and form: title, link, sort order, On, mobile and desktop image uploads |
 | `/admin/home` | Trust bar texts, why us (title, text, founder name, founder photo), FAQ rows (add, remove) |
 | `/admin/products/[id]/landing` | Ad landing page editor for the product (decision 98): On, every section, image uploads. The product page and this page show an "Ad landing page" card: live or not, View, "Copy landing link" (the link with `utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}`, Meta's URL macros) and, on the product page, "Edit landing page" |
-| `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, courier cost (decision 93), price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c), business info and trust icon texts (decision 103), Launch mode and the Danger zone (decision 104) |
+| `/admin/settings` | Delivery charges (Dhaka City, everywhere else), advance payment discounts (delivery charge in advance, full advance), payment accounts, support phone, duplicate window, courier cost (decision 93), price calculator defaults, dollar rate and max CPA (P2d), fraud check thresholds (P2c), business info and trust icon texts (decision 103), SMS templates and price per part (P2g, its own form and Save button), Launch mode and the Danger zone (decision 104) |
+| `/admin/sms` | SMS log (P2g): "SMS not connected" notice until the keys are set; this Dhaka month's SMS sent, parts sent, estimated cost (parts x price per part, whole taka), failed and skipped, and how many were only logged; table of the newest 100: time, phone with order link, template with the text, parts, status, provider reply |
 
 Price calculator (P1a), below Basics in the product form. Inputs: China price (taka), weight with packaging (grams), air shipping (taka per kg), agent fee, packaging, return rate %, ad cost per order, target profit. Money inputs are whole taka; the return rate allows one decimal (0 to 90); China price and weight may be empty (0). Delivery charges, the advance discount, courier cost, return fee and COD % come from Settings (decision 93). Results update live as the admin types, including the Price field:
 - Landed cost = China price + weight / 1000 x shipping per kg + agent fee.
@@ -554,7 +573,8 @@ Server Actions (each calls `requireAdmin()` first):
 - customers: `updateCustomerTags`, `saveCustomerNote`
 - Pathao (P2b): `sendToPathao`, `bulkSendToPathao`, `refreshPathao`, `clearPathaoSend`, `savePathaoLocation`
 - stock (P2e): `addPurchase`, `addAdjustment`, `updateLowStockLevel`
-- settings: `saveSettings`, `resetTestData`, `turnOnLaunchMode` (decision 104)
+- settings: `saveSettings`, `resetTestData`, `turnOnLaunchMode` (decision 104), `saveSmsSettings` (P2g)
+- SMS (P2g): `sendOrderSmsAction` (manual SMS from the order page)
 
 ### Create order flow (`POST /api/orders`)
 1. Check origin, content type, body size.
@@ -694,7 +714,7 @@ Browser Pixel and Conversions API send the same events with the same `event_id`,
 - `custom_data`: `content_ids` (product id), `content_name`, `content_type: product`, `currency: BDT`, `value`, `num_items`.
 - `user_data` on the server: hashed phone (`880` + 10 digits), hashed first name and last name (Purchase only), hashed `external_id` (phone), hashed `ct` (district in English, lowercase, letters only), `country: bd` hashed, client IP, user agent, `_fbp` and `_fbc` cookies as they are (not hashed). If `_fbc` is missing but the URL had `fbclid`, build `fb.1.<time>.<fbclid>`.
 - CAPI request has an 8 second timeout and counts as sent only when Meta answers `events_received: 1`. Errors are recorded by code only (`meta_<code>`, `http_<status>`, `timeout`, `network`, `not_received`, `not_configured`); response bodies are never logged.
-- Built in P1c: the snippet in `src/components/tracking/MetaPixel.tsx` fires `ke:pixel-ready` after `fbq` exists, so events from early effects wait for it. It sets `fbq.disablePushState` and `fbq.allowDuplicatePageViews`, so every PageView is an explicit `fbq('track', 'PageView')`: the snippet sends the first, `PixelPageViews` one per client navigation. `_fbp`, `_fbc`, the page URL (from `Referer`, same origin only), `utm_source` and `utm_campaign` are saved in the order `tracking`. The order form stores the new `publicId` in sessionStorage before opening the thank-you page; the page sends the browser Purchase only when it finds and removes that value, so a refresh or a later visit sends nothing. The server Purchase runs in `after()` and writes `capiPurchase` (`pending` on create, then `sent` or `failed`).
+- Built in P1c: the snippet in `src/components/tracking/MetaPixel.tsx` fires `ke:pixel-ready` after `fbq` exists, so events from early effects wait for it. It sets `fbq.disablePushState` and `fbq.allowDuplicatePageViews`, so every PageView is an explicit `fbq('track', 'PageView')`: the snippet sends the first, `PixelPageViews` one per client navigation. `_fbp`, `_fbc`, the page URL (from `Referer`, same origin only), `utm_source` and `utm_campaign` are saved in the order `tracking`. The order form stores the new `publicId` in sessionStorage before opening the thank-you page; the page sends the browser Purchase only when it finds and removes that value, so a refresh or a later visit sends nothing. The server Purchase runs in `after()` and writes `capiPurchase` (`pending` on create, then `sent` or `failed`). `PixelPageViews` keeps the last path in a module variable, not in the component, so the move from a landing page (`(landing)` layout) to the thank-you page (`(shop)` layout) still sends its one PageView.
 - `META_TEST_EVENT_CODE` env var sends events to Events Manager "Test events" while testing; when it is empty no test code is sent.
 - No cookie consent banner: the audience is in Bangladesh (owner confirmed).
 - Purchase fires when the order is placed, for COD and advance orders alike (owner decision). `value` is the product total only (price x quantity), without delivery charge or discount (decision 92), in the browser and server events.
@@ -839,6 +859,8 @@ P2e is done (November 2026, decision 95): product stock and low-stock level, log
 
 P2h is done (November 2026, decision 96): A5 Bangla invoices from the order page and the orders list (bulk, one per page) and the orders CSV export.
 
+P2g is done (November 2026, decision 106): order SMS with templates in Settings, the SMS log at `/admin/sms`, the order page SMS card with a manual send, and the safety rules. No provider is chosen yet, so every SMS is logged as "Not connected".
+
 H2 **Ad landing pages** is done (November 2026, decision 98): `/l/[slug]` per product with On/Off, optional sections edited at `/admin/products/[id]/landing`, Copy landing link with the UTM template, five UTM values saved on orders. Browser test at 390px: every section, sticky bar scrolls to the form and hides, video plays on tap, a COD order with UTMs fired ViewContent, InitiateCheckout and Purchase with their event ids and the order page shows the UTMs, Off gives the not-found page. `npm run demo:seed` also makes `/l/toddler-montessori-busy-book-and-travel-bag` (its photos as the gallery, in `landing/demo`); `demo:clear` deletes landing pages marked `isDemo`.
 
 H1 **Home page** is done (November 2026, decision 97), built at the owner's request: categories (admin, product field, `/c/[slug]`), banner slider, trust bar, popular and new products, why us, FAQ, floating WhatsApp button, header category menu and search (`/search`). Browser test: 390px and desktop, slider auto and swipe, menu, search, category page, admin saves update the shop at once.
@@ -967,3 +989,4 @@ Cart, customer accounts, product variants, email notifications, online payment g
 103. Business info (November 2026): Settings has the trade license number and the business address next to the support phone and WhatsApp. The footer shows "ট্রেড লাইসেন্স নং: ..." and "ঠিকানা: ..." only when filled. The 3 trust icon texts under the order button (product and landing pages) are editable in Settings; the defaults are the old fixed texts.
 104. Pre-launch reset (November 2026): Settings has a "Danger zone" with counts of orders, customers, call logs (call entries in order histories), fraud checks, ad spend entries, stock moves, payments (orders with an advance payment), incomplete orders and products with stock. "Delete all test data" deletes orders, incomplete orders, customers, delivery checks, ad spend and stock moves, sets every product's stock to 0 (without a stock move) and removes the order counter, so the next order is KE10001. Products, categories, banners, landing pages, home content, settings and the admin login are kept. It needs "RESET KINBOEKHON" typed and the admin password (Better Auth `verifyPassword`, 5 tries per 10 minutes), and writes a ResetLog entry. "Launch mode" is one way: once on, the danger zone is hidden and the server refuses any reset; it cannot be turned off from the admin.
 105. Exit-intent help popup (November 2026), no discount: on product (`/p/`) and landing (`/l/`) pages, desktop only (`(min-width: 1024px) and (hover: hover) and (pointer: fine)`, never on phones or tablets), when the mouse leaves through the top of the window after at least 10 seconds on the page. Once per visitor per 24 hours (`ke_help_popup_at` in localStorage) and never after this browser submitted the order form (`ke_order_submitted`, set when the confirm button sends). A modal `<dialog>`: title and text from Settings `helpPopup`, phone field (focused), "কল করুন" button, "WhatsApp এ মেসেজ করুন" link from the Settings WhatsApp number (hidden when empty), close button and Escape. The dialog and its Turnstile widget mount only when it opens. A sent number goes to `POST /api/callback` and is saved as an IncompleteOrder with `kind: callback` (one per phone and product; asking again moves it to the top and clears "contacted"); placing an order for that phone and product removes it like a draft. Settings has an On/Off toggle and the editable title and text.
+106. Order SMS (P2g, November 2026): Bangla SMS to the customer for order received (with the order tracking link), confirmed (after the call, an approved advance or a status change), shipped (Pathao tracking link, else the order tracking link) and delivered (thank you). Each template is edited in Settings with On/Off and placeholders `{name}`, `{order}`, `{amount}` and `{track}`, with a live character and SMS part count (Bangla is Unicode: 70 per part, 67 when longer). The admin can send a free-text SMS from the order page. Safety: an automatic SMS goes out at most once per template per order, at most 5 SMS per phone per Dhaka day (every try counts), and none for an order marked Blocked customer. SMS are sent after the response (`after()`), so they never slow down or fail an order or an admin save. Providers are pluggable: `SMS_PROVIDER`, `SMS_API_KEY` and `SMS_SENDER_ID`; adding a Bangladesh bulk SMS provider is one file in `src/lib/sms/providers/` listed in `index.ts`. Until then the admin shows "SMS not connected" and each SMS is only written to the SMS log (and the server log). The SMS log shows the month's count and the estimated cost from the price per part in Settings. The test data reset also deletes the SMS log.

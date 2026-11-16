@@ -9,6 +9,7 @@ import { guessLocation, type CourierLocation } from "@/lib/pathao/location-match
 import { parcelBody, parcelProblem, parcelWeightKg } from "@/lib/pathao/parcel";
 import { parcelGrams } from "@/lib/pathao/parcel-weight";
 import { statusSlug } from "@/lib/pathao/status-map";
+import { queueStatusSms } from "@/lib/sms/order-sms";
 import { takeOrderStock } from "@/lib/stock/order-stock";
 
 export const ALREADY_SENT = "This order was already sent to Pathao.";
@@ -59,7 +60,10 @@ async function saveSent(orderNumber: string, data: Record<string, unknown>, loca
       $push: { statusHistory: { kind: "status", status: "shipped", at: now, note: `Sent to Pathao: consignment ${consignmentId}${feeText}.` } },
     },
   );
-  if (shipped.modifiedCount > 0) await takeOrderStock(orderNumber);
+  if (shipped.modifiedCount > 0) {
+    await takeOrderStock(orderNumber);
+    queueStatusSms(orderNumber, "shipped");
+  }
   return { ok: true, message: `${orderNumber} sent to Pathao.` };
 }
 

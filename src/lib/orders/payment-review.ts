@@ -5,6 +5,7 @@ import { ORDER_NOT_FOUND, missOrStale } from "@/lib/orders/change-status";
 import type { OrderStatus, PaymentOption, PaymentStatus } from "@/lib/orders/enums";
 import { calculateOrder } from "@/lib/orders/pricing";
 import { STATUS_LABELS } from "@/lib/orders/status";
+import { queueStatusSms } from "@/lib/sms/order-sms";
 
 export const ALREADY_REVIEWED = "Already reviewed.";
 
@@ -59,7 +60,10 @@ export async function approvePayment(orderNumber: string, note: string): Promise
     { projection: { _id: 1 } },
   ).lean();
   if (!updated) return reviewMiss(orderNumber);
-  if (confirm) return { ok: true, message: "Payment approved. The order is now Confirmed." };
+  if (confirm) {
+    queueStatusSms(orderNumber, "confirmed");
+    return { ok: true, message: "Payment approved. The order is now Confirmed." };
+  }
   return {
     ok: true,
     warning: true,

@@ -36,6 +36,9 @@ export function AdminNav() {
           <Link href="/admin/incomplete" className="hover:text-brand">
             Incomplete
           </Link>
+          <Link href="/admin/sms" className="hover:text-brand">
+            SMS
+          </Link>
           <Link href="/admin/ad-spend" className="hover:text-brand">
             Ad spend
           </Link>
