@@ -15,29 +15,42 @@ function Item({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function DraftCard({ draft }: { draft: AdminDraft }) {
+  const callback = draft.kind === "callback";
+
   return (
-    <article className="rounded-xl border border-line bg-card p-5">
+    <article className={`rounded-xl border bg-card p-5 ${callback ? "border-brand" : "border-line"}`}>
       <div className="flex flex-wrap items-center gap-3">
         <a href={`tel:${draft.phone}`} className="text-lg font-bold text-heading hover:text-brand">
           {draft.phone}
         </a>
+        {callback && (
+          <span className="inline-block rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">Callback request</span>
+        )}
         {draft.contactedAt && (
           <span className="inline-block rounded-full bg-brand-light px-2.5 py-0.5 text-xs font-semibold text-brand-dark">
             Contacted {formatDhakaDateTime(draft.contactedAt)}
           </span>
         )}
-        <span className="text-sm text-muted">Last typed {formatDhakaDateTime(draft.updatedAt)}</span>
+        <span className="text-sm text-muted">
+          {callback ? "Requested" : "Last typed"} {formatDhakaDateTime(draft.updatedAt)}
+        </span>
       </div>
 
-      <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-        <Item label="Name">{draft.name}</Item>
-        <Item label="Product">
-          {draft.productName} x {draft.quantity}
-        </Item>
-        <Item label="Payment">{OPTION_LABELS[draft.paymentOption]}</Item>
-        <Item label="Area">{draft.place}</Item>
-        <Item label="Address">{draft.address}</Item>
-      </dl>
+      {callback ? (
+        <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Item label="Product">{draft.productName}</Item>
+        </dl>
+      ) : (
+        <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Item label="Name">{draft.name}</Item>
+          <Item label="Product">
+            {draft.productName} x {draft.quantity}
+          </Item>
+          <Item label="Payment">{draft.paymentOption && OPTION_LABELS[draft.paymentOption]}</Item>
+          <Item label="Area">{draft.place}</Item>
+          <Item label="Address">{draft.address}</Item>
+        </dl>
+      )}
 
       <div className="mt-4 border-t border-line pt-4">
         <DraftActions id={draft.id} phone={draft.phone} contacted={draft.contactedAt !== null} />

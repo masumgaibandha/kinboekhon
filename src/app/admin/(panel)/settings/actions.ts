@@ -49,6 +49,7 @@ function readForm(formData: FormData) {
     trustBadges: [text("trustBadges.0"), text("trustBadges.1"), text("trustBadges.2")],
     duplicateWindowHours: text("duplicateWindowHours"),
     hideOrderWhenOutOfStock: checked("hideOrderWhenOutOfStock"),
+    helpPopup: { enabled: checked("helpPopup.enabled"), title: text("helpPopup.title"), text: text("helpPopup.text") },
     courier: Object.fromEntries(COURIER_SETTING_KEYS.map((key) => [key, text(`courier.${key}`)])),
     costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
     ads: { usdRate: text("ads.usdRate"), maxCpa: text("ads.maxCpa") },

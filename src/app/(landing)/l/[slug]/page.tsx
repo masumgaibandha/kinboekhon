@@ -9,6 +9,7 @@ import { BenefitsBlock, GalleryBlock, ProblemBlock, SolutionBlock } from "@/comp
 import { LandingSection } from "@/components/shop/landing/LandingSection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
 import { SoldOutSection } from "@/components/shop/order/SoldOutSection";
+import { HelpPopup } from "@/components/shop/help/HelpPopup";
 import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getLandingBySlug, getLandingSlugs } from "@/lib/landing/landing-pages";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
@@ -88,6 +89,7 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
         )}
       </div>
       <ViewContentPixel productId={product.id} name={product.name} price={product.price} />
+      <HelpPopup productId={product.id} />
     </div>
   );
 }

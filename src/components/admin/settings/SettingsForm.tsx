@@ -10,6 +10,7 @@ import { Section, TextField, Toggle } from "@/components/admin/form/fields";
 import { BusinessFields } from "@/components/admin/settings/BusinessFields";
 import { CourierFields } from "@/components/admin/settings/CourierFields";
 import { FraudFields } from "@/components/admin/settings/FraudFields";
+import { HelpPopupFields } from "@/components/admin/settings/HelpPopupFields";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
 import type { WalletKey } from "@/lib/settings";
@@ -122,6 +123,8 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
           />
         </div>
       </Section>
+
+      <HelpPopupFields popup={settings.helpPopup} errors={errors} />
 
       <CourierFields courier={settings.courier} errors={errors} />
 

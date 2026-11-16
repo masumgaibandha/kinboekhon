@@ -55,6 +55,12 @@ const bankSchema = z
 
 const MOBILE_MESSAGE = "Enter a valid 11 digit mobile number.";
 
+const helpPopupSchema = z.object({
+  enabled: z.boolean(),
+  title: z.string().trim().min(2, "Use 2 to 60 characters.").max(60, "Use 2 to 60 characters."),
+  text: z.string().trim().min(2, "Use 2 to 200 characters.").max(200, "Use 2 to 200 characters."),
+});
+
 const trustBadge = z.string().trim().min(2, "Use 2 to 40 characters.").max(40, "Use 2 to 40 characters.");
 
 export const settingsSchema = z.object({
@@ -80,6 +86,8 @@ export const settingsSchema = z.object({
     .refine((hours) => hours >= 1 && hours <= 168, "Use 1 to 168 hours."),
   // Hide the landing page order button while the product has no stock.
   hideOrderWhenOutOfStock: z.boolean(),
+  // The desktop exit-intent help popup on product and landing pages.
+  helpPopup: helpPopupSchema,
 });
 
 // Admin-only form: the shop settings plus the courier rates, price calculator defaults, ad and fraud check settings, which never reach the shop.
@@ -93,3 +101,4 @@ export const adminSettingsSchema = settingsSchema.extend({
 export type Settings = z.output<typeof settingsSchema>;
 export type AdminSettingsValues = z.output<typeof adminSettingsSchema>;
 export type WalletSettings = Settings["bkash"];
+export type HelpPopupSettings = Settings["helpPopup"];

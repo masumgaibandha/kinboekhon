@@ -1,10 +1,11 @@
 import { connectMongoose } from "@/lib/db";
 import { draftPlace } from "@/lib/drafts/draft-place";
-import { IncompleteOrderModel, type IncompleteOrderDocument } from "@/lib/models/IncompleteOrder";
+import { IncompleteOrderModel, type DraftKind, type IncompleteOrderDocument } from "@/lib/models/IncompleteOrder";
 import type { PaymentOption } from "@/lib/orders/enums";
 
 export interface AdminDraft {
   id: string;
+  kind: DraftKind;
   updatedAt: Date;
   contactedAt: Date | null;
   name: string;
@@ -13,7 +14,7 @@ export interface AdminDraft {
   quantity: number;
   place: string;
   address: string;
-  paymentOption: PaymentOption;
+  paymentOption: PaymentOption | null;
 }
 
 const SHOWN = 100;
@@ -29,17 +30,18 @@ export async function listDraftsForAdmin(): Promise<{ items: AdminDraft[]; total
     IncompleteOrderModel.estimatedDocumentCount(),
   ]);
 
-  const items = docs.map((doc) => ({
+  const items = docs.map((doc): AdminDraft => ({
     id: doc._id.toString(),
+    kind: doc.kind === "callback" ? "callback" : "draft",
     updatedAt: doc.updatedAt,
     contactedAt: doc.contactedAt ?? null,
     name: doc.name,
     phone: doc.phone,
     productName: doc.productName,
-    quantity: doc.quantity,
+    quantity: doc.quantity ?? 1,
     place: draftPlace(doc),
     address: doc.address,
-    paymentOption: doc.paymentOption,
+    paymentOption: doc.paymentOption ?? null,
   }));
   return { items, total };
 }

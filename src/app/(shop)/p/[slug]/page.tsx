@@ -11,6 +11,7 @@ import { SolutionSection } from "@/components/shop/landing/SolutionSection";
 import { StorySection } from "@/components/shop/landing/StorySection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
 import { SoldOutSection } from "@/components/shop/order/SoldOutSection";
+import { HelpPopup } from "@/components/shop/help/HelpPopup";
 import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getActiveSlugs, getProductBySlug } from "@/lib/catalog";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
@@ -81,6 +82,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
         )}
       </div>
       <ViewContentPixel productId={product.id} name={product.name} price={product.price} />
+      <HelpPopup productId={product.id} />
     </div>
   );
 }

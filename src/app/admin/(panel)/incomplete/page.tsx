@@ -22,7 +22,8 @@ export default async function IncompletePage() {
       </div>
       <p className="text-sm text-desc">
         Customers who typed a valid phone but did not place the order. Each one is removed when the order is placed, or 30
-        days after the customer last typed.
+        days after the customer last typed. A Callback request is a number sent from the help popup on a product or landing
+        page: the customer asked us to call.
       </p>
       {items.length === 0 ? (
         <p className="rounded-xl border border-line bg-card p-6 text-desc">No incomplete orders.</p>

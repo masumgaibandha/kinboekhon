@@ -55,7 +55,17 @@ export const DEFAULT_SETTINGS: Settings = {
   trustBadges: ["ক্যাশ অন ডেলিভারি", "সারা দেশে হোম ডেলিভারি", "পণ্য দেখে টাকা দিন"],
   duplicateWindowHours: 24,
   hideOrderWhenOutOfStock: false,
+  helpPopup: {
+    enabled: true,
+    title: "কিছু জানার আছে?",
+    text: "আপনার নম্বর দিন, আমরা কল করে সব বুঝিয়ে বলবো।",
+  },
 };
+
+// Saves write only changed fields, so a saved popup may hold only some of its fields.
+function withHelpPopupDefaults(saved?: Partial<Settings["helpPopup"]>): Settings["helpPopup"] {
+  return { ...DEFAULT_SETTINGS.helpPopup, ...saved };
+}
 
 export const DEFAULT_COST_DEFAULTS: CostDefaults = {
   shippingPerKg: 710,
@@ -87,7 +97,7 @@ export async function getSettings(): Promise<Settings> {
     { _id: 0, key: 0, __v: 0, createdAt: 0, updatedAt: 0, costDefaults: 0, ads: 0, fraud: 0, courier: 0, launchMode: 0 },
   ).lean<Partial<Settings>>();
 
-  const settings = { ...DEFAULT_SETTINGS, ...saved };
+  const settings = { ...DEFAULT_SETTINGS, ...saved, helpPopup: withHelpPopupDefaults(saved?.helpPopup) };
   return withReviewedWallets(settings, walletsToReview(settings), true);
 }
 
@@ -115,6 +125,7 @@ export async function getSettingsForAdmin(): Promise<AdminSettings> {
   const saved = {
     ...DEFAULT_SETTINGS,
     ...values,
+    helpPopup: withHelpPopupDefaults(values.helpPopup),
     costDefaults: withCostDefaults(values.costDefaults),
     ads: withAdDefaults(values.ads),
     fraud: withFraudDefaults(values.fraud),

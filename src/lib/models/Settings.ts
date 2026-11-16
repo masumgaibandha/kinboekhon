@@ -28,6 +28,8 @@ const bankSchema = new Schema(
   { _id: false },
 );
 
+const helpPopupSchema = new Schema({ enabled: Boolean, title: String, text: String }, { _id: false });
+
 const adsSchema = new Schema({ usdRate: Number, maxCpa: Number }, { _id: false });
 
 const fraudSchema = new Schema(
@@ -69,6 +71,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     launchMode: Boolean,
     duplicateWindowHours: { type: Number, min: 1 },
     hideOrderWhenOutOfStock: Boolean,
+    helpPopup: helpPopupSchema,
     courier: courierSchema,
     costDefaults: costsSchema,
     ads: adsSchema,

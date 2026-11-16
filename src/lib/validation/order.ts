@@ -8,7 +8,7 @@ import { DRAFT_KEY_PATTERN } from "@/lib/validation/draft";
 import { LOCATION_CHECK, addLocationIssues } from "@/lib/validation/location-fields";
 import { PAYMENT_CHECK, addPaymentIssues, checkPayment, paymentShape } from "@/lib/validation/order-payment";
 
-const PHONE_MESSAGE = "সঠিক 11 সংখ্যার মোবাইল নম্বর দিন, যেমন 01712345678।";
+export const PHONE_MESSAGE = "সঠিক 11 সংখ্যার মোবাইল নম্বর দিন, যেমন 01712345678।";
 const NAME_MESSAGE = "আপনার নাম লিখুন (2 থেকে 60 অক্ষর)।";
 const ADDRESS_MESSAGE = "বাড়ি, রাস্তা বা এলাকার নাম লিখুন (3 থেকে 200 অক্ষর)।";
 const LOCATION_MESSAGE = "এলাকার তথ্য সঠিক নয়। আবার বেছে নিন।";

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { markOrderSubmitted } from "@/components/shop/help/help-popup-state";
 import { markNewOrder } from "@/components/tracking/new-order";
 import type { PaymentOption } from "@/lib/orders/enums";
 
@@ -71,6 +72,7 @@ export function useOrderSubmit() {
     // A ref, not state, so a fast double tap cannot send two orders.
     if (sending.current) return;
     sending.current = true;
+    markOrderSubmitted();
     setPending(true);
     setMessage("");
 

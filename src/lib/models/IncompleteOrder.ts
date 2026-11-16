@@ -3,18 +3,23 @@ import { Schema, type Types } from "mongoose";
 import { appDb } from "@/lib/db";
 import { PAYMENT_OPTIONS, type PaymentOption } from "@/lib/orders/enums";
 
+// "callback": a number sent from the help popup, asking us to call.
+export const DRAFT_KINDS = ["draft", "callback"] as const;
+export type DraftKind = (typeof DRAFT_KINDS)[number];
+
 export interface IncompleteOrderDocument {
   draftKey: string;
+  kind: DraftKind;
   productId: Types.ObjectId;
   productName: string;
   name: string;
   phone: string;
   address: string;
-  quantity: number;
+  quantity?: number;
   divisionId: string;
   districtId: string;
   upazilaId: string;
-  paymentOption: PaymentOption;
+  paymentOption?: PaymentOption;
   paymentMethod: string;
   contactedAt: Date | null;
   tracking: { ipHash: string; userAgent: string; sourceUrl: string };
@@ -27,16 +32,17 @@ const DRAFT_DAYS = 30;
 const incompleteOrderSchema = new Schema<IncompleteOrderDocument>(
   {
     draftKey: { type: String, required: true, unique: true },
+    kind: { type: String, enum: DRAFT_KINDS, default: "draft" },
     productId: { type: Schema.Types.ObjectId, required: true },
     productName: { type: String, required: true },
     name: { type: String, default: "" },
     phone: { type: String, required: true },
     address: { type: String, default: "" },
-    quantity: { type: Number, required: true, min: 1 },
+    quantity: { type: Number, min: 1 },
     divisionId: { type: String, default: "" },
     districtId: { type: String, default: "" },
     upazilaId: { type: String, default: "" },
-    paymentOption: { type: String, enum: PAYMENT_OPTIONS, required: true },
+    paymentOption: { type: String, enum: PAYMENT_OPTIONS },
     paymentMethod: { type: String, default: "" },
     contactedAt: { type: Date, default: null },
     tracking: { ipHash: String, userAgent: String, sourceUrl: String },

@@ -47,7 +47,7 @@ function loadScript(): Promise<void> {
 }
 
 // Cloudflare Turnstile, loaded only when the form comes near the screen; most customers never see it.
-export function useTurnstile() {
+export function useTurnstile(action = "order") {
   const ref = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const token = useRef("");
@@ -79,7 +79,7 @@ export function useTurnstile() {
             if (!active || !window.turnstile) return;
             widgetId.current = window.turnstile.render(element, {
               sitekey,
-              action: "order",
+              action,
               appearance: "interaction-only",
               size: "flexible",
               language: "bn",
@@ -102,7 +102,7 @@ export function useTurnstile() {
       if (widgetId.current) window.turnstile?.remove(widgetId.current);
       widgetId.current = null;
     };
-  }, []);
+  }, [action]);
 
   // The current token, or waits for one; "" when none comes in time.
   function getToken(): Promise<string> {
