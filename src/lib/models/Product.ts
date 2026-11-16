@@ -1,6 +1,6 @@
 import { Schema, type Types } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { costsSchema } from "@/lib/models/costs-schema";
 import { imageSchema } from "@/lib/models/image-schema";
 import type { ProductFormValues } from "@/lib/validation/product";
@@ -48,7 +48,4 @@ productSchema.index({ active: 1, sortOrder: 1 });
 productSchema.index({ active: 1, categoryId: 1, sortOrder: 1 });
 productSchema.index({ active: 1, createdAt: -1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Product) appDb.deleteModel("Product");
-
-export const ProductModel = appDb.model<ProductDocument>("Product", productSchema);
+export const ProductModel = registerModel<ProductDocument>("Product", productSchema);

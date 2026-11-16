@@ -5,8 +5,11 @@ import { ProductGrid } from "@/components/shop/ProductGrid";
 import { WhatsAppButton } from "@/components/shop/WhatsAppButton";
 import { SearchForm } from "@/components/shop/header/SearchForm";
 import { searchProducts } from "@/lib/product-lists";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = { title: "পণ্য খুঁজুন", robots: { index: false } };
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ title: "পণ্য খুঁজুন", path: "/search", noindex: true });
+}
 
 const MAX_QUERY = 60;
 

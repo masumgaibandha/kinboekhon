@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 interface CounterDocument {
   _id: string;
@@ -12,7 +12,4 @@ const counterSchema = new Schema<CounterDocument>(
   { versionKey: false },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Counter) appDb.deleteModel("Counter");
-
-export const CounterModel = appDb.model<CounterDocument>("Counter", counterSchema);
+export const CounterModel = registerModel<CounterDocument>("Counter", counterSchema);

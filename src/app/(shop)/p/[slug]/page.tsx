@@ -12,9 +12,12 @@ import { StorySection } from "@/components/shop/landing/StorySection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
 import { SoldOutSection } from "@/components/shop/order/SoldOutSection";
 import { HelpPopup } from "@/components/shop/help/HelpPopup";
+import { ProductJsonLd } from "@/components/shop/ProductJsonLd";
 import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getActiveSlugs, getProductBySlug } from "@/lib/catalog";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { productMetadata } from "@/lib/seo/product-metadata";
 import { getSettings } from "@/lib/settings";
 import { getUpsellProducts } from "@/lib/upsell";
 
@@ -32,8 +35,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-  if (!product) return { title: "পণ্যটি পাওয়া যাচ্ছে না" };
-  return { title: product.name, description: product.shortDescription || product.hook.subheadline || undefined };
+  if (!product) return pageMetadata({ title: "পণ্যটি পাওয়া যাচ্ছে না", noindex: true });
+  return productMetadata(product, `/p/${product.slug}`);
 }
 
 // Inactive or unknown slug: the unavailable page, with noindex; cached visits return a 404 status.
@@ -47,6 +50,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
 
   return (
     <div className="mx-auto w-full max-w-xl lg:max-w-shop lg:px-4 lg:pt-6">
+      <ProductJsonLd product={product} />
       <HookSection product={product} soldOut={soldOut} />
       <ProblemSection problem={product.problem} />
       <StorySection story={product.story} />

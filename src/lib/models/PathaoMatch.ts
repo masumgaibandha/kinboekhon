@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 // An admin correction, reused for later orders: our district to a Pathao city, or our upazila / thana to a zone.
 export interface PathaoMatchDocument {
@@ -18,7 +18,4 @@ const pathaoMatchSchema = new Schema<PathaoMatchDocument>(
   { timestamps: true },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.PathaoMatch) appDb.deleteModel("PathaoMatch");
-
-export const PathaoMatchModel = appDb.model<PathaoMatchDocument>("PathaoMatch", pathaoMatchSchema);
+export const PathaoMatchModel = registerModel<PathaoMatchDocument>("PathaoMatch", pathaoMatchSchema);

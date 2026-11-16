@@ -1,8 +1,9 @@
 import { Schema } from "mongoose";
 
 import { ACCOUNT_TYPES } from "@/lib/account-types";
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { costsSchema } from "@/lib/models/costs-schema";
+import { imageSchema } from "@/lib/models/image-schema";
 import type { AdminSettingsValues } from "@/lib/validation/settings";
 import type { SmsSettings } from "@/lib/validation/sms-settings";
 
@@ -86,6 +87,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     duplicateWindowHours: { type: Number, min: 1 },
     hideOrderWhenOutOfStock: Boolean,
     helpPopup: helpPopupSchema,
+    shareImage: imageSchema,
     courier: courierSchema,
     costDefaults: costsSchema,
     ads: adsSchema,
@@ -95,7 +97,4 @@ const settingsSchema = new Schema<SettingsDocument>(
   { timestamps: true },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Settings) appDb.deleteModel("Settings");
-
-export const SettingsModel = appDb.model<SettingsDocument>("Settings", settingsSchema);
+export const SettingsModel = registerModel<SettingsDocument>("Settings", settingsSchema);

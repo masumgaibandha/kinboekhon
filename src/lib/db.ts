@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { type Model, type Schema } from "mongoose";
 
 import { requiredEnv } from "@/lib/env";
 
@@ -26,6 +26,15 @@ export const mongoDb = mongoClient.db(DB_NAME);
 
 // Register every Mongoose model on this connection, not on the default one.
 export const appDb = mongoose.connection.useDb(DB_NAME, { useCache: true });
+
+// Every server bundle runs the model files again. Production reuses the first model, so all bundles share one
+// collection that opens with the connection; development replaces it so schema edits apply after a hot reload.
+export function registerModel<T>(name: string, schema: Schema<T>, collection?: string): Model<T> {
+  const existing = appDb.models[name] as Model<T> | undefined;
+  if (existing && process.env.NODE_ENV === "production") return existing;
+  if (existing) appDb.deleteModel(name);
+  return appDb.model<T>(name, schema, collection);
+}
 
 // A failed connect leaves the client on a closed topology that never reopens by itself.
 // connect() opens a new one in that case and returns at once while connected, so call this before every use.

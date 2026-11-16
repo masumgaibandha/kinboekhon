@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 interface RateLimitDocument {
   key: string;
@@ -18,8 +18,5 @@ const rateLimitSchema = new Schema<RateLimitDocument>(
   { versionKey: false },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.RateLimit) appDb.deleteModel("RateLimit");
-
 // Its own collection, separate from Better Auth's "rateLimit" for the admin login.
-export const RateLimitModel = appDb.model<RateLimitDocument>("RateLimit", rateLimitSchema, "ratelimits");
+export const RateLimitModel = registerModel<RateLimitDocument>("RateLimit", rateLimitSchema, "ratelimits");

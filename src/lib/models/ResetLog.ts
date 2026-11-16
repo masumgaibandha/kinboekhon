@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import type { TestDataCounts } from "@/lib/reset/test-data-labels";
 
 interface ResetLogDocument {
@@ -20,7 +20,4 @@ const resetLogSchema = new Schema<ResetLogDocument>(
   { timestamps: { createdAt: true, updatedAt: false }, versionKey: false },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.ResetLog) appDb.deleteModel("ResetLog");
-
-export const ResetLogModel = appDb.model<ResetLogDocument>("ResetLog", resetLogSchema);
+export const ResetLogModel = registerModel<ResetLogDocument>("ResetLog", resetLogSchema);

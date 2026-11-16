@@ -1,6 +1,6 @@
 import { Schema, type Types } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 export interface AdSpendDocument {
   day: Date;
@@ -25,7 +25,4 @@ const adSpendSchema = new Schema<AdSpendDocument>(
 adSpendSchema.index({ day: 1, productId: 1 }, { unique: true });
 adSpendSchema.index({ day: -1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.AdSpend) appDb.deleteModel("AdSpend");
-
-export const AdSpendModel = appDb.model<AdSpendDocument>("AdSpend", adSpendSchema);
+export const AdSpendModel = registerModel<AdSpendDocument>("AdSpend", adSpendSchema);

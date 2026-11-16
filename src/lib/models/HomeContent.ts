@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { imageSchema } from "@/lib/models/image-schema";
 import type { HomeContentValues } from "@/lib/validation/home-content";
 
@@ -18,7 +18,4 @@ const homeContentSchema = new Schema<HomeContentDocument>(
   { timestamps: true },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.HomeContent) appDb.deleteModel("HomeContent");
-
-export const HomeContentModel = appDb.model<HomeContentDocument>("HomeContent", homeContentSchema);
+export const HomeContentModel = registerModel<HomeContentDocument>("HomeContent", homeContentSchema);

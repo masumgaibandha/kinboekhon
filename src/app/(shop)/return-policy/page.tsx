@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 
 import { PolicyContact } from "@/components/shop/policy/PolicyContact";
 import { PolicyList, PolicyPage, PolicySection, PolicyText } from "@/components/shop/policy/PolicyPage";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "রিটার্ন নীতি",
-  description: "নষ্ট, ভুল বা ত্রুটিপূর্ণ পণ্য পেলে ডেলিভারির 3 দিনের মধ্যে জানান, আমরা বদলে দেব বা টাকা ফেরত দেব।",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ title: "রিটার্ন নীতি", description: "নষ্ট, ভুল বা ত্রুটিপূর্ণ পণ্য পেলে ডেলিভারির 3 দিনের মধ্যে জানান, আমরা বদলে দেব বা টাকা ফেরত দেব।", path: "/return-policy" });
+}
 
 export default function ReturnPolicyPage() {
   return (

@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
-  title: {
-    default: "কিনবো এখন | দরকার যখন, কিনবো এখন",
-    template: "%s | কিনবো এখন",
-  },
-  description: "দরকার যখন, কিনবো এখন। সারা দেশে হোম ডেলিভারি, ক্যাশ অন ডেলিভারি।",
-};
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { SITE_URL } from "@/lib/site";
+
+// Defaults for every page; shop pages set their own title, canonical URL and share image.
+export async function generateMetadata(): Promise<Metadata> {
+  return { metadataBase: new URL(SITE_URL), ...(await pageMetadata({})) };
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

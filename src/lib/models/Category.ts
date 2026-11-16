@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { imageSchema } from "@/lib/models/image-schema";
 import type { CategoryValues } from "@/lib/validation/category";
 
@@ -20,7 +20,4 @@ const categorySchema = new Schema<CategoryDocument>(
 
 categorySchema.index({ sortOrder: 1, createdAt: 1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Category) appDb.deleteModel("Category");
-
-export const CategoryModel = appDb.model<CategoryDocument>("Category", categorySchema);
+export const CategoryModel = registerModel<CategoryDocument>("Category", categorySchema);

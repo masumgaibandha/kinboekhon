@@ -1,2 +1,2 @@
-export const ADMIN_MIN_PASSWORD_LENGTH = 10;
+export const ADMIN_MIN_PASSWORD_LENGTH = 12;
 export const ADMIN_MAX_PASSWORD_LENGTH = 128;

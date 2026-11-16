@@ -1,6 +1,6 @@
 import { Schema, type Types } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 // purchase: stock bought in; shipped: sent to the courier; returned: a parcel came back;
 // damaged: a returned parcel marked damaged after it was put back; adjustment: a manual change with a reason.
@@ -36,7 +36,4 @@ const stockMoveSchema = new Schema<StockMoveDocument>(
 
 stockMoveSchema.index({ productId: 1, createdAt: -1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.StockMove) appDb.deleteModel("StockMove");
-
-export const StockMoveModel = appDb.model<StockMoveDocument>("StockMove", stockMoveSchema);
+export const StockMoveModel = registerModel<StockMoveDocument>("StockMove", stockMoveSchema);

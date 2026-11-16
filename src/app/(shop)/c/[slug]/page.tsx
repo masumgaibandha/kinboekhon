@@ -5,6 +5,7 @@ import { ProductGrid } from "@/components/shop/ProductGrid";
 import { WhatsAppButton } from "@/components/shop/WhatsAppButton";
 import { getCategories, getCategoryBySlug } from "@/lib/categories/shop";
 import { getCategoryProducts } from "@/lib/product-lists";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
 // The page awaits params outside Suspense, so unlisted slugs may block on their first render; the route is still prerendered.
 export const instant = false;
@@ -22,7 +23,12 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/c/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);
-  return { title: category ? category.name : "ক্যাটাগরি পাওয়া যাচ্ছে না" };
+  if (!category) return pageMetadata({ title: "ক্যাটাগরি পাওয়া যাচ্ছে না", noindex: true });
+  return pageMetadata({
+    title: category.name,
+    description: `${category.name}: পছন্দের পণ্য অর্ডার করুন। সারা দেশে হোম ডেলিভারি, ক্যাশ অন ডেলিভারি।`,
+    path: `/c/${category.slug}`,
+  });
 }
 
 export default async function CategoryPage({ params }: PageProps<"/c/[slug]">) {

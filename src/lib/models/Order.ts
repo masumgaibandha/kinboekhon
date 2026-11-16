@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { COURIER_STATES, HISTORY_KINDS, type OrderDocument } from "@/lib/models/order-document";
 import { CALL_OUTCOMES, CAPI_STATUSES, ORDER_STATUSES, PAYMENT_METHODS, PAYMENT_OPTIONS, PAYMENT_STATUSES, RETURN_REASONS } from "@/lib/orders/enums";
 import { CITY_CORPORATIONS } from "@/lib/locations/dhaka";
@@ -155,7 +155,4 @@ orderSchema.index(
   { unique: true, partialFilterExpression: { "payment.transactionIdNormalized": { $type: "string" } } },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Order) appDb.deleteModel("Order");
-
-export const OrderModel = appDb.model<OrderDocument>("Order", orderSchema);
+export const OrderModel = registerModel<OrderDocument>("Order", orderSchema);

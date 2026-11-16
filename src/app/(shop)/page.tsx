@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { ProductGrid } from "@/components/shop/ProductGrid";
 import { WhatsAppButton } from "@/components/shop/WhatsAppButton";
 import { CategoryGrid } from "@/components/shop/home/CategoryGrid";
@@ -10,6 +12,11 @@ import { getActiveBanners } from "@/lib/banners/shop";
 import { getCategories } from "@/lib/categories/shop";
 import { getHomeContent } from "@/lib/home/home-content";
 import { getNewProducts, getPopularProducts } from "@/lib/product-lists";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ path: "/" });
+}
 
 // Without a banner the first product images are the largest on screen, so they load first.
 const EAGER_WITHOUT_BANNER = 2;

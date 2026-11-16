@@ -4,11 +4,11 @@ import { Suspense } from "react";
 import { TrackForm } from "@/components/shop/track/TrackForm";
 import { findTrackPrefill } from "@/lib/orders/order-status";
 import { getSettings } from "@/lib/settings";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "অর্ডার ট্র্যাক করুন",
-  description: "অর্ডার নম্বর ও মোবাইল নম্বর দিয়ে আপনার অর্ডারের অবস্থা দেখুন।",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ title: "অর্ডার ট্র্যাক করুন", description: "অর্ডার নম্বর ও মোবাইল নম্বর দিয়ে আপনার অর্ডারের অবস্থা দেখুন।", path: "/track" });
+}
 
 export default async function TrackPage({ searchParams }: PageProps<"/track">) {
   const { whatsappNumber } = await getSettings();

@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { imageSchema } from "@/lib/models/image-schema";
 import type { BannerValues } from "@/lib/validation/banner";
 
@@ -22,7 +22,4 @@ const bannerSchema = new Schema<BannerDocument>(
 
 bannerSchema.index({ active: 1, sortOrder: 1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Banner) appDb.deleteModel("Banner");
-
-export const BannerModel = appDb.model<BannerDocument>("Banner", bannerSchema);
+export const BannerModel = registerModel<BannerDocument>("Banner", bannerSchema);

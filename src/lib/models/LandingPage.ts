@@ -1,7 +1,7 @@
 import { Schema, type Types } from "mongoose";
 
 import { BENEFIT_ICON_KEYS } from "@/lib/landing/benefit-icons";
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { imageSchema } from "@/lib/models/image-schema";
 import type { LandingValues } from "@/lib/validation/landing";
 
@@ -35,7 +35,4 @@ const landingSchema = new Schema<LandingDocument>(
   { timestamps: true },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.LandingPage) appDb.deleteModel("LandingPage");
-
-export const LandingPageModel = appDb.model<LandingDocument>("LandingPage", landingSchema);
+export const LandingPageModel = registerModel<LandingDocument>("LandingPage", landingSchema);

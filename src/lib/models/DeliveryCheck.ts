@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/fraud/providers/types";
 
 export const CHECK_SOURCES = [...PROVIDER_IDS, "manual"] as const;
@@ -43,7 +43,4 @@ const deliveryCheckSchema = new Schema<DeliveryCheckDocument>(
 
 deliveryCheckSchema.index({ phone: 1, source: 1 }, { unique: true });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.DeliveryCheck) appDb.deleteModel("DeliveryCheck");
-
-export const DeliveryCheckModel = appDb.model<DeliveryCheckDocument>("DeliveryCheck", deliveryCheckSchema);
+export const DeliveryCheckModel = registerModel<DeliveryCheckDocument>("DeliveryCheck", deliveryCheckSchema);

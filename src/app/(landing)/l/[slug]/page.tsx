@@ -13,6 +13,8 @@ import { HelpPopup } from "@/components/shop/help/HelpPopup";
 import { ViewContentPixel } from "@/components/tracking/ViewContentPixel";
 import { getLandingBySlug, getLandingSlugs } from "@/lib/landing/landing-pages";
 import { enabledAccounts } from "@/lib/orders/payment-methods";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { productMetadata } from "@/lib/seo/product-metadata";
 import { getSettings } from "@/lib/settings";
 import { getUpsellProducts } from "@/lib/upsell";
 
@@ -31,8 +33,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/l/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const found = await getLandingBySlug(slug);
-  const title = found ? found.landing.headline || found.product.name : "পণ্যটি পাওয়া যাচ্ছে না";
-  return { title, description: found?.landing.subheadline || undefined, robots: { index: false } };
+  if (!found) return pageMetadata({ title: "পণ্যটি পাওয়া যাচ্ছে না", noindex: true });
+  return productMetadata(found.product, `/l/${slug}`, true);
 }
 
 export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) {

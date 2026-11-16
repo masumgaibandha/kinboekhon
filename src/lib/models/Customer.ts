@@ -1,7 +1,7 @@
 import { Schema } from "mongoose";
 
 import { CUSTOMER_TAGS, type CustomerTag } from "@/lib/customers/tags";
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { RISK_LABELS, type RiskLabel } from "@/lib/fraud/risk";
 
 export interface CustomerNote {
@@ -55,7 +55,4 @@ customerSchema.index({ tags: 1, lastOrderAt: -1 });
 // Phones by risk label, for the orders list filter.
 customerSchema.index({ "risk.label": 1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.Customer) appDb.deleteModel("Customer");
-
-export const CustomerModel = appDb.model<CustomerDocument>("Customer", customerSchema);
+export const CustomerModel = registerModel<CustomerDocument>("Customer", customerSchema);

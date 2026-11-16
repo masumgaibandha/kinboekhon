@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 // The Pathao access token, one per API account (base URL + client id), so sandbox and live never mix. Server only.
 export interface PathaoTokenDocument {
@@ -20,7 +20,4 @@ const pathaoTokenSchema = new Schema<PathaoTokenDocument>(
   { timestamps: true },
 );
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.PathaoToken) appDb.deleteModel("PathaoToken");
-
-export const PathaoTokenModel = appDb.model<PathaoTokenDocument>("PathaoToken", pathaoTokenSchema);
+export const PathaoTokenModel = registerModel<PathaoTokenDocument>("PathaoToken", pathaoTokenSchema);

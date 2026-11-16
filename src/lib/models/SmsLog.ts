@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { SMS_TEMPLATE_KINDS, type SmsTemplateKind } from "@/lib/sms/templates";
 
 export const SMS_STATUSES = ["sending", "sent", "failed", "not_connected", "skipped"] as const;
@@ -41,7 +41,4 @@ smsLogSchema.index({ phone: 1, createdAt: -1 });
 smsLogSchema.index({ orderNumber: 1, createdAt: -1 });
 smsLogSchema.index({ createdAt: -1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.SmsLog) appDb.deleteModel("SmsLog");
-
-export const SmsLogModel = appDb.model<SmsLogDocument>("SmsLog", smsLogSchema);
+export const SmsLogModel = registerModel<SmsLogDocument>("SmsLog", smsLogSchema);

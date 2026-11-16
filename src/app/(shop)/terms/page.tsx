@@ -3,11 +3,11 @@ import Link from "next/link";
 
 import { PolicyContact } from "@/components/shop/policy/PolicyContact";
 import { PolicyList, PolicyPage, PolicySection, PolicyText } from "@/components/shop/policy/PolicyPage";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "শর্তাবলী",
-  description: "কিনবো এখন থেকে অর্ডার, দাম, পেমেন্ট ও ডেলিভারির সহজ নিয়ম।",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ title: "শর্তাবলী", description: "কিনবো এখন থেকে অর্ডার, দাম, পেমেন্ট ও ডেলিভারির সহজ নিয়ম।", path: "/terms" });
+}
 
 export default function TermsPage() {
   return (

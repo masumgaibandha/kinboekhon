@@ -7,9 +7,12 @@ import { Suspense } from "react";
 import { ThankYouDetails } from "@/components/shop/order/ThankYouDetails";
 import { PurchasePixel } from "@/components/tracking/PurchasePixel";
 import { getThankYouOrder } from "@/lib/orders/thank-you";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 import { getSettings } from "@/lib/settings";
 
-export const metadata: Metadata = { title: "অর্ডার গ্রহণ করা হয়েছে", robots: { index: false, follow: false } };
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ title: "অর্ডার গ্রহণ করা হয়েছে", noindex: true });
+}
 
 export default function ThankYouPage({ params }: PageProps<"/thank-you/[publicId]">) {
   return (

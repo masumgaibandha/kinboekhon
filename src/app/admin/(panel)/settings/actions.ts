@@ -50,6 +50,7 @@ function readForm(formData: FormData) {
     duplicateWindowHours: text("duplicateWindowHours"),
     hideOrderWhenOutOfStock: checked("hideOrderWhenOutOfStock"),
     helpPopup: { enabled: checked("helpPopup.enabled"), title: text("helpPopup.title"), text: text("helpPopup.text") },
+    shareImage: text("shareImage"),
     courier: Object.fromEntries(COURIER_SETTING_KEYS.map((key) => [key, text(`courier.${key}`)])),
     costDefaults: readCostFields(formData, "costDefaults", COST_DEFAULT_KEYS),
     ads: { usdRate: text("ads.usdRate"), maxCpa: text("ads.maxCpa") },
@@ -72,7 +73,11 @@ export async function saveSettings(formData: FormData): Promise<SaveSettingsResu
   // Write only what the admin changed, so a stale form never overwrites newer values.
   const initial = readJsonField(formData, INITIAL_VALUES_FIELD);
   if (!initial) return { ok: false, message: "This page is out of date. Reload it and try again.", fieldErrors: {} };
-  const changes = changedFields(parsed.data, initial);
+  const { shareImage, ...values } = parsed.data;
+  const changes = changedFields(values, initial);
+  // The image is written whole: a field path like "shareImage.publicId" cannot be set while it is null.
+  const initialShareImage = "shareImage" in initial ? initial.shareImage : null;
+  if (JSON.stringify(shareImage) !== JSON.stringify(initialShareImage ?? null)) changes.shareImage = shareImage;
   if (Object.keys(changes).length === 0) return { ok: true };
 
   try {

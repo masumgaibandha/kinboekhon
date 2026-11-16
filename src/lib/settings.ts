@@ -60,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
     title: "কিছু জানার আছে?",
     text: "আপনার নম্বর দিন, আমরা কল করে সব বুঝিয়ে বলবো।",
   },
+  shareImage: null,
 };
 
 // Saves write only changed fields, so a saved popup may hold only some of its fields.

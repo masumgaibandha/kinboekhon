@@ -7,10 +7,12 @@ import toast from "react-hot-toast";
 import { saveSettings } from "@/app/admin/(panel)/settings/actions";
 import { CostFields } from "@/components/admin/costs/CostFields";
 import { Section, TextField, Toggle } from "@/components/admin/form/fields";
+import { UPLOADING_FIELD } from "@/components/admin/products/ImageUploader";
 import { BusinessFields } from "@/components/admin/settings/BusinessFields";
 import { CourierFields } from "@/components/admin/settings/CourierFields";
 import { FraudFields } from "@/components/admin/settings/FraudFields";
 import { HelpPopupFields } from "@/components/admin/settings/HelpPopupFields";
+import { ShareImageField } from "@/components/admin/settings/ShareImageField";
 import { WalletFields } from "@/components/admin/settings/WalletFields";
 import { INITIAL_VALUES_FIELD } from "@/lib/changed-fields";
 import type { WalletKey } from "@/lib/settings";
@@ -38,6 +40,7 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    if (formData.has(UPLOADING_FIELD)) return void toast.error("Wait for the image upload to finish.", { id: "settings-error" });
     startTransition(async () => {
       const result = await saveSettings(formData);
       if (result.ok) {
@@ -125,6 +128,8 @@ export function SettingsForm({ settings, saved, reviewWallets }: SettingsFormPro
       </Section>
 
       <HelpPopupFields popup={settings.helpPopup} errors={errors} />
+
+      <ShareImageField image={settings.shareImage} error={errors.shareImage} />
 
       <CourierFields courier={settings.courier} errors={errors} />
 

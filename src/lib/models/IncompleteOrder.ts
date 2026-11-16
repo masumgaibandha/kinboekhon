@@ -1,6 +1,6 @@
 import { Schema, type Types } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 import { PAYMENT_OPTIONS, type PaymentOption } from "@/lib/orders/enums";
 
 // "callback": a number sent from the help popup, asking us to call.
@@ -55,7 +55,4 @@ incompleteOrderSchema.index({ updatedAt: 1 }, { expireAfterSeconds: DRAFT_DAYS *
 // Placing an order removes drafts with the same phone and product.
 incompleteOrderSchema.index({ phone: 1, productId: 1 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.IncompleteOrder) appDb.deleteModel("IncompleteOrder");
-
-export const IncompleteOrderModel = appDb.model<IncompleteOrderDocument>("IncompleteOrder", incompleteOrderSchema);
+export const IncompleteOrderModel = registerModel<IncompleteOrderDocument>("IncompleteOrder", incompleteOrderSchema);

@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 
 import { PolicyContact } from "@/components/shop/policy/PolicyContact";
 import { PolicyList, PolicyPage, PolicySection, PolicyText } from "@/components/shop/policy/PolicyPage";
+import { pageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "প্রাইভেসি পলিসি",
-  description: "আপনার নাম, ফোন ও ঠিকানা আমরা শুধু অর্ডার ডেলিভারির জন্য নিই এবং কখনো বিক্রি করি না।",
-};
+export function generateMetadata(): Promise<Metadata> {
+  return pageMetadata({ title: "প্রাইভেসি পলিসি", description: "আপনার নাম, ফোন ও ঠিকানা আমরা শুধু অর্ডার ডেলিভারির জন্য নিই এবং কখনো বিক্রি করি না।", path: "/privacy" });
+}
 
 export default function PrivacyPage() {
   return (

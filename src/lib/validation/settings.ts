@@ -6,6 +6,7 @@ import { adSettingsSchema } from "@/lib/validation/ad-settings";
 import { costDefaultsSchema } from "@/lib/validation/costs";
 import { courierSettingsSchema } from "@/lib/validation/courier-settings";
 import { fraudSettingsSchema } from "@/lib/validation/fraud-settings";
+import { singleImageField } from "@/lib/validation/image";
 
 const amount = z
   .string()
@@ -88,6 +89,8 @@ export const settingsSchema = z.object({
   hideOrderWhenOutOfStock: z.boolean(),
   // The desktop exit-intent help popup on product and landing pages.
   helpPopup: helpPopupSchema,
+  // Share picture for the home page and other pages without a product image; none uses the logo on orange.
+  shareImage: singleImageField("share"),
 });
 
 // Admin-only form: the shop settings plus the courier rates, price calculator defaults, ad and fraud check settings, which never reach the shop.

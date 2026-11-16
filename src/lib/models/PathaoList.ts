@@ -1,6 +1,6 @@
 import { Schema } from "mongoose";
 
-import { appDb } from "@/lib/db";
+import { registerModel } from "@/lib/db";
 
 export interface PathaoPlace {
   id: number;
@@ -20,7 +20,4 @@ const pathaoListSchema = new Schema<PathaoListDocument>({
   fetchedAt: { type: Date, required: true },
 });
 
-// Replace a model left from an earlier hot reload, so schema changes apply in development.
-if (appDb.models.PathaoList) appDb.deleteModel("PathaoList");
-
-export const PathaoListModel = appDb.model<PathaoListDocument>("PathaoList", pathaoListSchema);
+export const PathaoListModel = registerModel<PathaoListDocument>("PathaoList", pathaoListSchema);
