@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
     "seed:dev-admin": "tsx --env-file=.env.local scripts/seed-dev-admin.ts",
     "dev:clone": "tsx --env-file=.env.local scripts/dev-clone.ts",

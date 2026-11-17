@@ -3,7 +3,7 @@ import type { HistoryStatus } from "@/lib/fraud/delivery-history";
 const TEXT: Record<HistoryStatus, string> = {
   found: "Found",
   no_history: "No history",
-  error: "Error",
+  error: "ফ্রড চেক করা যায়নি",
   not_connected: "Not connected",
   not_checked: "Not checked",
   manual: "Entered",

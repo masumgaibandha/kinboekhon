@@ -3,6 +3,7 @@ const ERRORS: Record<string, string> = {
   timeout: "Timed out",
   network: "Could not reach the courier",
   bad_response: "Unexpected answer from the courier",
+  endpoint_retired: "Steadfast retired this check",
 };
 
 // A provider failure code as short English text.

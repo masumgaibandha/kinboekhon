@@ -12,6 +12,8 @@ import { OrderModel } from "@/lib/models/Order";
 import { ORDER_NOT_FOUND } from "@/lib/orders/change-status";
 import { deliveryCheckSchema, manualHistorySchema } from "@/lib/validation/delivery-history";
 
+const CHECK_FAILED = "ফ্রড চেক করা যায়নি. Try again later.";
+
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "");
 
 // The phone is always read from the order, never taken from the form.
@@ -22,7 +24,7 @@ async function orderPhone(orderNumber: string): Promise<string | null> {
 }
 
 function checkMessage({ checked, cached, failed }: { checked: number; cached: number; failed: number }): AdminActionResult {
-  if (failed > 0 && checked === 0 && cached === 0) return adminFail("The check failed. Try again later.");
+  if (failed > 0 && checked === 0 && cached === 0) return adminFail(CHECK_FAILED);
   if (checked > 0) return { ok: true, message: failed > 0 ? "Checked, but one source failed." : "Delivery history checked." };
   return { ok: true, message: "Already checked in the last 24 hours. Showing the saved result." };
 }
@@ -39,7 +41,7 @@ export async function checkDeliveryHistory(formData: FormData): Promise<AdminAct
     revalidatePath("/admin", "layout");
     return result;
   } catch {
-    return adminFail("The check failed. Try again later.");
+    return adminFail(CHECK_FAILED);
   }
 }
 
