@@ -31,11 +31,6 @@ export interface HistoryCounts {
   failed: number;
 }
 
-export function failPercent({ delivered, failed }: HistoryCounts): number {
-  const total = delivered + failed;
-  return total === 0 ? 0 : Math.round((failed / total) * 100);
-}
-
 export function riskLabel(counts: HistoryCounts, settings: FraudSettings): RiskLabel {
   const total = counts.delivered + counts.failed;
   if (total === 0) return "unknown";

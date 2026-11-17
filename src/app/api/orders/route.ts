@@ -1,5 +1,6 @@
 import { after, type NextRequest } from "next/server";
 
+import { queuePhoneHistoryCheck } from "@/lib/fraud/run-check";
 import { adTracking } from "@/lib/meta/ad-tracking";
 import { sendPurchaseEvent } from "@/lib/meta/purchase";
 import { createOrder } from "@/lib/orders/create-order";
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
     // A failed Purchase event is recorded on the order and never reaches the customer.
     after(() => sendPurchaseEvent(result.publicId).catch(() => {}));
     queueOrderSms(result.orderNumber, "received");
+    queuePhoneHistoryCheck(parsed.data.phone);
     return reply({ publicId: result.publicId }, 201);
   } catch {
     return reply({ message: TRY_AGAIN }, 500);

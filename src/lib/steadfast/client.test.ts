@@ -33,6 +33,8 @@ const WRITES: [string, string][] = [
   ["POST", "/create_return_request"],
   ["POST", "/create_pickup_request"],
   ["POST", "/fraud_check/01712345678"],
+  ["POST", "/fraud_check/score/01712345678"],
+  ["GET", "/fraud_check/score/../../create_order"],
   ["GET", "/get_balance/../create_order"],
 ];
 
@@ -51,12 +53,14 @@ for (const nodeEnv of ["development", "test"]) {
     assert.deepEqual(fetchCalls, []);
   });
 
-  test(`${nodeEnv}: fraud_check and get_balance are allowed`, async () => {
+  test(`${nodeEnv}: fraud_check, fraud_check/score and get_balance are allowed`, async () => {
     env.NODE_ENV = nodeEnv;
     await steadfastRequest("GET", "/fraud_check/01712345678");
+    await steadfastRequest("GET", "/fraud_check/score/01712345678");
     await steadfastRequest("GET", "/get_balance");
     assert.deepEqual(fetchCalls, [
       "https://portal.packzy.com/api/v1/fraud_check/01712345678",
+      "https://portal.packzy.com/api/v1/fraud_check/score/01712345678",
       "https://portal.packzy.com/api/v1/get_balance",
     ]);
   });

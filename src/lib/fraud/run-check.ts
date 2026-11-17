@@ -1,3 +1,5 @@
+import { after } from "next/server";
+
 import { connectMongoose } from "@/lib/db";
 import { refreshCustomerRisk } from "@/lib/fraud/customer-risk";
 import { FRAUD_PROVIDERS } from "@/lib/fraud/providers";
@@ -26,11 +28,11 @@ async function runProvider(provider: FraudProvider, phone: string, now: Date): P
   if (isFresh(saved, now)) return "cached";
 
   const result = await provider.check(phone);
-  // A failure keeps the counts of the last good lookup.
+  // A failure keeps the score of the last good lookup.
   const update =
     result.status === "error"
       ? { status: "error", error: result.error, errorAt: now }
-      : { status: result.status, delivered: result.delivered, failed: result.failed, total: result.total, checkedAt: now, error: "", errorAt: null };
+      : { status: result.status, courierScore: result.score, checkedAt: now, error: "", errorAt: null };
   await DeliveryCheckModel.updateOne({ phone, source: provider.id }, { $set: update }, { upsert: true });
   return result.status === "error" ? "failed" : "checked";
 }
@@ -46,4 +48,9 @@ export async function checkPhoneHistory(phone: string): Promise<CheckRunSummary>
     cached: outcomes.filter((outcome) => outcome === "cached").length,
     failed: outcomes.filter((outcome) => outcome === "failed").length,
   };
+}
+
+// Runs after a new order is saved, so a slow or failed courier never holds up or fails the order.
+export function queuePhoneHistoryCheck(phone: string): void {
+  after(() => checkPhoneHistory(phone).catch(() => {}));
 }

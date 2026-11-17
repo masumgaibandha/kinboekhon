@@ -9,11 +9,9 @@ export interface CustomerNote {
   at: Date;
 }
 
-// Courier delivery history summed over every source, with its label from the Settings thresholds.
+// The phone's combined risk label over every delivery history source.
 export interface CustomerRisk {
   label: RiskLabel;
-  delivered: number;
-  failed: number;
   at: Date;
 }
 
@@ -41,7 +39,7 @@ const customerSchema = new Schema<CustomerDocument>(
     notes: { type: [{ _id: false, text: { type: String, required: true }, at: { type: Date, required: true } }], default: [] },
     risk: {
       type: new Schema(
-        { label: { type: String, enum: RISK_LABELS }, delivered: Number, failed: Number, at: Date },
+        { label: { type: String, enum: RISK_LABELS }, at: Date },
         { _id: false },
       ),
       default: undefined,

@@ -1,5 +1,6 @@
 import { HistoryStatusBadge } from "@/components/admin/fraud/HistoryStatusBadge";
 import { errorText } from "@/components/admin/fraud/error-text";
+import { scoreSummary } from "@/components/admin/fraud/score-summary";
 import { formatDhakaDateTime } from "@/lib/dates";
 import type { HistoryRow } from "@/lib/fraud/delivery-history";
 
@@ -27,9 +28,17 @@ export function HistoryRows({ rows }: { rows: HistoryRow[] }) {
                 {row.pathaoRating && <span className="block text-xs font-normal text-desc">Pathao rating: {row.pathaoRating}</span>}
                 {row.note && <span className="block text-xs font-normal text-desc">{row.note}</span>}
               </td>
-              <td className="py-2 pr-3 text-body">{show(row.delivered)}</td>
-              <td className="py-2 pr-3 text-body">{show(row.failed)}</td>
-              <td className="py-2 pr-3 text-body">{show(row.total)}</td>
+              {row.courierScore ? (
+                <td colSpan={3} className="py-2 pr-3 text-body">
+                  {scoreSummary(row.courierScore)}
+                </td>
+              ) : (
+                <>
+                  <td className="py-2 pr-3 text-body">{show(row.delivered)}</td>
+                  <td className="py-2 pr-3 text-body">{show(row.failed)}</td>
+                  <td className="py-2 pr-3 text-body">{show(row.total)}</td>
+                </>
+              )}
               <td className="whitespace-nowrap py-2 pr-3 text-desc">{row.checkedAt ? formatDhakaDateTime(row.checkedAt) : "-"}</td>
               <td className="py-2">
                 <HistoryStatusBadge status={row.status} />

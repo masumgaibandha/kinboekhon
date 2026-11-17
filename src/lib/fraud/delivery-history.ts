@@ -1,8 +1,9 @@
 import { connectMongoose } from "@/lib/db";
-import { sumCounts } from "@/lib/fraud/customer-risk";
+import { combinedRisk } from "@/lib/fraud/combined-risk";
 import { getFraudSettings } from "@/lib/fraud/fraud-settings";
 import { FRAUD_PROVIDERS } from "@/lib/fraud/providers";
-import { riskLabel, type HistoryCounts, type RiskLabel } from "@/lib/fraud/risk";
+import type { CourierScore } from "@/lib/fraud/providers/types";
+import type { RiskLabel } from "@/lib/fraud/risk";
 import { CHECK_CACHE_MS } from "@/lib/fraud/run-check";
 import { DeliveryCheckModel, type CheckSource, type DeliveryCheckDocument } from "@/lib/models/DeliveryCheck";
 
@@ -15,6 +16,7 @@ export interface HistoryRow {
   delivered: number | null;
   failed: number | null;
   total: number | null;
+  courierScore: CourierScore | null;
   checkedAt: Date | null;
   error: string;
   errorAt: Date | null;
@@ -24,8 +26,7 @@ export interface HistoryRow {
 
 export interface DeliveryHistory {
   rows: HistoryRow[];
-  counts: HistoryCounts | null;
-  // Null until some source has counts.
+  // Null until some source has counts or a score.
   risk: RiskLabel | null;
   anyConnected: boolean;
   // When the newest good lookup can be run again.
@@ -42,6 +43,7 @@ function rowOf(source: CheckSource, label: string, status: HistoryStatus, saved:
     delivered: saved?.delivered ?? null,
     failed: saved?.failed ?? null,
     total: saved?.total ?? null,
+    courierScore: saved?.courierScore ?? null,
     checkedAt: saved?.checkedAt ?? null,
     error: saved?.error ?? "",
     errorAt: saved?.errorAt ?? null,
@@ -67,14 +69,12 @@ export async function getDeliveryHistory(phone: string): Promise<DeliveryHistory
   const manual = bySource.get("manual");
   if (manual) rows.push(rowOf("manual", "Manual entry", "manual", manual));
 
-  const counts = sumCounts(saved);
   const lastGood = saved
     .filter((row) => row.source !== "manual" && row.checkedAt)
     .reduce<number | null>((latest, row) => Math.max(latest ?? 0, row.checkedAt?.getTime() ?? 0), null);
   return {
     rows,
-    counts,
-    risk: counts ? riskLabel(counts, settings) : null,
+    risk: combinedRisk(saved, settings),
     anyConnected: FRAUD_PROVIDERS.some((provider) => provider.connected()),
     nextCheckAt: lastGood ? new Date(lastGood + CHECK_CACHE_MS) : null,
   };

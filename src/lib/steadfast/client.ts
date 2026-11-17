@@ -3,11 +3,11 @@ const BASE_URL = "https://portal.packzy.com/api/v1";
 const TIMEOUT_MS = 5000;
 
 // The only calls allowed outside production. Each is a GET that never changes the Steadfast account.
-const READ_ONLY_PATHS = [/^\/fraud_check\/\d+$/,/^\/get_balance$/];
+const READ_ONLY_PATHS = [/^\/fraud_check\/\d+$/, /^\/fraud_check\/score\/\d+$/, /^\/get_balance$/];
 
 export class SteadfastBlockedError extends Error {
   constructor(method: string, path: string) {
-    super(`Steadfast ${method} ${path} is blocked: outside production only fraud_check and get_balance may be called.`);
+    super(`Steadfast ${method} ${path} is blocked: outside production only fraud_check, fraud_check/score and get_balance may be called.`);
     this.name = "SteadfastBlockedError";
   }
 }
