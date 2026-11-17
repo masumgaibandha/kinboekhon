@@ -52,6 +52,8 @@ export const productSchema = z
       .transform(Number)
       .refine((price) => price > 0, "Price must be more than 0."),
     shortDescription: text(300),
+    // Full description: "## " heading, "- " bullet, any other line a paragraph.
+    description: text(5000),
     sortOrder: z
       .string()
       .trim()

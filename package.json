@@ -13,7 +13,8 @@
     "dev:clone": "tsx --env-file=.env.local scripts/dev-clone.ts",
     "backfill:customers": "tsx --env-file=.env.local scripts/backfill-customers.ts",
     "demo:seed": "tsx --env-file=.env.local scripts/demo-seed.ts",
-    "demo:clear": "tsx --env-file=.env.local scripts/demo-clear.ts"
+    "demo:clear": "tsx --env-file=.env.local scripts/demo-clear.ts",
+    "products:import": "tsx --env-file=.env.local scripts/import-products.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.20",

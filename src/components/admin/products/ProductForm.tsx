@@ -105,6 +105,14 @@ export function ProductForm({ productId, product, categories, upsellOptions, cos
           error={errors.shortDescription}
           rows={2}
         />
+        <TextArea
+          name="description"
+          label="Full description"
+          defaultValue={product.description}
+          error={errors.description}
+          hint='Start a line with "## " for a heading or "- " for a bullet. Other lines are paragraphs.'
+          rows={12}
+        />
         <TextField
           name="sortOrder"
           label="Sort order"

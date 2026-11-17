@@ -23,6 +23,7 @@ const productSchema = new Schema<ProductDocument>(
     slug: { type: String, required: true, unique: true },
     price: { type: Number, required: true, min: 0 },
     shortDescription: String,
+    description: String,
     images: [imageSchema],
     hook: { headline: String, subheadline: String },
     problem: { title: String, points: [String] },

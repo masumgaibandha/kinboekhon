@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { StickyOrderBar } from "@/components/shop/StickyOrderBar";
 import { CtaSection } from "@/components/shop/landing/CtaSection";
+import { DescriptionSection } from "@/components/shop/landing/DescriptionSection";
 import { HookSection } from "@/components/shop/landing/HookSection";
 import { OrderButton } from "@/components/shop/landing/OrderButton";
 import { ProblemSection } from "@/components/shop/landing/ProblemSection";
@@ -52,6 +53,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
     <div className="mx-auto w-full max-w-xl lg:max-w-shop lg:px-4 lg:pt-6">
       <ProductJsonLd product={product} soldOut={soldOut} />
       <HookSection product={product} soldOut={soldOut} />
+      <DescriptionSection description={product.description} />
       <ProblemSection problem={product.problem} />
       <StorySection story={product.story} />
       <SolutionSection solution={product.solution} name={product.name} />

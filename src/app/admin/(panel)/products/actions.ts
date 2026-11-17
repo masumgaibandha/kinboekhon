@@ -30,6 +30,7 @@ function readForm(formData: FormData) {
     slug: text("slug"),
     price: text("price"),
     shortDescription: text("shortDescription"),
+    description: text("description"),
     sortOrder: text("sortOrder"),
     active: formData.get("active") === "on",
     categoryId: text("categoryId"),
