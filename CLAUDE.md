@@ -64,6 +64,7 @@ Use these exactly. They are defined once as Tailwind theme tokens in `src/app/gl
 | `line` | #EEEEEE | Card borders |
 | `line-strong` | #D6D6D6 | Input borders, dividers |
 | `footer` | #2B2B2B | Footer background |
+| `success` | #15803D | Small saving notes (order form payment discount) |
 
 - Font: no web font. Shop and admin use the system font stack set as `--font-sans` in `globals.css`: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", "Kohinoor Bangla", "Nirmala UI", sans-serif.
 - Logos: use the files from `logos/` (copied into `public/brand/`). Do not redraw or recolor the logo.

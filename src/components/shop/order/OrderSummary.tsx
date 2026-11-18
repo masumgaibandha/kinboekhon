@@ -39,7 +39,7 @@ export function OrderSummary({ lines, amounts, option, dhakaCity, charges }: Ord
   const area = dhakaCity === null ? "" : dhakaCity ? " (ঢাকা সিটি)" : " (ঢাকা সিটির বাইরে)";
 
   return (
-    <dl className="space-y-1.5 border-t border-dashed border-line-strong pt-3 text-[15px] text-desc">
+    <dl className="space-y-2 text-[15px] text-desc">
       {lines.map((line, index) => (
         <Row
           key={index}
@@ -66,10 +66,10 @@ export function OrderSummary({ lines, amounts, option, dhakaCity, charges }: Ord
           -<Money amount={amounts.discount} />
         </Row>
       )}
-      <Row label="মোট" className="text-lg font-bold text-body">
+      <Row label="মোট" className="items-baseline border-t border-line pt-3 text-xl font-bold text-heading">
         <Money amount={amounts.total} bold />
       </Row>
-      <div className="mt-2 space-y-1.5 rounded-md bg-brand-light px-3 py-2 font-semibold text-body">
+      <div className="mt-3 space-y-1.5 rounded-xl bg-brand-light px-4 py-3 text-sm font-semibold text-body">
         <Row label="এখন অগ্রিম পাঠাবেন">
           <Money amount={amounts.advanceAmount} />
         </Row>

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { OrderField, fieldClass } from "@/components/shop/order/OrderField";
+import { StepField, selectClass } from "@/components/shop/order/StepField";
 
 interface SelectProps {
   id: string;
@@ -8,16 +8,14 @@ interface SelectProps {
   label: string;
   value: string;
   error?: string;
-  // A help line under the list.
-  hint?: string;
   disabled: boolean;
   onChange: (value: string) => void;
   children: ReactNode;
 }
 
-export function LocationSelect({ id, name, label, value, error, hint, disabled, onChange, children }: SelectProps) {
+export function LocationSelect({ id, name, label, value, error, disabled, onChange, children }: SelectProps) {
   return (
-    <OrderField id={id} label={label} error={error}>
+    <StepField id={id} label={label} error={error}>
       <select
         id={id}
         name={name}
@@ -25,16 +23,11 @@ export function LocationSelect({ id, name, label, value, error, hint, disabled, 
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
-        aria-describedby={[error && `${id}-error`, hint && `${id}-hint`].filter(Boolean).join(" ") || undefined}
-        className={`${fieldClass} disabled:bg-page disabled:text-muted`}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={selectClass}
       >
         {children}
       </select>
-      {hint && (
-        <p id={`${id}-hint`} className="mt-1.5 text-sm leading-relaxed text-desc">
-          {hint}
-        </p>
-      )}
-    </OrderField>
+    </StepField>
   );
 }

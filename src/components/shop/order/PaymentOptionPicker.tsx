@@ -77,7 +77,7 @@ export function PaymentOptionPicker({ value, onChange, amounts, offered, labelCl
   return (
     <div ref={box} className="relative">
       <span id={`${id}-label`} className={labelClass}>
-        পেমেন্ট
+        কীভাবে টাকা দেবেন
       </span>
       <button
         type="button"
@@ -85,8 +85,8 @@ export function PaymentOptionPicker({ value, onChange, amounts, offered, labelCl
         aria-expanded={open}
         aria-labelledby={`${id}-label ${id}-value`}
         onClick={() => setOpen(!open)}
-        className={`flex w-full items-center gap-3 rounded-md border bg-card p-3 text-left ${
-          open ? "border-brand" : "border-line-strong"
+        className={`flex min-h-12 w-full items-center gap-3 rounded-xl border border-brand bg-card px-4 py-2.5 text-left outline-none transition-shadow focus-visible:ring-3 focus-visible:ring-brand/25 ${
+          open ? "ring-3 ring-brand/25" : ""
         }`}
       >
         <span id={`${id}-value`} className="flex flex-1 items-center justify-between gap-3">
@@ -102,7 +102,7 @@ export function PaymentOptionPicker({ value, onChange, amounts, offered, labelCl
         <div
           role="listbox"
           aria-labelledby={`${id}-label`}
-          className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-line-strong bg-card shadow-lg"
+          className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-line-strong bg-card shadow-lg"
         >
           {options.map((option) => (
             <button
@@ -111,7 +111,7 @@ export function PaymentOptionPicker({ value, onChange, amounts, offered, labelCl
               role="option"
               aria-selected={value === option}
               onClick={() => choose(option)}
-              className={`flex w-full items-center gap-3 border-b border-line p-3 text-left last:border-b-0 ${
+              className={`flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left last:border-b-0 ${
                 value === option ? "bg-brand-light" : ""
               }`}
             >

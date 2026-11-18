@@ -59,7 +59,7 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
   const desktop = useDesktop();
 
   return (
-    <div ref={ref} className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0">
+    <div ref={ref} className="grid gap-4 lg:grid-cols-3 lg:gap-3">
       <Select
         id="order-division"
         name="divisionId"
@@ -92,7 +92,6 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         label="উপজেলা / থানা"
         value={value.upazilaId}
         error={errors.upazilaId}
-        hint={group?.kind === "city_corporation" ? CITY_CORPORATION_HINT : undefined}
         disabled={!district}
         onChange={(upazilaId) => onChange({ ...value, upazilaId })}
       >
@@ -102,6 +101,13 @@ export function LocationPicker({ value, onChange, errors }: LocationPickerProps)
         {group && <optgroup label={groupLabel}>{options(group.places)}</optgroup>}
         {district && (group ? <optgroup label="উপজেলা">{options(district.upazilas)}</optgroup> : options(district.upazilas))}
       </Select>
+
+      {group?.kind === "city_corporation" && (
+        <details className="text-sm text-desc lg:col-span-3">
+          <summary className="w-fit font-medium text-brand-dark">ঢাকা সিটির এলাকা দেখুন</summary>
+          <p className="mt-2 rounded-xl bg-page px-4 py-3 leading-relaxed">{CITY_CORPORATION_HINT}</p>
+        </details>
+      )}
 
       {failed && (
         <p role="alert" className="text-sm font-medium text-brand-dark lg:col-span-3">

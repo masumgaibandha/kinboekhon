@@ -1,4 +1,4 @@
-import { labelClass } from "@/components/shop/order/OrderField";
+import { cardClass } from "@/components/shop/order/OrderStep";
 import { QuantityStepper } from "@/components/shop/order/QuantityStepper";
 import { CloudinaryImage } from "@/components/ui/CloudinaryImage";
 import { Money } from "@/components/ui/Money";
@@ -16,24 +16,26 @@ export function UpsellPicker({ products, added, onChange }: UpsellPickerProps) {
   if (products.length === 0) return null;
 
   return (
-    <div>
-      <p className={labelClass}>এটাও নিন</p>
+    <section aria-labelledby="order-upsell" className={cardClass}>
+      <h3 id="order-upsell" className="mb-3 text-[17px] font-bold text-heading">
+        এটাও নিন
+      </h3>
       <ul className="space-y-2">
         {products.map((product) => {
           const quantity = added[product.id] ?? 0;
           return (
             <li
               key={product.id}
-              className={`flex items-center gap-3 rounded-md border p-2 ${quantity > 0 ? "border-brand bg-brand-light" : "border-line-strong bg-card"}`}
+              className={`flex items-center gap-3 rounded-xl border p-2 ${quantity > 0 ? "border-brand bg-brand-light" : "border-line bg-card"}`}
             >
-              <div className="relative size-14 shrink-0 overflow-hidden rounded bg-page">
+              <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-page">
                 {product.image && (
-                  <CloudinaryImage publicId={product.image.publicId} alt={product.name} fill sizes="56px" className="object-cover" />
+                  <CloudinaryImage publicId={product.image.publicId} alt={product.name} fill sizes="48px" className="object-cover" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 text-sm font-semibold leading-snug text-heading">{product.name}</p>
-                <p className="mt-0.5 text-[15px] font-bold text-brand">
+                <p className="mt-0.5 text-sm font-bold text-brand">
                   <Money amount={product.price} bold />
                 </p>
               </div>
@@ -44,7 +46,7 @@ export function UpsellPicker({ products, added, onChange }: UpsellPickerProps) {
                   type="button"
                   onClick={() => onChange(product.id, 1)}
                   aria-label={`${product.name} যোগ করুন`}
-                  className="shrink-0 rounded-md border border-brand bg-card px-3 py-2 text-sm font-bold text-brand transition-colors hover:bg-brand-light"
+                  className="h-9 shrink-0 rounded-lg border border-brand bg-card px-3 text-sm font-bold text-brand transition-colors hover:bg-brand-light"
                 >
                   + যোগ করুন
                 </button>
@@ -53,6 +55,6 @@ export function UpsellPicker({ products, added, onChange }: UpsellPickerProps) {
           );
         })}
       </ul>
-    </div>
+    </section>
   );
 }
