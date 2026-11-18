@@ -14,7 +14,7 @@ function Portrait() {
   }
   return (
     <div className={frame}>
-      <Image src={CURATOR.photo} alt={CURATOR.name} width={288} height={288} unoptimized className="size-full object-cover" />
+      <Image src={CURATOR.photo} alt={CURATOR.name} width={400} height={400} unoptimized className="size-full object-cover" />
     </div>
   );
 }
