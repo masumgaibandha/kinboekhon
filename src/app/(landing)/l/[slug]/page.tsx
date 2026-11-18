@@ -6,6 +6,7 @@ import { StickyOrderBar } from "@/components/shop/StickyOrderBar";
 import { AdHero } from "@/components/shop/ad-landing/AdHero";
 import { FaqBlock, GuaranteeBlock, InBoxBlock, SpecsBlock, StepsBlock } from "@/components/shop/ad-landing/AdInfoSections";
 import { BenefitsBlock, GalleryBlock, ProblemBlock, SolutionBlock } from "@/components/shop/ad-landing/AdStorySections";
+import { CuratorCard } from "@/components/shop/landing/CuratorCard";
 import { LandingSection } from "@/components/shop/landing/LandingSection";
 import { OrderForm } from "@/components/shop/order/OrderForm";
 import { SoldOutSection } from "@/components/shop/order/SoldOutSection";
@@ -59,6 +60,7 @@ export default async function AdLandingPage({ params }: PageProps<"/l/[slug]">) 
         <SpecsBlock specs={landing.specs} />
         <GuaranteeBlock text={landing.guarantee} />
         <FaqBlock faq={landing.faq} />
+        <CuratorCard />
       </div>
       <div className={`lg:mx-auto ${soldOut ? "lg:max-w-form" : "lg:max-w-checkout"}`}>
         {/* From 1024px the order summary card shows the name and price instead. */}

@@ -110,7 +110,7 @@ export function ProductForm({ productId, product, categories, upsellOptions, cos
           label="Full description"
           defaultValue={product.description}
           error={errors.description}
-          hint='Start a line with "## " for a heading or "- " for a bullet. Other lines are paragraphs.'
+          hint='Start a line with "## " for a heading or "- " for a bullet. Other lines are paragraphs. Wrap words in ** for bold: **like this**.'
           rows={12}
         />
         <TextField

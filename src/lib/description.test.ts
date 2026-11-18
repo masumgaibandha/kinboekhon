@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseDescription } from "@/lib/description";
+import { parseDescription, splitBold } from "@/lib/description";
 
 test("headings, bullets and paragraphs", () => {
   const text = "## শিরোনাম\r\nপ্রথম লাইন।\n\n- এক\n-  দুই \n\nশেষ লাইন।";
@@ -34,4 +34,18 @@ test("empty text gives no blocks, and a bare dash or hashes stay paragraphs", ()
     { kind: "paragraph", text: "-5 টাকা" },
     { kind: "paragraph", text: "##নাম" },
   ]);
+});
+
+test("inline **text** is bold", () => {
+  assert.deepEqual(splitBold("**মনোযোগ:** শিশু শেখে, **আর** খেলে"), [
+    { text: "মনোযোগ:", bold: true },
+    { text: " শিশু শেখে, ", bold: false },
+    { text: "আর", bold: true },
+    { text: " খেলে", bold: false },
+  ]);
+});
+
+test("text without a closed pair stays plain", () => {
+  assert.deepEqual(splitBold("৩ ** ৪"), [{ text: "৩ ** ৪", bold: false }]);
+  assert.deepEqual(splitBold("****"), [{ text: "****", bold: false }]);
 });

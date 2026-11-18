@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { StickyOrderBar } from "@/components/shop/StickyOrderBar";
 import { CtaSection } from "@/components/shop/landing/CtaSection";
+import { CuratorCard } from "@/components/shop/landing/CuratorCard";
 import { DescriptionSection } from "@/components/shop/landing/DescriptionSection";
 import { HookSection } from "@/components/shop/landing/HookSection";
 import { OrderButton } from "@/components/shop/landing/OrderButton";
@@ -54,6 +55,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
       <ProductJsonLd product={product} soldOut={soldOut} />
       <HookSection product={product} soldOut={soldOut} />
       <DescriptionSection description={product.description} />
+      <CuratorCard />
       <ProblemSection problem={product.problem} />
       <StorySection story={product.story} />
       <SolutionSection solution={product.solution} name={product.name} />
