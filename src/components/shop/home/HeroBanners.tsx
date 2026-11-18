@@ -4,7 +4,7 @@ import { HeroSlider, type HeroSlide } from "@/components/shop/home/HeroSlider";
 import type { ShopBanner } from "@/lib/banners/shop";
 import { cloudinaryLoader } from "@/lib/cloudinary/image-url";
 
-const SIZES = "(min-width: 1024px) 992px, 100vw";
+const SIZES = "(min-width: 1200px) 1168px, 100vw";
 
 // Builds a mobile and a desktop source for each banner; the browser loads only the one it shows.
 function toSlide(banner: ShopBanner, first: boolean): HeroSlide {

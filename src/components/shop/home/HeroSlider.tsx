@@ -79,7 +79,7 @@ export function HeroSlider({ slides, sizes }: { slides: HeroSlide[]; sizes: stri
             role="group"
             aria-roledescription="slide"
             aria-label={`${index + 1} / ${slides.length}`}
-            className="aspect-[2/1] w-full shrink-0 snap-center md:aspect-[16/5]"
+            className="aspect-[32/15] w-full shrink-0 snap-center"
           >
             <SlideLink link={slide.link} title={slide.title}>
               <picture>

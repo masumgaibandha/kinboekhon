@@ -64,18 +64,18 @@ export function BannerForm({ banner, id }: BannerFormProps) {
           label="Mobile image"
           kind="banners"
           image={banner.mobileImage}
-          hint="1200 x 600 px (2:1). Shown on phones."
+          hint="1536 x 720 px (32:15). Shown on phones below 768 px."
           error={errors.mobileImage}
-          aspect="aspect-[2/1]"
+          aspect="aspect-[32/15]"
         />
         <SingleImageField
           name="desktopImage"
           label="Desktop image"
           kind="banners"
           image={banner.desktopImage}
-          hint="1920 x 600 px (16:5). Shown from 768 px wide screens."
+          hint="1536 x 720 px (32:15). Shown from 768 px wide screens."
           error={errors.desktopImage}
-          aspect="aspect-[16/5]"
+          aspect="aspect-[32/15]"
         />
       </Section>
       <SaveBar pending={pending} label={id ? "Save banner" : "Create banner"} />
