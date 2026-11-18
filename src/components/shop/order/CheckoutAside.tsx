@@ -10,7 +10,7 @@ interface CheckoutAsideProps {
 // From 1024px the sticky summary card on the right. Below that it adds no box, so the order button can be the form's last item.
 export function CheckoutAside({ product, summary, children }: CheckoutAsideProps) {
   return (
-    <aside className="contents lg:sticky lg:top-20 lg:block lg:space-y-4 lg:rounded-2xl lg:border lg:border-line lg:bg-card lg:p-6 lg:shadow-sm">
+    <aside className="contents lg:sticky lg:top-20 lg:block lg:w-full lg:max-w-103 lg:justify-self-end lg:space-y-4 lg:rounded-2xl lg:border lg:border-line lg:bg-card lg:p-6 lg:shadow-sm">
       <div className="hidden space-y-4 lg:block">
         <h3 className="text-[17px] font-bold text-heading">অর্ডারের সারাংশ</h3>
         {product}

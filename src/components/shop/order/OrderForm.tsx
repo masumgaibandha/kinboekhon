@@ -90,7 +90,7 @@ export function OrderForm({ productId, name, image, price, pricing, accounts, up
   );
 
   return (
-    <section id="order" aria-labelledby="order-title" className="mt-2.5 scroll-mt-14 px-3 pt-5 lg:mt-6 lg:scroll-mt-20 lg:px-0 lg:pt-2">
+    <section id="order" aria-labelledby="order-title" className="mt-2.5 scroll-mt-14 px-3 pt-5 lg:mt-4 lg:scroll-mt-20 lg:rounded-lg lg:bg-card lg:px-8 lg:py-7">
       <h2 id="order-title" className="mb-4 text-[22px] font-bold leading-snug text-heading lg:mb-5">
         অর্ডার করতে ফর্মটি পূরণ করুন
       </h2>
@@ -105,8 +105,8 @@ export function OrderForm({ productId, name, image, price, pricing, accounts, up
         noValidate
         className="flex flex-col gap-4 lg:grid lg:grid-cols-[3fr_2fr] lg:items-start lg:gap-6"
       >
-        {/* Phone: one column, product first and the order button as a bar at the bottom. From 1024px: steps left, summary right. */}
-        <div className="space-y-4 [&_:is(input,select,textarea)]:scroll-mb-28 lg:[&_:is(input,select,textarea)]:scroll-mb-0">
+        {/* Phone: one column, product first and the order button as a bar at the bottom. From 1024px: steps left, summary right, about 60/40; on wide screens the columns stop growing and the gap between them takes the extra space. */}
+        <div className="space-y-4 [&_:is(input,select,textarea)]:scroll-mb-28 lg:max-w-155 lg:[&_:is(input,select,textarea)]:scroll-mb-0">
           <div className={`${cardClass} lg:hidden`}>{product}</div>
 
           <OrderStep number={1} title="আপনার তথ্য" icon={<UserIcon />}>
